@@ -1,0 +1,369 @@
+#!/bin/sh
+# 通过 shell 探测 Expect；Tcl 会把下一行视为本注释的续行。 \
+command -v expect >/dev/null 2>&1 || { echo "foxful tui smoke: expect not found; use templates/tui_harness_test.go" >&2; exit 69; }; exec expect "$0" "$@"
+
+proc usage {} {
+    puts stderr {Usage:
+  tui-smoke.exp [options/actions] -- command [args...]
+
+Options:
+  --cols N                 PTY columns (default 120)
+  --rows N                 PTY rows (default 30)
+  --timeout SEC            startup/ready timeout (default 20)
+  --ready REGEX            wait for raw output before actions
+  --step-ms MS             delay after each input action (default 150)
+  --settle-ms MS           final assertion window delay (default 500)
+  --log-dir PATH           output directory (default system temp)
+  --expect REGEX           required normalized post-action pattern; repeatable
+  --reject REGEX           forbidden normalized post-action pattern; repeatable
+
+Semantic actions (executed in argument order):
+  --key NAME               up/down/left/right/enter/esc/tab/home/end/pgup/pgdown/ctrl-c or one character
+  --text TEXT              send text verbatim
+  --click BUTTON:X:Y       left/middle/right; SGR coordinates are 1-based
+  --wheel DIR:X:Y          up/down/left/right; SGR coordinates are 1-based
+  --wait MS                explicit delay
+
+Example:
+  tui-smoke.exp --ready 'Title 1' --click right:10:10 --key j \
+    --expect 'Play Next' --expect '█' -- go run ./example/menu}
+}
+
+proc die {message {code 2}} {
+    puts stderr "foxful tui smoke: $message"
+    exit $code
+}
+
+proc require_value {argvVar indexVar option} {
+    upvar 1 $argvVar args $indexVar i
+    incr i
+    if {$i >= [llength $args]} {
+        die "$option requires a value"
+    }
+    return [lindex $args $i]
+}
+
+proc require_positive_integer {value label} {
+    if {![string is integer -strict $value] || $value <= 0} {
+        die "$label must be a positive integer, got '$value'"
+    }
+}
+
+proc parse_triplet {value label} {
+    set parts [split $value :]
+    if {[llength $parts] != 3} {
+        die "$label must use name:x:y, got '$value'"
+    }
+    lassign $parts name x y
+    require_positive_integer $x "$label x"
+    require_positive_integer $y "$label y"
+    return [list [string tolower $name] $x $y]
+}
+
+proc key_sequence {name} {
+    set lower [string tolower $name]
+    switch -- $lower {
+        up       { return "\033\[A" }
+        down     { return "\033\[B" }
+        right    { return "\033\[C" }
+        left     { return "\033\[D" }
+        enter    { return "\r" }
+        esc      { return "\033" }
+        escape   { return "\033" }
+        tab      { return "\t" }
+        home     { return "\033\[H" }
+        end      { return "\033\[F" }
+        pgup     { return "\033\[5~" }
+        pgdown   { return "\033\[6~" }
+        ctrl-c   { return "\003" }
+        default {
+            if {[string length $name] == 1} {
+                return $name
+            }
+            die "unsupported key '$name'"
+        }
+    }
+}
+
+proc mouse_sequence {kind spec} {
+    lassign [parse_triplet $spec $kind] name x y
+    if {$kind eq "click"} {
+        switch -- $name {
+            left   { set code 0 }
+            middle { set code 1 }
+            right  { set code 2 }
+            default { die "unsupported click button '$name'" }
+        }
+    } else {
+        switch -- $name {
+            up    { set code 64 }
+            down  { set code 65 }
+            left  { set code 66 }
+            right { set code 67 }
+            default { die "unsupported wheel direction '$name'" }
+        }
+    }
+    return [format "\033\[<%d;%d;%dM" $code $x $y]
+}
+
+proc drain_available {} {
+    set oldTimeout $::timeout
+    set ::timeout 0
+    expect {
+        -re {(?s).+} { exp_continue }
+        timeout {}
+        eof {}
+    }
+    set ::timeout $oldTimeout
+}
+
+proc collect_until_idle {idleMs} {
+    set captured ""
+    set oldTimeout $::timeout
+    set deadline [expr {[clock milliseconds] + $idleMs}]
+    set sawEof 0
+    while {[clock milliseconds] < $deadline && !$sawEof} {
+        set ::timeout 0
+        set gotData 0
+        expect {
+            -re {(?s).+} {
+                append captured $expect_out(0,string)
+                set gotData 1
+            }
+            timeout {}
+            eof { set sawEof 1 }
+        }
+        if {$gotData} {
+            set deadline [expr {[clock milliseconds] + $idleMs}]
+        } else {
+            after 20
+        }
+    }
+    set ::timeout $oldTimeout
+    return $captured
+}
+
+proc normalize_terminal {text} {
+    regsub -all -- {\x1b\][^\x07]*(\x07|\x1b\\)} $text "" text
+    regsub -all -- {\x1b\[[0-?]*[ -/]*[@-~]} $text "" text
+    regsub -all -- {\x1b[()][0-2A-Z]} $text "" text
+    regsub -all -- {\r} $text "" text
+    return $text
+}
+
+proc write_text {path content} {
+    set channel [open $path w]
+    fconfigure $channel -encoding utf-8 -translation lf
+    puts -nonewline $channel $content
+    close $channel
+}
+
+proc stop_child {} {
+    if {[info exists ::childStarted] && $::childStarted} {
+        catch {send -- "\003"}
+        set oldTimeout $::timeout
+        set ::timeout 2
+        expect {
+            eof {}
+            timeout { catch {close} }
+        }
+        catch {wait}
+        set ::timeout $oldTimeout
+        set ::childStarted 0
+    }
+    catch {log_file}
+}
+
+proc abort_after_spawn {message rawLog} {
+    stop_child
+    puts stderr "foxful tui smoke: $message"
+    puts stderr "raw log: $rawLog"
+    exit 1
+}
+
+set cols 120
+set rows 30
+set timeoutSeconds 20
+set ready ""
+set stepMs 150
+set settleMs 500
+set logDir ""
+set actions {}
+set expects {}
+set rejects {}
+set command {}
+
+for {set i 0} {$i < [llength $argv]} {incr i} {
+    set arg [lindex $argv $i]
+    switch -- $arg {
+        --help - -h {
+            usage
+            exit 0
+        }
+        --cols {
+            set cols [require_value argv i $arg]
+            require_positive_integer $cols $arg
+        }
+        --rows {
+            set rows [require_value argv i $arg]
+            require_positive_integer $rows $arg
+        }
+        --timeout {
+            set timeoutSeconds [require_value argv i $arg]
+            require_positive_integer $timeoutSeconds $arg
+        }
+        --ready {
+            set ready [require_value argv i $arg]
+        }
+        --step-ms {
+            set stepMs [require_value argv i $arg]
+            require_positive_integer $stepMs $arg
+        }
+        --settle-ms {
+            set settleMs [require_value argv i $arg]
+            require_positive_integer $settleMs $arg
+        }
+        --log-dir {
+            set logDir [require_value argv i $arg]
+        }
+        --expect {
+            lappend expects [require_value argv i $arg]
+        }
+        --reject {
+            lappend rejects [require_value argv i $arg]
+        }
+        --key {
+            lappend actions [list key [require_value argv i $arg]]
+        }
+        --text {
+            lappend actions [list text [require_value argv i $arg]]
+        }
+        --click {
+            set value [require_value argv i $arg]
+            parse_triplet $value click
+            lappend actions [list click $value]
+        }
+        --wheel {
+            set value [require_value argv i $arg]
+            parse_triplet $value wheel
+            lappend actions [list wheel $value]
+        }
+        --wait {
+            set value [require_value argv i $arg]
+            require_positive_integer $value $arg
+            lappend actions [list wait $value]
+        }
+        -- {
+            set command [lrange $argv [expr {$i + 1}] end]
+            break
+        }
+        default {
+            die "unknown option '$arg' (command must follow --)"
+        }
+    }
+}
+
+if {[llength $command] == 0} {
+    usage
+    die "missing command after --"
+}
+if {[llength $expects] == 0 && [llength $rejects] == 0} {
+    die "at least one --expect or --reject assertion is required"
+}
+
+if {$logDir eq ""} {
+    set tmpRoot "/tmp"
+    if {[info exists env(TMPDIR)] && $env(TMPDIR) ne ""} {
+        set tmpRoot $env(TMPDIR)
+    }
+    set logDir [file join $tmpRoot "foxful-tui-smoke-[pid]-[clock seconds]"]
+}
+file mkdir $logDir
+set rawLog [file join $logDir raw.log]
+set normalizedLog [file join $logDir normalized.log]
+
+set timeout $timeoutSeconds
+set childStarted 0
+if {![info exists env(TERM)] || $env(TERM) eq "" || $env(TERM) eq "dumb"} {
+    set env(TERM) "xterm-256color"
+}
+match_max 1048576
+log_user 0
+log_file -a -noappend $rawLog
+spawn -noecho {*}$command
+set childStarted 1
+fconfigure $spawn_id -encoding utf-8
+
+if {[info exists spawn_out(slave,name)]} {
+    if {[catch {exec stty rows $rows columns $cols < $spawn_out(slave,name)} resizeError]} {
+        abort_after_spawn "failed to size PTY: $resizeError" $rawLog
+    }
+}
+
+if {$ready ne ""} {
+    expect {
+        -re $ready {}
+        timeout { abort_after_spawn "ready pattern '$ready' timed out after ${timeoutSeconds}s" $rawLog }
+        eof { abort_after_spawn "process exited before ready pattern '$ready'" $rawLog }
+    }
+} else {
+    after $stepMs
+}
+
+set lastSignal -1
+for {set index 0} {$index < [llength $actions]} {incr index} {
+    if {[lindex [lindex $actions $index] 0] ne "wait"} {
+        set lastSignal $index
+    }
+}
+if {$lastSignal < 0} {
+    abort_after_spawn "assertions require at least one key/text/click/wheel action" $rawLog
+}
+
+for {set index 0} {$index < [llength $actions]} {incr index} {
+    lassign [lindex $actions $index] kind value
+    if {$index == $lastSignal} {
+        drain_available
+    }
+
+    switch -- $kind {
+        key   { send -- [key_sequence $value] }
+        text  { send -- $value }
+        click { send -- [mouse_sequence click $value] }
+        wheel { send -- [mouse_sequence wheel $value] }
+        wait  { after $value }
+    }
+
+    if {$kind ne "wait"} {
+        after $stepMs
+        if {$index != $lastSignal} {
+            drain_available
+        }
+    }
+}
+
+set assertionOutput [collect_until_idle $settleMs]
+set normalized [normalize_terminal $assertionOutput]
+write_text $normalizedLog $normalized
+
+set failed 0
+foreach pattern $expects {
+    if {![regexp -- $pattern $normalized]} {
+        puts stderr "foxful tui smoke: missing expected pattern '$pattern'"
+        set failed 1
+    }
+}
+foreach pattern $rejects {
+    if {[regexp -- $pattern $normalized]} {
+        puts stderr "foxful tui smoke: forbidden pattern matched '$pattern'"
+        set failed 1
+    }
+}
+
+stop_child
+puts "raw log: $rawLog"
+puts "normalized log: $normalizedLog"
+if {$failed} {
+    exit 1
+}
+puts "foxful tui smoke: PASS"

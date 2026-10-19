@@ -1,0 +1,14 @@
+.idea/
+*.iml
+out
+gen
+.DS_Store
+.vscode/
+go.sum
+# compiled examples
+markdown
+menu
+popup
+theme
+notification
+foxful-cli
