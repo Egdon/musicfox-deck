@@ -30,6 +30,9 @@ const (
 	progressRenderModeSmooth progressRenderMode = "smooth"
 	progressRenderModeWave   progressRenderMode = "wave"
 	progressRenderModeGlow   progressRenderMode = "glow"
+	// progressRenderModeFlat uses the theme roles: a secondary rail and an
+	// accent playhead.
+	progressRenderModeFlat progressRenderMode = "flat"
 )
 
 func progressRampForMode(width int, fullSize int, animationTime float64, mode progressRenderMode) []color.Color {

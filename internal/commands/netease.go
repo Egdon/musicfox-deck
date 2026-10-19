@@ -54,6 +54,15 @@ func runPlayer(_ *gcli.Command, _ []string) error {
 	opts := model.DefaultOptions()
 	configs.AppConfig.FillToModelOpts(opts)
 
+	// The flat progress style follows the theme instead of a random gradient;
+	// the startup bar and the visualizers share these colors.
+	if configs.AppConfig.Theme.Progress.RenderMode == "flat" {
+		registry := configs.CurrentThemeRegistry()
+		if tf, ok := registry.ActiveThemeOrDefault(registry.CurrentName(true)); ok && tf.Dark.Muted != "" && tf.Dark.Secondary != "" {
+			model.SetProgressColor(tf.Dark.Muted, tf.Dark.Secondary)
+		}
+	}
+
 	model.Submit = types.SubmitText
 	model.SearchPlaceholder = types.SearchPlaceholder
 	model.SearchResult = types.SearchResult

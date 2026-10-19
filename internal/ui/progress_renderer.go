@@ -51,6 +51,8 @@ func (r *ProgressRenderer) getRenderMode() progressRenderMode {
 			return progressRenderModeWave
 		case "glow":
 			return progressRenderModeGlow
+		case "flat":
+			return progressRenderModeFlat
 		}
 	}
 
@@ -99,8 +101,19 @@ func (r *ProgressRenderer) View(a *model.App, main *model.Main) (view string, li
 	mode := r.getRenderMode()
 	animationTime := r.state.PassedTime().Seconds()
 
+	timeColor := themePrimary()
 	var progressView string
 	switch mode {
+	case progressRenderModeFlat:
+		ramp := make([]color.Color, width)
+		for i := range ramp {
+			ramp[i] = themeSecondary()
+		}
+		if fullSize > 0 && fullSize <= width {
+			ramp[fullSize-1] = themeAccent()
+		}
+		progressView = model.Progress(&progressOptions, width, fullSize, ramp)
+		timeColor = themeSecondary()
 	case progressRenderModeWave, progressRenderModeGlow:
 		ramp := progressRampForMode(width, fullSize, animationTime, mode)
 		progressView = model.Progress(&progressOptions, width, fullSize, ramp)
@@ -130,9 +143,9 @@ func (r *ProgressRenderer) View(a *model.App, main *model.Main) (view string, li
 	timesBg := configs.ResolveBackground(nil)
 	var styledTimes string
 	if timesBg != nil {
-		styledTimes = util.SetFgBgStyle(times, util.GetPrimaryColor(), timesBg)
+		styledTimes = util.SetFgBgStyle(times, timeColor, timesBg)
 	} else {
-		styledTimes = util.SetFgStyle(times, util.GetPrimaryColor())
+		styledTimes = util.SetFgStyle(times, timeColor)
 	}
 
 	view = progressView + appBg.Render(" ") + styledTimes

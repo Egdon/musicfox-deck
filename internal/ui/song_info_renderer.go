@@ -9,7 +9,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/anhoder/foxful-cli/model"
 	"github.com/anhoder/foxful-cli/style"
-	"github.com/anhoder/foxful-cli/util"
 	"github.com/mattn/go-runewidth"
 
 	"github.com/go-musicfox/go-musicfox/internal/configs"
@@ -34,6 +33,33 @@ type SongInfoRenderer struct {
 	cachedCentered bool
 	cachedHover    PlaybarElement
 	cachedStyleGen uint64
+
+	spans []playbarSpan // where each element was last drawn
+}
+
+// playbarSegment is one piece of the playbar: unformatted text, its color and
+// the element it belongs to.
+type playbarSegment struct {
+	text  string
+	color color.Color
+	bold  bool
+	elem  PlaybarElement
+}
+
+// playbarSpan is the column range an element occupies.
+type playbarSpan struct {
+	elem   PlaybarElement
+	x0, x1 int
+}
+
+// elementAt returns the playbar element drawn at column x.
+func (r *SongInfoRenderer) elementAt(x int) PlaybarElement {
+	for _, s := range r.spans {
+		if x >= s.x0 && x < s.x1 {
+			return s.elem
+		}
+	}
+	return PlaybarElementNone
 }
 
 // NewSongInfoRenderer creates a new song info renderer component.
@@ -49,15 +75,6 @@ func (r *SongInfoRenderer) Update(msg tea.Msg, a *model.App) {}
 
 // View renders the song information component.
 func (r *SongInfoRenderer) View(a *model.App, main *model.Main) (view string, lines int) {
-	// Every part of the song view is expressed as a segment: unformatted text followed by a color specification
-	// This makes computing the total length of the song view easier
-	type Segment struct {
-		text      string
-		color     color.Color
-		underline bool
-		bold      bool
-	}
-
 	var (
 		song           = r.state.CurSong()
 		state          = r.state.State()
@@ -84,34 +101,40 @@ func (r *SongInfoRenderer) View(a *model.App, main *model.Main) (view string, li
 	}
 
 	var (
-		builder  strings.Builder
-		segments []Segment
-		appColors = configs.GetCurrentAppColors()
-		artistColor = configs.SafeGetForeground(appColors.PlaybarArtist, configs.PlaybarArtistColor)
-		modeColor   = configs.SafeGetForeground(appColors.PlaybarMode, configs.PlaybarModeColor)
-		volumeColor = configs.SafeGetForeground(appColors.PlaybarVolume, configs.PlaybarVolumeColor)
-		playingColor = configs.SafeGetForeground(appColors.PlaybarPlaying, configs.PlaybarPlayingColor)
-		pausedColor  = configs.SafeGetForeground(appColors.PlaybarPaused, configs.PlaybarPausedColor)
+		builder           strings.Builder
+		segments          []playbarSegment
+		appColors         = configs.GetCurrentAppColors()
+		artistColor       = configs.SafeGetForeground(appColors.PlaybarArtist, configs.PlaybarArtistColor)
+		modeColor         = configs.SafeGetForeground(appColors.PlaybarMode, configs.PlaybarModeColor)
+		volumeColor       = configs.SafeGetForeground(appColors.PlaybarVolume, configs.PlaybarVolumeColor)
+		playingColor      = configs.SafeGetForeground(appColors.PlaybarPlaying, configs.PlaybarPlayingColor)
+		pausedColor       = configs.SafeGetForeground(appColors.PlaybarPaused, configs.PlaybarPausedColor)
 		heartLikedColor   = configs.SafeGetForeground(appColors.PlaybarHeartLiked, configs.PlaybarHeartLikedColor)
 		heartUnlikedColor = configs.SafeGetForeground(appColors.PlaybarHeartUnliked, configs.PlaybarHeartUnlikedColor)
+		primary           = themePrimary()
 	)
 
-	// Helper for adding a new segment
-	addSegment := func(text string, color color.Color, underline, bold bool) {
-		segments = append(segments, Segment{text, color, underline, bold})
+	// A hovered element is drawn bold in the primary color.
+	add := func(text string, c color.Color, elem PlaybarElement) {
+		hovered := elem != PlaybarElementNone && elem == hoveredElement
+		if hovered {
+			c = primary
+		}
+		segments = append(segments, playbarSegment{text: text, color: c, bold: hovered, elem: elem})
 	}
-	// Helper for adding text whose color we don't care about
-	addText := func(text string) {
-		segments = append(segments, Segment{text, artistColor, false, false})
+	gap := func(n int) { add(strings.Repeat(" ", n), artistColor, PlaybarElementNone) }
+	usedWidth := func() int {
+		w := 0
+		for _, seg := range segments {
+			w += runewidth.StringWidth(seg.text)
+		}
+		return w
 	}
 	// Resolve the background once: the app background paints text glyph cells so
 	// they never reveal content drawn beneath the TUI. nil leaves it transparent.
 	segmentBg := configs.ResolveBackground(nil)
-	renderSegment := func(segment Segment) string {
-		s := lipgloss.NewStyle().
-			Foreground(segment.color).
-			Underline(segment.underline).
-			Bold(segment.bold)
+	renderSegment := func(segment playbarSegment) string {
+		s := lipgloss.NewStyle().Foreground(segment.color).Bold(segment.bold)
 		if segmentBg != nil {
 			s = s.Background(segmentBg)
 		}
@@ -120,83 +143,41 @@ func (r *SongInfoRenderer) View(a *model.App, main *model.Main) (view string, li
 
 	if main.MenuStartColumn()-MenuArrowWidth > 0 {
 		if !main.CenterEverything() {
-			// Store plain spaces (not pre-rendered); renderSegment paints them with
-			// segmentBg. Pre-rendering here would make runewidth.StringWidth count the
-			// ANSI escape bytes, inflating totalWidth and shrinking the trailing fill.
-			addSegment(strings.Repeat(" ", main.MenuStartColumn()-MenuArrowWidth), artistColor, false, false)
+			// Plain spaces (not pre-rendered): renderSegment paints them with
+			// segmentBg, and their width stays measurable.
+			gap(main.MenuStartColumn() - MenuArrowWidth)
 		}
-		{
-			msg := r.state.Mode().Name()
-			c := modeColor
-			modeBold := hoveredElement == PlaybarElementMode
-			if modeBold {
-				c = util.GetPrimaryColor()
-			}
-			addSegment(fmt.Sprintf("[%s] ", msg), c, false, modeBold)
-		}
-		addSegment(fmt.Sprintf("%d%% ", r.state.Volume()), volumeColor, false, false)
+		add(mode.Name(), modeColor, PlaybarElementMode)
+		gap(3)
+		add(fmt.Sprintf("VOL %d", volume), volumeColor, PlaybarElementNone)
+		gap(2)
 	}
-	if r.state.State() == types.Playing {
-		c := playingColor
-		stateBold := hoveredElement == PlaybarElementState
-		if stateBold {
-			c = util.GetPrimaryColor()
-		}
-		addSegment("♫ ♪ ♫ ♪ ", c, false, stateBold)
+	// Icons carry a space on each side so they make a usable click target.
+	if state == types.Playing {
+		add(" ▶ ", playingColor, PlaybarElementState)
 	} else {
-		c := pausedColor
-		stateBold := hoveredElement == PlaybarElementState
-		if stateBold {
-			c = util.GetPrimaryColor()
-		}
-		addSegment("_ z Z Z ", c, false, stateBold)
+		add(" ‖ ", pausedColor, PlaybarElementState)
 	}
-
 	if song.Id > 0 {
-		var icolor color.Color
+		c := heartUnlikedColor
 		if isLike {
-			icolor = heartLikedColor
-		} else {
-			icolor = heartUnlikedColor
+			c = heartLikedColor
 		}
-		heartBold := hoveredElement == PlaybarElementHeart
-		if heartBold && !isLike {
-			icolor = util.GetPrimaryColor()
-		}
-		addSegment("♥ ", icolor, false, heartBold)
+		add(" ♥ ", c, PlaybarElementHeart)
 	}
+	gap(1)
 
 	if r.state.CurSongIndex() < len(r.state.Playlist()) {
-		// 计算已占用的前缀宽度（实际 segment 宽度，而非估算的 prefixLen）
-		prefixUsedWidth := 0
-		for _, seg := range segments {
-			prefixUsedWidth += runewidth.StringWidth(seg.text)
-		}
-		availableWidth := r.netease.WindowWidth()
-
-		songName := song.Name
-		artistString := artistsString(song)
-
-		// 优先保留歌曲名，歌手名用剩余空间
-		songMaxWidth := max(0, availableWidth-prefixUsedWidth-1) // -1 for space between
-		songName = runewidth.Truncate(songName, songMaxWidth, "")
-		addSegment(songName, util.GetPrimaryColor(), false, false)
-		addText(" ")
-
-		// 剩余空间全部给歌手名
-		artistMaxWidth := max(0, availableWidth-prefixUsedWidth-runewidth.StringWidth(songName)-1)
-		artistString = runewidth.Truncate(artistString, artistMaxWidth, "")
-		c := artistColor
-		artistHovered := hoveredElement == PlaybarElementArtist
-		if artistHovered {
-			c = util.GetPrimaryColor()
-		}
-		addSegment(artistString, c, false, false)
+		// The song name keeps priority; the artist gets what is left.
+		add(runewidth.Truncate(song.Name, max(0, width-usedWidth()-2), ""), primary, PlaybarElementSongName)
+		gap(2)
+		add(runewidth.Truncate(artistsString(song), max(0, width-usedWidth()), ""), artistColor, PlaybarElementArtist)
 	}
 
+	x := 0
 	if main.CenterEverything() {
 		totalWidth := 0
-		widthLimit := r.netease.WindowWidth() - SongInfoHorizontalPadding
+		widthLimit := width - SongInfoHorizontalPadding
 		for index, segment := range segments {
 			segmentWidth := runewidth.StringWidth(segment.text)
 			if totalWidth+segmentWidth > widthLimit {
@@ -205,23 +186,22 @@ func (r *SongInfoRenderer) View(a *model.App, main *model.Main) (view string, li
 			}
 			totalWidth += segmentWidth
 		}
-		paddingLeft := (r.netease.WindowWidth() - totalWidth) / 2
-		builder.WriteString(style.CurrentStyleSet().AppBackground.Render(strings.Repeat(" ", paddingLeft)))
-		for _, segment := range segments {
-			builder.WriteString(renderSegment(segment))
+		x = (width - totalWidth) / 2
+		builder.WriteString(style.CurrentStyleSet().AppBackground.Render(strings.Repeat(" ", x)))
+	}
+	// Record where every element lands, so mouse hit-testing uses exactly
+	// what was drawn.
+	r.spans = r.spans[:0]
+	for _, segment := range segments {
+		w := runewidth.StringWidth(segment.text)
+		if segment.elem != PlaybarElementNone && w > 0 {
+			r.spans = append(r.spans, playbarSpan{elem: segment.elem, x0: x, x1: x + w})
 		}
-		builder.WriteString(style.CurrentStyleSet().AppBackground.Render(strings.Repeat(" ", r.netease.WindowWidth()-paddingLeft-totalWidth)))
-	} else {
-		// Left-aligned: concatenate segments, then fill trailing space to window width.
-		totalWidth := 0
-		for _, segment := range segments {
-			builder.WriteString(renderSegment(segment))
-			totalWidth += runewidth.StringWidth(segment.text)
-		}
-		remainingWidth := r.netease.WindowWidth() - totalWidth
-		if remainingWidth > 0 {
-			builder.WriteString(style.CurrentStyleSet().AppBackground.Render(strings.Repeat(" ", remainingWidth)))
-		}
+		builder.WriteString(renderSegment(segment))
+		x += w
+	}
+	if remainingWidth := width - x; remainingWidth > 0 {
+		builder.WriteString(style.CurrentStyleSet().AppBackground.Render(strings.Repeat(" ", remainingWidth)))
 	}
 
 	// Return the actual number of lines: 1 content line + 1 blank line separator.

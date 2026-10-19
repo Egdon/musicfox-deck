@@ -44,6 +44,8 @@ type ThemeVariant struct {
 
 	MenuSelectedSepLeft  *string `toml:"menuSelectedSepLeft"`
 	MenuSelectedSepRight *string `toml:"menuSelectedSepRight"`
+	// MenuSelectedArrow marks the selected menu row; it must be 3 cells wide.
+	MenuSelectedArrow string `toml:"menuSelectedArrow"`
 }
 
 // HighlightsConfig allows overriding specific Highlight fields.
@@ -63,12 +65,22 @@ type HighlightsConfig struct {
 	ScrollThumb       string `toml:"scrollThumb"`
 	Button            string `toml:"button"`
 	ButtonBlurred     string `toml:"buttonBlurred"`
+	// SelectedItemBg overrides the selected row background computed from Primary.
+	SelectedItemBg string `toml:"selectedItemBg"`
+	// MenuArrow and MenuIndex color the selection marker and the row number.
+	MenuArrow string `toml:"menuArrow"`
+	MenuIndex string `toml:"menuIndex"`
+	// TabBorder colors the borders of unfocused tabs.
+	TabBorder string `toml:"tabBorder"`
 }
 
 // PopupConfig mirrors the foxful-cli PopupTheme.
 type PopupConfig struct {
-	Surface string `toml:"surface"`
-	Border  string `toml:"border"`
+	Surface         string `toml:"surface"`
+	Border          string `toml:"border"`
+	ActionFocusedFg string `toml:"actionFocusedFg"`
+	ActionFocusedBg string `toml:"actionFocusedBg"`
+	ContextMenuItem string `toml:"contextMenuItem"`
 }
 
 // ThemeNotificationConfig mirrors the foxful-cli NotificationTheme.
@@ -78,6 +90,12 @@ type ThemeNotificationConfig struct {
 	SuccessBorder string `toml:"successBorder"`
 	WarningBorder string `toml:"warningBorder"`
 	ErrorBorder   string `toml:"errorBorder"`
+	Title         string `toml:"title"`
+	Message       string `toml:"message"`
+	InfoIcon      string `toml:"infoIcon"`
+	SuccessIcon   string `toml:"successIcon"`
+	WarningIcon   string `toml:"warningIcon"`
+	ErrorIcon     string `toml:"errorIcon"`
 }
 
 // StatusBarConfig maps to foxful-cli StyleSet status bar fields.
@@ -95,6 +113,12 @@ type StatusBarConfig struct {
 	NuggetLabelBg          string  `toml:"nuggetLabelBg"`
 	TimeSepLeft            *string `toml:"timeSepLeft"`
 	BreadcrumbSepRight     *string `toml:"breadcrumbSepRight"`
+	// BarBg and BreadcrumbBg set backgrounds; Bar and Breadcrumb set text colors.
+	BarBg        string `toml:"barBg"`
+	BreadcrumbBg string `toml:"breadcrumbBg"`
+	TimeBg       string `toml:"timeBg"`
+	// TimeIcon precedes the clock; "" removes the default icon.
+	TimeIcon *string `toml:"timeIcon"`
 }
 
 // MarkdownConfig holds glamour markdown theme presets.
@@ -207,6 +231,19 @@ func (v ThemeVariant) toTheme() style.Theme {
 	if h.SelectedItem != "" {
 		t.SelectedItem = fgPtr(h.SelectedItem)
 	}
+	if h.SelectedItemBg != "" {
+		t.SelectedItem.Bg = parseColor(h.SelectedItemBg)
+	}
+	if h.MenuArrow != "" {
+		t.MenuArrow = fgPtr(h.MenuArrow)
+	}
+	if h.MenuIndex != "" {
+		t.MenuIndex = fgPtr(h.MenuIndex)
+	}
+	if h.TabBorder != "" {
+		t.TabBorder = parseColor(h.TabBorder)
+	}
+	t.MenuSelectedArrow = v.MenuSelectedArrow
 	if h.MenuItemHover != "" {
 		t.MenuItemHover = fgPtr(h.MenuItemHover)
 	}
@@ -251,6 +288,18 @@ func (v ThemeVariant) toTheme() style.Theme {
 	if v.Popup.Border != "" {
 		t.Popup.Border = parseColor(v.Popup.Border)
 	}
+	if v.Popup.ActionFocusedFg != "" {
+		t.Popup.ActionFocused.Fg = parseColor(v.Popup.ActionFocusedFg)
+	}
+	if v.Popup.ActionFocusedBg != "" {
+		t.Popup.ActionFocused.Bg = parseColor(v.Popup.ActionFocusedBg)
+	}
+	if v.Popup.ContextMenuItem != "" {
+		t.Popup.ContextMenuItem.Fg = parseColor(v.Popup.ContextMenuItem)
+	}
+	if v.App.ContextMenuBorder != "" {
+		t.Popup.ContextMenuBorder = parseColor(v.App.ContextMenuBorder)
+	}
 
 	// Notification
 	if v.Notification.Surface != "" {
@@ -268,17 +317,41 @@ func (v ThemeVariant) toTheme() style.Theme {
 	if v.Notification.ErrorBorder != "" {
 		t.Notification.ErrorBorder = parseColor(v.Notification.ErrorBorder)
 	}
+	if v.Notification.Title != "" {
+		t.Notification.Title.Fg = parseColor(v.Notification.Title)
+	}
+	if v.Notification.Message != "" {
+		t.Notification.Message.Fg = parseColor(v.Notification.Message)
+	}
+	if v.Notification.InfoIcon != "" {
+		t.Notification.InfoIcon = v.Notification.InfoIcon
+	}
+	if v.Notification.SuccessIcon != "" {
+		t.Notification.SuccessIcon = v.Notification.SuccessIcon
+	}
+	if v.Notification.WarningIcon != "" {
+		t.Notification.WarningIcon = v.Notification.WarningIcon
+	}
+	if v.Notification.ErrorIcon != "" {
+		t.Notification.ErrorIcon = v.Notification.ErrorIcon
+	}
 
 	// Status bar
 	sb := v.StatusBar
 	if sb.Bar != "" {
 		t.StatusBar = fgPtr(sb.Bar)
 	}
+	if sb.BarBg != "" {
+		t.StatusBar.Bg = parseColor(sb.BarBg)
+	}
 	if sb.Text != "" {
 		t.StatusBarText = fgPtr(sb.Text)
 	}
 	if sb.Breadcrumb != "" {
 		t.StatusBarBreadcrumb = fgPtr(sb.Breadcrumb)
+	}
+	if sb.BreadcrumbBg != "" {
+		t.StatusBarBreadcrumb.Bg = parseColor(sb.BreadcrumbBg)
 	}
 	if sb.BreadcrumbSep != "" {
 		t.StatusBarBreadcrumbSep = parseColor(sb.BreadcrumbSep)
@@ -292,6 +365,10 @@ func (v ThemeVariant) toTheme() style.Theme {
 	if sb.Time != "" {
 		t.StatusBarTime = fgPtr(sb.Time)
 	}
+	if sb.TimeBg != "" {
+		t.StatusBarTime.Bg = parseColor(sb.TimeBg)
+	}
+	t.StatusBarTimeIcon = sb.TimeIcon
 	if sb.Nugget != "" {
 		t.StatusBarNugget = fgPtr(sb.Nugget)
 	}
@@ -507,9 +584,9 @@ const (
 	PlaybarArtistColor       = "#767676" // BrightBlack
 
 	// Login / auth status colors (ANSI color approximations)
-	LoginErrorColor   = "#FF0000" // BrightRed
-	LoginSuccessColor = "#00FF00" // BrightGreen
-	AuthStatusColor   = "#0000FF" // BrightBlue
+	LoginErrorColor   = "BrightRed"
+	LoginSuccessColor = "BrightGreen"
+	AuthStatusColor   = "BrightBlue"
 
 	// Config table colors
 	ConfigTableBorderColor     = "#585858" // ANSI 240
@@ -599,7 +676,7 @@ func AppBackgroundColor() color.Color {
 // GetCurrentMarkdownTheme returns the configured markdown theme name for the current brightness.
 func GetCurrentMarkdownTheme(darkBackground bool) string {
 	registry := CurrentThemeRegistry()
-	tf, ok := registry.ActiveThemeOrDefault("")
+	tf, ok := registry.ActiveThemeOrDefault(registry.CurrentName(darkBackground))
 	if !ok {
 		if darkBackground {
 			return MarkdownDarkDefault

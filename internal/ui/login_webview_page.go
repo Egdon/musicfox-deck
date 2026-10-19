@@ -133,7 +133,7 @@ func (p *WebviewLoginPage) Update(msg tea.Msg, a *model.App) (model.Page, tea.Cm
 				// WebView2 Runtime, no display, ...): stay on this page and
 				// show the reason instead of silently returning. The user
 				// returns with 'b'/'esc'.
-				p.statusMsg = util.SetFgStyle(model.T(MsgLoginWebviewUnavailable)+ev.ErrMsg, lipgloss.BrightRed)
+				p.statusMsg = util.SetFgStyle(model.T(MsgLoginWebviewUnavailable)+ev.ErrMsg, tipError())
 				return p, nil
 			}
 			p.statusMsg = model.T(MsgLoginWebviewCancelled)
@@ -162,7 +162,7 @@ func (p *WebviewLoginPage) Update(msg tea.Msg, a *model.App) (model.Page, tea.Cm
 			// but skip re-validating the same cookie string.
 			p.lastCheckedCookie = p.checkingCookie
 			p.checkingCookie = ""
-			p.statusMsg = util.SetFgStyle(model.T(MsgLoginWebviewFailed)+msg.err.Error(), lipgloss.BrightRed)
+			p.statusMsg = util.SetFgStyle(model.T(MsgLoginWebviewFailed)+msg.err.Error(), tipError())
 			return p, tickPolling(time.Second)
 		}
 		p.statusMsg = model.T(MsgLoginWebviewSuccess)

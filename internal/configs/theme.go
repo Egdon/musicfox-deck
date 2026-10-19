@@ -145,14 +145,21 @@ func (r *ThemeRegistry) Names(darkBackground bool) []string {
 	return cp
 }
 
-// ActiveThemeOrDefault returns the active theme file, falling back to any available.
+// ActiveThemeOrDefault returns the named theme, falling back to "Default" and
+// then to any available theme.
 func (r *ThemeRegistry) ActiveThemeOrDefault(name string) (*ThemeFile, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if tf, ok := r.themes[name]; ok {
-		return tf, ok
+		return tf, true
 	}
-	return r.First()
+	if tf, ok := r.themes["Default"]; ok {
+		return tf, true
+	}
+	for _, tf := range r.themes {
+		return tf, true
+	}
+	return nil, false
 }
 
 // Current returns the global theme registry.

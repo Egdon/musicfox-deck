@@ -213,7 +213,7 @@ func (s *SearchPage) Update(msg tea.Msg, a *model.App) (model.Page, tea.Cmd) {
 
 func (s *SearchPage) enterHandler() (model.Page, tea.Cmd) {
 	if len(s.wordsInput.Value()) <= 0 {
-		s.tips = util.SetFgStyle(model.T(MsgSearchKeywordRequired), lipgloss.BrightRed)
+		s.tips = util.SetFgStyle(model.T(MsgSearchKeywordRequired), tipError())
 		return s, nil
 	}
 	loading := model.NewLoading(s.netease.MustMain(), s.menuTitle)
@@ -235,10 +235,10 @@ func (s *SearchPage) enterHandler() (model.Page, tea.Cmd) {
 	codeType := _struct.CheckCode(code)
 	switch codeType {
 	case _struct.UnknownError:
-		s.tips = util.SetFgStyle(model.T(MsgSearchUnknownError), lipgloss.BrightRed)
+		s.tips = util.SetFgStyle(model.T(MsgSearchUnknownError), tipError())
 		return s, tickSearch(time.Nanosecond)
 	case _struct.NetworkError:
-		s.tips = util.SetFgStyle(model.T(MsgSearchNetworkError), lipgloss.BrightRed)
+		s.tips = util.SetFgStyle(model.T(MsgSearchNetworkError), tipError())
 		return s, tickSearch(time.Nanosecond)
 	case _struct.Success:
 		s.result = response

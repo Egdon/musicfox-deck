@@ -7,7 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/anhoder/foxful-cli/model"
 	"github.com/anhoder/foxful-cli/style"
-	"github.com/anhoder/foxful-cli/util"
 	"github.com/go-musicfox/netease-music/service"
 	"github.com/skratchdot/open-golang/open"
 
@@ -65,7 +64,7 @@ func formatQueueAndQuality(player *Player) string {
 	qualityName := qualityDisplayName(quality)
 
 	statusTextStyle := style.CurrentStyleSet().StatusBarText
-	return statusTextStyle.Foreground(util.GetPrimaryColor()).Render(musicfoxStatusBarLabel) +
+	return statusTextStyle.Foreground(themePrimary()).Render(musicfoxStatusBarLabel) +
 		statusTextStyle.Render(fmt.Sprintf(" · %s · %s", position, qualityName))
 }
 

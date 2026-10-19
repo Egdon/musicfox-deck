@@ -130,6 +130,14 @@ inApp = true
 # TUI 内 toast 自动消失时长（秒，0 使用默认 4 秒）
 inAppTimeout = 4
 
+# 播放页（主界面按 i 进入，Esc 返回）
+[main.nowPlaying]
+# 动效级别：
+#   full：显像管开关机、切歌扫线、磁带弹出插入、带盘转动、提示淡出、空队列画面的扫描线
+#   subtle：只保留磁带弹出插入、带盘转动和提示淡出
+#   off：没有动画
+effects = "full"
+
 # 歌词显示相关设置
 [main.lyric]
 # 是否显示歌词
@@ -259,7 +267,8 @@ accessibleMode = false
 # 进度条字符样式配置
 [theme.progress]
 # 进度条渲染模式
-# 可选: "smooth"(平滑，默认), "wave"(波浪), "glow"(发光)
+# 可选: "smooth"(平滑，默认), "wave"(波浪), "glow"(发光),
+#       "flat"(扁平：跟随主题，已播放部分用 secondary、播放头用 accent，启动页进度条同色)
 renderMode = "smooth"
 # 进度条已加载字符
 fullChar = "#"

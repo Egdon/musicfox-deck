@@ -136,7 +136,7 @@ func (d *DefaultStatusBar) View(a *App, m *Main) string {
 	if timeSepLeft == "" {
 		timeSepLeft = " "
 	}
-	timeNugget := sepStyle.Render(timeSepLeft) + timeStyle.Render(" "+now+" ")
+	timeNugget := sepStyle.Render(timeSepLeft) + timeStyle.Render(ss.StatusBarTimeIcon+now+" ")
 	timeW := lipgloss.Width(timeNugget)
 
 	// Breadcrumb: constrain to available width so bar stays single-line.

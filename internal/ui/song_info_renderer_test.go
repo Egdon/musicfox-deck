@@ -1,11 +1,15 @@
 package ui
 
 import (
+	"context"
+	"io"
 	"strings"
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/anhoder/foxful-cli/model"
 	"github.com/anhoder/foxful-cli/style"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
@@ -196,3 +200,56 @@ func (s progressTestState) State() types.State        { return types.Playing }
 func (s progressTestState) Volume() int               { return 50 }
 func (s progressTestState) Mode() types.Mode          { return types.PmListLoop }
 func (s progressTestState) Playlist() []structs.Song  { return []structs.Song{s.song} }
+
+// The recorded element spans must match the text that was drawn, so mouse
+// hit-testing lands on what the user sees, centered or not.
+func TestSongInfoSpansMatchRenderedText(t *testing.T) {
+	song := structs.Song{Id: 1, Name: "Span Song", Artists: []structs.Artist{{Name: "Span Artist"}}}
+	want := map[PlaybarElement]string{
+		PlaybarElementMode:     types.PmListLoop.Name(),
+		PlaybarElementState:    " ‖ ",
+		PlaybarElementHeart:    " ♥ ",
+		PlaybarElementSongName: song.Name,
+		PlaybarElementArtist:   "Span Artist",
+	}
+	for _, centered := range []bool{false, true} {
+		app, netease := newFormPageTestApp(t)
+		if centered {
+			app, netease = newCenteredSongInfoTestApp(t)
+		}
+		renderer := NewSongInfoRenderer(netease, songInfoTestState{song: song})
+		view, _ := renderer.View(app, app.MustMain())
+		line := ansi.Strip(strings.SplitN(view, "\n", 2)[0])
+		seen := map[PlaybarElement]bool{}
+		for _, s := range renderer.spans {
+			if got := ansi.Cut(line, s.x0, s.x1); got != want[s.elem] {
+				t.Errorf("centered=%v: span %v = %q, want %q", centered, s.elem, got, want[s.elem])
+			}
+			if renderer.elementAt(s.x0) != s.elem || renderer.elementAt(s.x1-1) != s.elem {
+				t.Errorf("centered=%v: elementAt does not resolve span %v", centered, s.elem)
+			}
+			seen[s.elem] = true
+		}
+		for _, elem := range []PlaybarElement{PlaybarElementState, PlaybarElementHeart, PlaybarElementSongName, PlaybarElementArtist} {
+			if !seen[elem] {
+				t.Errorf("centered=%v: element %v was not drawn", centered, elem)
+			}
+		}
+	}
+}
+
+func newCenteredSongInfoTestApp(t *testing.T) (*model.App, *Netease) {
+	t.Helper()
+	opts := model.DefaultOptions()
+	opts.EnableStartup = false
+	opts.CenterEverything = true
+	opts.MainMenu = &pageLayoutTestMenu{}
+	opts.MainMenuTitle = &model.MenuItem{Title: "Main"}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	opts.TeaOptions = []tea.ProgramOption{tea.WithContext(ctx), tea.WithInput(nil), tea.WithOutput(io.Discard)}
+	app := model.NewApp(opts)
+	_ = app.Run()
+	_, _ = app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	return app, &Netease{App: app}
+}

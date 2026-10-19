@@ -2,10 +2,14 @@ package configs
 
 import (
 	"image/color"
+	"path"
+	"strings"
 	"testing"
 
 	"charm.land/lipgloss/v2"
 	"github.com/anhoder/foxful-cli/style"
+
+	"github.com/go-musicfox/go-musicfox/utils/filex"
 )
 
 func TestThemeRegistryCurrentThemePairUsesRuntimeSelection(t *testing.T) {
@@ -56,6 +60,10 @@ func TestBuiltinThemesStatusBarFontsMatchDefault(t *testing.T) {
 		{name: "light", defaultV: defaultTheme.Light},
 	}
 	for themeName, themeFile := range themes {
+		if themeName == "Warm Night" {
+			// Warm Night restyles the whole status bar, fonts included.
+			continue
+		}
 		for _, variant := range variants {
 			actual := themeFile.Dark
 			if variant.name == "light" {
@@ -88,6 +96,27 @@ func TestTransparentThemeConfiguresPrimaryBreadcrumbLabel(t *testing.T) {
 		assertThemeColor(t, styles.StatusBarBreadcrumbHover.GetForeground(), parseColor(variant.value.Primary), variant.name+" breadcrumb hover foreground")
 		if _, ok := styles.StatusBarNuggetLabel.GetBackground().(lipgloss.NoColor); !ok {
 			t.Fatalf("%s breadcrumb marker background = %v, want transparent", variant.name, styles.StatusBarNuggetLabel.GetBackground())
+		}
+	}
+}
+
+// A broken built-in theme is otherwise only logged and silently replaced by
+// Default at runtime.
+func TestBuiltinThemesParse(t *testing.T) {
+	entries, err := filex.ReadDirFromEmbed(BuiltinThemesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".toml") {
+			continue
+		}
+		data, err := filex.ReadFileFromEmbed(path.Join(BuiltinThemesDir, entry.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := parseThemeFile(string(data)); err != nil {
+			t.Errorf("%s: %v", entry.Name(), err)
 		}
 	}
 }

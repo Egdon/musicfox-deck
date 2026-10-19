@@ -89,7 +89,7 @@ func (p *LastfmQRAuthPage) Update(msg tea.Msg, _ *model.App) (model.Page, tea.Cm
 
 	case lastfmQRErrorMsg:
 		p.loading.Complete()
-		p.statusMsg = util.SetFgStyle("发生错误: "+msg.err.Error(), lipgloss.BrightRed)
+		p.statusMsg = util.SetFgStyle("发生错误: "+msg.err.Error(), tipError())
 		return p, nil
 
 	case tea.KeyPressMsg:
@@ -103,7 +103,7 @@ func (p *LastfmQRAuthPage) Update(msg tea.Msg, _ *model.App) (model.Page, tea.Cm
 			if p.qrCodePath != "" {
 				err := open.Start(p.qrCodePath)
 				if err != nil {
-					p.statusMsg = util.SetFgStyle("打开二维码失败: "+err.Error(), lipgloss.BrightRed)
+					p.statusMsg = util.SetFgStyle("打开二维码失败: "+err.Error(), tipError())
 				}
 			}
 		case "enter":
@@ -163,7 +163,7 @@ func (p *LastfmQRAuthPage) View(a *model.App) string {
 			padding = 0
 		}
 		builder.WriteString(style.CurrentStyleSet().AppBackground.Render(strings.Repeat(" ", padding)))
-		builder.WriteString(util.SetFgStyle(confirmTip, lipgloss.BrightBlue))
+		builder.WriteString(util.SetFgStyle(confirmTip, tipInfo()))
 		builder.WriteString("\n")
 	}
 
@@ -231,7 +231,7 @@ func (p *LastfmQRAuthPage) confirmAuth() (model.Page, tea.Cmd) {
 	// 获取 session key
 	sessionKey, err := p.netease.lastfm.GetSession(p.token)
 	if err != nil {
-		p.statusMsg = util.SetFgStyle("获取授权失败，请确认已在浏览器中完成授权", lipgloss.BrightRed)
+		p.statusMsg = util.SetFgStyle("获取授权失败，请确认已在浏览器中完成授权", tipError())
 		slog.Error("sessionKey 获取失败", slogx.Error(err))
 		return p, nil
 	}
@@ -239,7 +239,7 @@ func (p *LastfmQRAuthPage) confirmAuth() (model.Page, tea.Cmd) {
 	// 获取用户信息
 	user, err := p.netease.lastfm.GetUserInfo(map[string]any{})
 	if err != nil {
-		p.statusMsg = util.SetFgStyle("用户信息获取失败", lipgloss.BrightRed)
+		p.statusMsg = util.SetFgStyle("用户信息获取失败", tipError())
 		slog.Error("用户信息获取失败", slogx.Error(err))
 		return p, nil
 	}

@@ -169,7 +169,7 @@ func (p *QRLoginPage) Update(msg tea.Msg, a *model.App) (model.Page, tea.Cmd) {
 
 	case qrErrorMsg:
 		p.loading.Complete()
-		p.statusMsg = util.SetFgStyle(model.T(MsgQRLoginError)+msg.err.Error(), lipgloss.BrightRed)
+		p.statusMsg = util.SetFgStyle(model.T(MsgQRLoginError)+msg.err.Error(), tipError())
 		return p, nil
 
 	case tea.KeyPressMsg:
@@ -180,7 +180,7 @@ func (p *QRLoginPage) Update(msg tea.Msg, a *model.App) (model.Page, tea.Cmd) {
 			if p.qrCodePath != "" && !p.isExpired {
 				err := open.Start(p.qrCodePath)
 				if err != nil {
-					p.statusMsg = util.SetFgStyle(model.T(MsgQRLoginOpenImageFailed)+err.Error(), lipgloss.BrightRed)
+					p.statusMsg = util.SetFgStyle(model.T(MsgQRLoginOpenImageFailed)+err.Error(), tipError())
 				}
 			}
 		}
@@ -246,7 +246,7 @@ func (p *QRLoginPage) View(a *model.App) string {
 		for _, line := range qrLines {
 			builder.WriteString(space)
 			if p.isExpired {
-				builder.WriteString(util.SetFgStyle(line, lipgloss.BrightRed))
+				builder.WriteString(util.SetFgStyle(line, tipError()))
 			} else {
 				builder.WriteString(line)
 			}

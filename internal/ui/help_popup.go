@@ -7,7 +7,6 @@ import (
 
 	"github.com/anhoder/foxful-cli/model"
 
-	"github.com/go-musicfox/go-musicfox/internal/configs"
 	"github.com/go-musicfox/go-musicfox/internal/keybindings"
 	"github.com/go-musicfox/go-musicfox/internal/types"
 )
@@ -94,8 +93,8 @@ func showHelpPopup(app *model.App) {
 	popup, err := model.NewMarkdownPopup(model.MarkdownPopupSpec{
 		Title:              " 帮助 ",
 		MarkdownContent:    buildHelpMarkdown(),
-		MarkdownDarkStyle:  configs.GetCurrentMarkdownTheme(true),
-		MarkdownLightStyle: configs.GetCurrentMarkdownTheme(false),
+		MarkdownDarkStyle:  markdownStyle(true),
+		MarkdownLightStyle: markdownStyle(false),
 		MarkdownEmoji:      true,
 		MaxWidth:           popupWidth,
 		MaxHeight:          maxHeight,

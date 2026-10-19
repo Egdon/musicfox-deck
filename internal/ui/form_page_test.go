@@ -47,7 +47,7 @@ func TestStandaloneFormFocusedStylesUsePrimaryColor(t *testing.T) {
 	_, netease := newFormPageTestApp(t)
 	search := NewSearchPage(netease)
 	login := NewLoginPage(netease)
-	want := util.GetPrimaryColor()
+	want := themePrimary()
 
 	inputs := map[string]struct {
 		styles focusedInputStyles
@@ -236,7 +236,7 @@ func TestHoveredInputsHaveNoUnderline(t *testing.T) {
 
 func TestActiveButtonsUsePrimaryColor(t *testing.T) {
 	app, netease := newFormPageTestApp(t)
-	want := util.GetPrimaryColor()
+	want := themePrimary()
 
 	search := NewSearchPage(netease)
 	search.submitButton = pageSubmitButton(true)

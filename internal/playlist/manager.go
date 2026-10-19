@@ -133,6 +133,52 @@ func (pm *playlistManager) GetCurrentSong() (structs.Song, error) {
 	return pm.playlist[pm.currentIndex], nil
 }
 
+// Upcoming 只读地预览自动播放顺序下接下来的至多 n 首歌曲
+func (pm *playlistManager) Upcoming(n int) []structs.Song {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	total, cur := len(pm.playlist), pm.currentIndex
+	if n <= 0 || cur < 0 || cur >= total {
+		return nil
+	}
+
+	var indexes []int
+	switch mode := pm.playMode.(type) {
+	case *OrderedPlayMode, *IntelligentPlayMode:
+		for i := cur + 1; i < total && len(indexes) < n; i++ {
+			indexes = append(indexes, i)
+		}
+	case *ListLoopPlayMode:
+		for i := 1; i < total && len(indexes) < n; i++ {
+			indexes = append(indexes, (cur+i)%total)
+		}
+	case *SingleLoopPlayMode:
+		indexes = append(indexes, cur)
+	case *ListRandomPlayMode:
+		// Mirror ListRandomPlayMode.NextSong: it reshuffles when the order no
+		// longer matches the playlist length, otherwise it plays randomOrder[pos+1].
+		pos := mode.currentPos
+		if len(mode.randomOrder) != total || pos < -1 || pos >= total {
+			return nil
+		}
+		for _, i := range mode.randomOrder[pos+1:] {
+			if len(indexes) == n {
+				break
+			}
+			indexes = append(indexes, i)
+		}
+	default:
+		return nil
+	}
+
+	songs := make([]structs.Song, 0, len(indexes))
+	for _, i := range indexes {
+		songs = append(songs, pm.playlist[i])
+	}
+	return songs
+}
+
 // NextSong 切换到下一首歌曲
 func (pm *playlistManager) NextSong(manual bool) (structs.Song, error) {
 	pm.mu.Lock()

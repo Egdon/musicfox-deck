@@ -134,6 +134,7 @@ var builtinThemePriority = map[string]int{
 	"Dracula":     3,
 	"Nord":        4,
 	"Gruvbox":     5,
+	"Warm Night":  6,
 }
 
 // sortThemeNames sorts theme names: built-in themes first by priority, then

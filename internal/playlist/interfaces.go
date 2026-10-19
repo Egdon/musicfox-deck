@@ -23,6 +23,10 @@ type PlaylistManager interface {
 	// GetCurrentSong 获取当前播放的歌曲
 	GetCurrentSong() (structs.Song, error)
 
+	// Upcoming 只读地预览自动播放顺序下接下来的至多 n 首歌曲，不改变任何状态。
+	// 无限随机模式或当前索引无效时返回 nil。
+	Upcoming(n int) []structs.Song
+
 	// NextSong 切换到下一首歌曲
 	// manual 参数表示是否为手动切换
 	NextSong(manual bool) (structs.Song, error)

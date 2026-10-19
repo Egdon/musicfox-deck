@@ -6,7 +6,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/anhoder/foxful-cli/model"
-	"github.com/anhoder/foxful-cli/util"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
@@ -83,7 +82,7 @@ func TestLastfmCustomAPIPageMouseControlsAndActiveStyles(t *testing.T) {
 	activeView := activePage.View(app)
 	activeButtonRow := visibleRowContaining(t, activeView, pageSubmitText(), app.WindowHeight())
 	activeSubmitX := visibleColumnContaining(t, activeView, activeButtonRow, pageSubmitText())
-	assertCellForeground(t, formStyledScreen(activeView).CellAt(activeSubmitX, activeButtonRow), util.GetPrimaryColor())
+	assertCellForeground(t, formStyledScreen(activeView).CellAt(activeSubmitX, activeButtonRow), themePrimary())
 
 	_, _ = page.Update(tea.MouseClickMsg(tea.Mouse{X: visibleColumnContaining(t, view, buttonRow, pageSubmitText()), Y: buttonRow, Button: tea.MouseLeft}), app)
 	if !strings.Contains(ansi.Strip(page.tips), "请输入正确的 API 账号或密码") {
@@ -98,7 +97,7 @@ func newLastfmCustomAPIPageForStyles(t *testing.T, netease *Netease) *LastfmCust
 
 func assertLastfmInputUsesActivePageStyles(t *testing.T, styles focusedInputStyles) {
 	t.Helper()
-	want := util.GetPrimaryColor()
+	want := themePrimary()
 	if styles.text != want || styles.prompt != want || styles.cursor != want {
 		t.Fatalf("active input styles = %#v, want text, prompt, and cursor in primary %v", styles, want)
 	}

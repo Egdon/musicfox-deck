@@ -1,0 +1,246 @@
+# Warm Night - warm neutral night theme in the spirit of Braun and Dieter Rams
+name = "Warm Night"
+description = "Warm charcoal with greige text; signal orange only for what is happening now, grey-green for switches that are on"
+
+# ── Dark Variant ───────────────────────────────────────────
+[dark]
+primary = "#DDD6C9"
+secondary = "#9E978A"
+accent = "#D2714F"
+success = "#93AC82"
+warning = "#D2714F"
+error = "#D2714F"
+info = "#9E978A"
+muted = "#544F47"
+hintKey = "#9E978A"
+background = "#151412"
+foreground = "#CBC4B6"
+border = "#2D2A26"
+surface = "#1D1C19"
+
+# Square half-block caps keep the selected row a flat, hard-edged band.
+menuSelectedSepLeft = "▐"
+menuSelectedSepRight = "▌"
+# Selection marker: a thin signal-orange bar (exactly 3 cells wide).
+menuSelectedArrow = "▎  "
+
+[dark.highlights]
+menuTitle = "#CBC4B6"
+menuItem = "#CBC4B6" # 菜单项文字
+selectedItem = "#DDD6C9" # 选中项前景
+selectedItemBg = "#24221F" # 选中行色带
+menuArrow = "#D2714F" # 选中标记
+menuIndex = "#7A7368" # 菜单编号
+tabBorder = "#544F47" # 未聚焦标签边框
+menuItemHover = "#DDD6C9" # 鼠标悬停
+selectedItemHover = "#DDD6C9" # 选中+悬停
+title = "#CBC4B6" # 页面标题
+prompt = "#9E978A" # 输入提示
+backButton = "#9E978A" # 返回按钮
+backButtonHover = "#DDD6C9" # 返回按钮悬停
+subtitle = "#9E978A" # 副标题
+progressEmpty = "#544F47" # 进度条空槽
+scrollTrack = "#2D2A26" # 滚动条轨道
+scrollThumb = "#544F47" # 滚动条滑块
+button = "#DDD6C9" # 按钮常态
+buttonBlurred = "#9E978A" # 按钮失焦
+
+[dark.popup]
+surface = "#1D1C19"
+border = "#544F47"
+actionFocusedFg = "#151412" # 聚焦按钮文字
+actionFocusedBg = "#CBC4B6" # 聚焦按钮底色
+contextMenuItem = "#CBC4B6" # 右键菜单项
+
+# ── 通知组件配色 ─────────────────────────────────────────
+[dark.notification]
+surface = "#1D1C19" # 通知背景
+infoBorder = "#544F47" # 信息通知边框
+successBorder = "#93AC82" # 成功通知边框
+warningBorder = "#D2714F" # 警告通知边框
+errorBorder = "#D2714F" # 错误通知边框
+title = "#DDD6C9"
+message = "#CBC4B6"
+infoIcon = "○ "
+successIcon = "✓ "
+warningIcon = "△ "
+errorIcon = "✕ "
+
+# ── 状态栏配色 ───────────────────────────────────────────
+[dark.statusBar]
+bar = "#9E978A" # 状态栏文字
+barBg = "#151412" # 状态栏底色
+text = "#9E978A"
+breadcrumb = "#CBC4B6" # 面包屑文字
+breadcrumbBg = "#1D1C19" # 面包屑底色
+breadcrumbSep = "#544F47" # 面包屑分隔符
+breadcrumbHover = "#DDD6C9" # 面包屑悬停
+breadcrumbClick = "#D2714F" # 面包屑点击
+time = "#9E978A" # 时间文字
+timeBg = "#1D1C19" # 时间底色
+nugget = "#CBC4B6" # 标签块文字
+nuggetLabelFg = "#CBC4B6"
+nuggetLabelBg = "#2D2A26" # 标签块底色
+timeSepLeft = " "
+breadcrumbSepRight = " "
+timeIcon = ""
+
+# ── Markdown 渲染主题 ────────────────────────────────────
+[dark.markdown]
+dark = "builtin:warm_night"
+light = "builtin:warm_night"
+
+[dark.app]
+# Lyric colors: the sung part of the current line is the brightest text
+lyricActive = "#B5AEA1"
+lyricTransition = "#9E978A"
+lyricInactive = "#7A7368"
+lyricHighlight = "#DDD6C9"
+
+# Playbar colors
+playbarMode = "#9E978A"
+playbarVolume = "#9E978A"
+playbarPlaying = "#D2714F"
+playbarPaused = "#9E978A"
+playbarHeartLiked = "#D2714F"
+playbarHeartUnliked = "#544F47"
+playbarArtist = "#9E978A"
+
+# Visualizer colors: "random" or hex
+visualizerColorStart = "#544F47"
+visualizerColorEnd = "#9E978A"
+
+# 整个应用背景色
+background = "#151412"
+contextMenuBg = "#1D1C19" # 右键菜单背景
+contextMenuBorder = "#544F47" # 右键菜单边框
+spectrumVerticalBg = "#151412" # 频谱纵向渐变
+desktopLyricsBg = "#151412" # 桌面歌词背景
+loginError = "#D2714F" # 登录失败
+loginSuccess = "#93AC82" # 登录成功
+authStatus = "#9E978A" # 认证状态
+configTableBorder = "#544F47" # 配置表边框
+configTableSelectedFg = "#DDD6C9" # 配置表选中前景
+configTableSelectedBg = "#24221F" # 配置表选中背景
+
+# ── Light Variant ──────────────────────────────────────────
+# A night theme: the light variant mirrors the dark one.
+[light]
+primary = "#DDD6C9"
+secondary = "#9E978A"
+accent = "#D2714F"
+success = "#93AC82"
+warning = "#D2714F"
+error = "#D2714F"
+info = "#9E978A"
+muted = "#544F47"
+hintKey = "#9E978A"
+background = "#151412"
+foreground = "#CBC4B6"
+border = "#2D2A26"
+surface = "#1D1C19"
+
+# Square half-block caps keep the selected row a flat, hard-edged band.
+menuSelectedSepLeft = "▐"
+menuSelectedSepRight = "▌"
+# Selection marker: a thin signal-orange bar (exactly 3 cells wide).
+menuSelectedArrow = "▎  "
+
+[light.highlights]
+menuTitle = "#CBC4B6"
+menuItem = "#CBC4B6" # 菜单项文字
+selectedItem = "#DDD6C9" # 选中项前景
+selectedItemBg = "#24221F" # 选中行色带
+menuArrow = "#D2714F" # 选中标记
+menuIndex = "#7A7368" # 菜单编号
+tabBorder = "#544F47" # 未聚焦标签边框
+menuItemHover = "#DDD6C9" # 鼠标悬停
+selectedItemHover = "#DDD6C9" # 选中+悬停
+title = "#CBC4B6" # 页面标题
+prompt = "#9E978A" # 输入提示
+backButton = "#9E978A" # 返回按钮
+backButtonHover = "#DDD6C9" # 返回按钮悬停
+subtitle = "#9E978A" # 副标题
+progressEmpty = "#544F47" # 进度条空槽
+scrollTrack = "#2D2A26" # 滚动条轨道
+scrollThumb = "#544F47" # 滚动条滑块
+button = "#DDD6C9" # 按钮常态
+buttonBlurred = "#9E978A" # 按钮失焦
+
+[light.popup]
+surface = "#1D1C19"
+border = "#544F47"
+actionFocusedFg = "#151412" # 聚焦按钮文字
+actionFocusedBg = "#CBC4B6" # 聚焦按钮底色
+contextMenuItem = "#CBC4B6" # 右键菜单项
+
+# ── 通知组件配色 ─────────────────────────────────────────
+[light.notification]
+surface = "#1D1C19" # 通知背景
+infoBorder = "#544F47" # 信息通知边框
+successBorder = "#93AC82" # 成功通知边框
+warningBorder = "#D2714F" # 警告通知边框
+errorBorder = "#D2714F" # 错误通知边框
+title = "#DDD6C9"
+message = "#CBC4B6"
+infoIcon = "○ "
+successIcon = "✓ "
+warningIcon = "△ "
+errorIcon = "✕ "
+
+# ── 状态栏配色 ───────────────────────────────────────────
+[light.statusBar]
+bar = "#9E978A" # 状态栏文字
+barBg = "#151412" # 状态栏底色
+text = "#9E978A"
+breadcrumb = "#CBC4B6" # 面包屑文字
+breadcrumbBg = "#1D1C19" # 面包屑底色
+breadcrumbSep = "#544F47" # 面包屑分隔符
+breadcrumbHover = "#DDD6C9" # 面包屑悬停
+breadcrumbClick = "#D2714F" # 面包屑点击
+time = "#9E978A" # 时间文字
+timeBg = "#1D1C19" # 时间底色
+nugget = "#CBC4B6" # 标签块文字
+nuggetLabelFg = "#CBC4B6"
+nuggetLabelBg = "#2D2A26" # 标签块底色
+timeSepLeft = " "
+breadcrumbSepRight = " "
+timeIcon = ""
+
+# ── Markdown 渲染主题 ────────────────────────────────────
+[light.markdown]
+dark = "builtin:warm_night"
+light = "builtin:warm_night"
+
+[light.app]
+# Lyric colors: the sung part of the current line is the brightest text
+lyricActive = "#B5AEA1"
+lyricTransition = "#9E978A"
+lyricInactive = "#7A7368"
+lyricHighlight = "#DDD6C9"
+
+# Playbar colors
+playbarMode = "#9E978A"
+playbarVolume = "#9E978A"
+playbarPlaying = "#D2714F"
+playbarPaused = "#9E978A"
+playbarHeartLiked = "#D2714F"
+playbarHeartUnliked = "#544F47"
+playbarArtist = "#9E978A"
+
+# Visualizer colors: "random" or hex
+visualizerColorStart = "#544F47"
+visualizerColorEnd = "#9E978A"
+
+# 整个应用背景色
+background = "#151412"
+contextMenuBg = "#1D1C19" # 右键菜单背景
+contextMenuBorder = "#544F47" # 右键菜单边框
+spectrumVerticalBg = "#151412" # 频谱纵向渐变
+desktopLyricsBg = "#151412" # 桌面歌词背景
+loginError = "#D2714F" # 登录失败
+loginSuccess = "#93AC82" # 登录成功
+authStatus = "#9E978A" # 认证状态
+configTableBorder = "#544F47" # 配置表边框
+configTableSelectedFg = "#DDD6C9" # 配置表选中前景
+configTableSelectedBg = "#24221F" # 配置表选中背景

@@ -348,11 +348,11 @@ func (l *LastfmCustomApiPage) applyFocus() {
 	case 1:
 		focusPageInput(&l.secretInput)
 	case l.submitIndex:
-		l.tips = util.SetFgStyle("保存至数据库，优先使用此值", lipgloss.BrightBlue)
+		l.tips = util.SetFgStyle("保存至数据库，优先使用此值", tipInfo())
 	case l.reloadIndex:
-		l.tips = util.SetFgStyle("从数据库或本次启动时的配置文件中加载 API account", lipgloss.BrightBlue)
+		l.tips = util.SetFgStyle("从数据库或本次启动时的配置文件中加载 API account", tipInfo())
 	case l.clearIndex:
-		l.tips = util.SetFgStyle("清除当前值及已设置值", lipgloss.BrightBlue)
+		l.tips = util.SetFgStyle("清除当前值及已设置值", tipInfo())
 	}
 	l.submitButton = pageSubmitButton(l.index == l.submitIndex)
 	l.reloadButton = pageButton(l.reloadText, l.index == l.reloadIndex)
@@ -369,21 +369,21 @@ func (l *LastfmCustomApiPage) enterHandler() (model.Page, tea.Cmd) {
 	case l.submitIndex:
 		// 提交
 		if len(l.keyInput.Value()) != 32 || len(l.secretInput.Value()) != 32 {
-			l.tips = util.SetFgStyle("请输入正确的 API 账号或密码", lipgloss.BrightRed)
+			l.tips = util.SetFgStyle("请输入正确的 API 账号或密码", tipError())
 			return l, nil
 		}
 		l.netease.lastfm.SetApiAccount(l.keyInput.Value(), l.secretInput.Value())
-		l.tips = util.SetFgStyle("已保存至数据库", lipgloss.BrightGreen)
+		l.tips = util.SetFgStyle("已保存至数据库", tipSuccess())
 	case l.reloadIndex:
 		l.reloadApiAccount()
 	case l.clearIndex:
 		if len(l.keyInput.Value()) != 0 && len(l.secretInput.Value()) != 0 {
 			l.keyInput.Reset()
 			l.secretInput.Reset()
-			l.tips = util.SetFgStyle("已清空，请重新填写, 为空时再次按下以清除数据库内 Api account", lipgloss.BrightRed)
+			l.tips = util.SetFgStyle("已清空，请重新填写, 为空时再次按下以清除数据库内 Api account", tipError())
 		} else {
 			l.netease.lastfm.ClearApiAccount()
-			l.tips = util.SetFgStyle("已清除数据库内 Api account，需重新登录", lipgloss.BrightRed)
+			l.tips = util.SetFgStyle("已清除数据库内 Api account，需重新登录", tipError())
 		}
 	}
 	if l.AfterAction != nil {
@@ -399,15 +399,15 @@ func (l *LastfmCustomApiPage) reloadApiAccount() (model.Page, tea.Cmd) {
 	if key != "" && secret != "" {
 		l.keyInput.SetValue(key)
 		l.secretInput.SetValue(secret)
-		l.tips = util.SetFgStyle("已从已配置值(TUI 设置值)加载", lipgloss.BrightGreen)
+		l.tips = util.SetFgStyle("已从已配置值(TUI 设置值)加载", tipSuccess())
 	} else if configs.AppConfig.Reporter.Lastfm.Key != "" && configs.AppConfig.Reporter.Lastfm.Secret != "" {
 		l.keyInput.SetValue(configs.AppConfig.Reporter.Lastfm.Key)
 		l.secretInput.SetValue(configs.AppConfig.Reporter.Lastfm.Secret)
-		l.tips = util.SetFgStyle("已从本次启动时的配置文件中加载", lipgloss.BrightGreen)
+		l.tips = util.SetFgStyle("已从本次启动时的配置文件中加载", tipSuccess())
 	} else {
 		l.keyInput.Reset()
 		l.secretInput.Reset()
-		l.tips = util.SetFgStyle("未获取到内容，已重置", lipgloss.BrightGreen)
+		l.tips = util.SetFgStyle("未获取到内容，已重置", tipSuccess())
 	}
 
 	return l, nil

@@ -148,7 +148,7 @@ func (l *LoginPage) Update(msg tea.Msg, a *model.App) (model.Page, tea.Cmd) {
 
 	if loginMsg, ok := msg.(LoginMsg); ok {
 		if loginMsg.err != nil {
-			l.tips = util.SetFgStyle(loginMsg.err.Error(), lipgloss.BrightRed)
+			l.tips = util.SetFgStyle(loginMsg.err.Error(), tipError())
 			return l, nil
 		}
 		if newPage := l.loginSuccessHandle(l.netease); newPage != nil {
@@ -629,7 +629,7 @@ func (l *LoginPage) enterHandler() (model.Page, tea.Cmd) {
 		}
 		// 提交
 		if len(l.accountInput.Value()) <= 0 || len(l.passwordInput.Value()) <= 0 {
-			l.tips = util.SetFgStyle(model.T(MsgLoginCredentialRequired), lipgloss.BrightRed)
+			l.tips = util.SetFgStyle(model.T(MsgLoginCredentialRequired), tipError())
 			return l, nil
 		}
 		return l.loginByAccount()
@@ -682,7 +682,7 @@ func (l *LoginPage) loginByAccount() (model.Page, tea.Cmd) {
 		code, bodyBytes, err = loginService.LoginCellphone()
 
 		if err != nil {
-			l.tips = util.SetFgStyle(model.T(MsgLoginFailed)+err.Error(), lipgloss.BrightRed)
+			l.tips = util.SetFgStyle(model.T(MsgLoginFailed)+err.Error(), tipError())
 			slog.Error("使用账号密码登录失败", slogx.Error(err))
 			return l, tickLogin(time.Nanosecond)
 		}
@@ -757,7 +757,7 @@ func (l *LoginPage) loginByQRCode() (model.Page, tea.Cmd) {
 // loginByWebview 跳转到网页登录界面（仅 macOS 支持原生 WKWebView 窗口）
 func (l *LoginPage) loginByWebview() (model.Page, tea.Cmd) {
 	if !l.webviewAvailable {
-		l.tips = util.SetFgStyle(model.T(MsgLoginWebviewUnsupported), lipgloss.BrightRed)
+		l.tips = util.SetFgStyle(model.T(MsgLoginWebviewUnsupported), tipError())
 		return l, nil
 	}
 	webviewPage := NewWebviewLoginPage(l.netease, l, l.AfterLogin)
@@ -894,11 +894,11 @@ func checkCookieCmd(cookieStr string) tea.Cmd {
 func (l *LoginPage) loginByCookie() (model.Page, tea.Cmd) {
 	cookieStr := l.cookieInput.Value()
 	if len(cookieStr) <= 0 {
-		l.tips = util.SetFgStyle(model.T(MsgLoginCookieRequired), lipgloss.BrightRed)
+		l.tips = util.SetFgStyle(model.T(MsgLoginCookieRequired), tipError())
 		return l, nil
 	}
 
-	l.tips = util.SetFgStyle(model.T(MsgLoginCookieVerifying), lipgloss.BrightCyan)
+	l.tips = util.SetFgStyle(model.T(MsgLoginCookieVerifying), tipInfo())
 	l.cookieInput.SetValue("")
 
 	return l, checkCookieCmd(cookieStr)

@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/anhoder/foxful-cli/model"
 	"github.com/anhoder/foxful-cli/style"
-	"github.com/mattn/go-runewidth"
 
 	"github.com/go-musicfox/go-musicfox/internal/configs"
 	"github.com/go-musicfox/go-musicfox/internal/keybindings"
@@ -22,6 +21,7 @@ type EventHandler struct {
 	netease         *Netease
 	keyToOperateMap map[string]keybindings.OperateType // KeyStr -> OperateType
 	mouseVolumeStep int
+	osd             osdNotifier
 }
 
 func NewEventHandler(netease *Netease) *EventHandler {
@@ -41,12 +41,49 @@ func NewEventHandler(netease *Netease) *EventHandler {
 }
 
 // KeyMsgHandle 处理键盘事件
-func (h *EventHandler) KeyMsgHandle(msg tea.KeyMsg, _ *model.App) (bool, model.Page, tea.Cmd) {
+func (h *EventHandler) KeyMsgHandle(msg tea.KeyMsg, a *model.App) (bool, model.Page, tea.Cmd) {
 	if op, ok := h.keyToOperateMap[msg.String()]; ok {
+		state, passed := h.netease.player.State(), h.netease.player.PassedTime()
 		stopPropagation, newPage, cmd := h.handle(op)
+		h.osd.show(a, h.osdText(op, state, passed))
 		return stopPropagation, newPage, cmd
 	}
 	return false, nil, nil // false: 允许 foxful-cli 处理
+}
+
+// osdText returns the main-screen OSD text for an operation, given the player
+// state and position from before the operation ran.
+func (h *EventHandler) osdText(op keybindings.OperateType, before types.State, passed time.Duration) string {
+	player := h.netease.player
+	seek := func(delta time.Duration) string {
+		if before != types.Playing && before != types.Paused {
+			return ""
+		}
+		return osdSeekText(delta, min(max(passed+delta, 0), player.CurSong().Duration))
+	}
+	switch op {
+	case keybindings.OpPlayOrToggle, keybindings.OpToggle:
+		if player.CurSong().Id == 0 {
+			return ""
+		}
+		if before == types.Playing {
+			return osdStateText(types.Paused)
+		}
+		return osdStateText(types.Playing)
+	case keybindings.OpVolumeUp, keybindings.OpVolumeDown:
+		return osdVolumeText(player.Volume())
+	case keybindings.OpSeekBackward1s:
+		return seek(-time.Second)
+	case keybindings.OpSeekBackward5s:
+		return seek(-5 * time.Second)
+	case keybindings.OpSeekForward5s:
+		return seek(5 * time.Second)
+	case keybindings.OpSeekForward10s:
+		return seek(10 * time.Second)
+	case keybindings.OpSwitchPlayMode:
+		return osdModeText(player.Mode())
+	}
+	return ""
 }
 
 func (h *EventHandler) handle(op keybindings.OperateType) (bool, model.Page, tea.Cmd) {
@@ -60,6 +97,9 @@ func (h *EventHandler) handle(op keybindings.OperateType) (bool, model.Page, tea
 	switch op {
 	case keybindings.OpEnter:
 		return h.enterKeyHandle()
+	case keybindings.OpNowPlaying:
+		page, cmd := h.netease.ToNowPlayingPage(h)
+		return true, page, cmd
 	case keybindings.OpCurPlaylist:
 		if _, ok := menu.(*CurPlaylist); !ok {
 			var subTitle string
@@ -433,19 +473,8 @@ func (h *EventHandler) MouseMsgHandle(msg tea.MouseMsg, a *model.App) (stopPropa
 			if mouse.Y >= main.MenuStartRow() && mouse.Y < main.MenuBottomRow() {
 				return false, nil, nil
 			}
-			if mouse.Button == tea.MouseWheelDown {
-				if mouse.Mod == tea.ModCtrl {
-					player.SetVolume(max(player.Volume()-h.mouseVolumeStep, 0))
-				} else {
-					player.DownVolume()
-				}
-			} else {
-				if mouse.Mod == tea.ModCtrl {
-					player.SetVolume(min(player.Volume()+h.mouseVolumeStep, 100))
-				} else {
-					player.UpVolume()
-				}
-			}
+			h.wheelVolume(mouse)
+			h.osd.show(a, osdVolumeText(player.Volume()))
 			return true, main, a.Tick(time.Nanosecond)
 		case tea.MouseWheelLeft, tea.MouseWheelRight:
 			// 水平滚轮不映射切歌，避免触控板手势转换为多条消息时重复切歌。
@@ -467,125 +496,51 @@ func (h *EventHandler) MouseMsgHandle(msg tea.MouseMsg, a *model.App) (stopPropa
 	return false, nil, nil
 }
 
+// wheelVolume adjusts the volume for a vertical wheel event; ctrl+wheel uses
+// the configured mouseVolumeStep.
+func (h *EventHandler) wheelVolume(mouse tea.Mouse) {
+	player := h.netease.player
+	if mouse.Button == tea.MouseWheelDown {
+		if mouse.Mod == tea.ModCtrl {
+			player.SetVolume(max(player.Volume()-h.mouseVolumeStep, 0))
+		} else {
+			player.DownVolume()
+		}
+	} else {
+		if mouse.Mod == tea.ModCtrl {
+			player.SetVolume(min(player.Volume()+h.mouseVolumeStep, 100))
+		} else {
+			player.UpVolume()
+		}
+	}
+}
+
 // handlePlayerBarClick 处理播放栏点击事件
 func (h *EventHandler) handlePlayerBarClick(msg tea.MouseMsg, a *model.App, main *model.Main) (bool, model.Page, tea.Cmd) {
 	playModeRow := main.EffectiveWindowHeight(a) - PlayModeRowOffset
 	if msg.Mouse().Y != playModeRow {
 		return false, nil, nil
 	}
-
-	// 播放模式点击
-	if handled, page, cmd := h.handlePlayModeClick(msg, a, main); handled {
-		return handled, page, cmd
-	}
-
-	// 播放栏其他元素点击
-	return h.handlePlayerBarElementsClick(msg, a, main)
-}
-
-// handlePlayModeClick 播放模式点击
-func (h *EventHandler) handlePlayModeClick(msg tea.MouseMsg, a *model.App, main *model.Main) (bool, model.Page, tea.Cmd) {
-	player := h.netease.player
-	menuStartColumn := main.MenuStartColumn()
-
-	if menuStartColumn > MenuArrowWidth {
-		playModeEndX := menuStartColumn + PlayModeClickWidth
-		if msg.Mouse().X >= menuStartColumn-MenuArrowWidth && msg.Mouse().X <= playModeEndX {
-			player.SwitchMode()
-			return true, main, a.Tick(time.Nanosecond)
-		}
-	}
-	return false, nil, nil
-}
-
-// handlePlayerBarElementsClick 播放栏其他元素点击
-func (h *EventHandler) handlePlayerBarElementsClick(msg tea.MouseMsg, a *model.App, main *model.Main) (bool, model.Page, tea.Cmd) {
-	player := h.netease.player
-	curSong := player.CurSong()
-
-	mouse := msg.Mouse()
-
-	if curSong.Id == 0 {
+	switch h.netease.songInfoRenderer.elementAt(msg.Mouse().X) {
+	case PlaybarElementMode:
+		h.netease.player.SwitchMode()
+	case PlaybarElementState:
+		h.playOrToggleHandle()
+	case PlaybarElementHeart:
+		isLiked := likelist.IsLikeSong(h.netease.player.CurSong().Id)
+		return true, likeSong(h.netease, !isLiked, false), a.Tick(time.Nanosecond)
+	case PlaybarElementSongName:
+		action(h.netease, true)
+	case PlaybarElementArtist:
+		goToArtistOfSong(h.netease, false)
+	default:
 		return false, nil, nil
 	}
-
-	menuStartColumn := main.MenuStartColumn()
-	leftPad := 0
-	if !main.CenterEverything() && menuStartColumn-MenuArrowWidth > 0 {
-		leftPad = menuStartColumn - MenuArrowWidth
-	}
-
-	currentX := leftPad
-
-	// Mode & Volume 宽度
-	if menuStartColumn-MenuArrowWidth > 0 {
-		modeStr := fmt.Sprintf("[%s] ", player.Mode().Name())
-		modeWidth := runewidth.StringWidth(modeStr)
-		volStr := fmt.Sprintf("%d%% ", player.Volume())
-		volWidth := runewidth.StringWidth(volStr)
-		currentX += modeWidth + volWidth
-	}
-
-	// 播放状态
-	stateText := "_ z Z Z "
-	if player.State() == types.Playing {
-		stateText = "♫ ♪ ♫ ♪ "
-	}
-	stateWidth := runewidth.StringWidth(stateText)
-
-	if mouse.X >= currentX && mouse.X < currentX+stateWidth {
-		h.playOrToggleHandle()
-		return true, main, a.Tick(time.Nanosecond)
-	}
-	currentX += stateWidth
-
-	// 喜欢状态
-	heartWidth := 0
-	if curSong.Id > 0 {
-		_ = likelist.IsLikeSong(curSong.Id)
-		heartWidth = runewidth.StringWidth("♥ ")
-	}
-	if heartWidth > 0 {
-		if mouse.X >= currentX && mouse.X < currentX+heartWidth {
-			isLiked := likelist.IsLikeSong(curSong.Id)
-			newPage := likeSong(h.netease, !isLiked, false)
-			return true, newPage, a.Tick(time.Nanosecond)
-		}
-		currentX += heartWidth
-	}
-
-	// 歌曲名
-	songName := curSong.Name
-	songShownWidth := runewidth.StringWidth(songName)
-	if !main.CenterEverything() {
-		prefixLen := SongInfoPrefixBaseWidth
-		if main.MenuStartColumn()-MenuArrowWidth > 0 {
-			prefixLen += SongInfoPrefixExtraWidth
-		}
-		maxSongWidth := a.WindowWidth() - main.MenuStartColumn() - prefixLen
-		if songShownWidth > maxSongWidth {
-			songShownWidth = maxSongWidth
-		}
-	}
-
-	if mouse.X >= currentX && mouse.X < currentX+songShownWidth {
-		action(h.netease, true)
-		return true, main, a.Tick(time.Nanosecond)
-	}
-	currentX += songShownWidth + 1
-
-	// 歌手
-	if mouse.X >= currentX {
-		goToArtistOfSong(h.netease, false)
-		return true, main, a.Tick(time.Nanosecond)
-	}
-
-	return false, nil, nil
+	return true, main, a.Tick(time.Nanosecond)
 }
 
 // handlePlaybarMotion tracks the hovered playbar element and switches the mouse pointer.
 func (h *EventHandler) handlePlaybarMotion(msg tea.MouseMsg, a *model.App, main *model.Main) (bool, tea.Cmd) {
-	player := h.netease.player
 	mouse := msg.Mouse()
 	playModeRow := main.EffectiveWindowHeight(a) - PlayModeRowOffset
 	progressBarRow := main.EffectiveWindowHeight(a) - 1
@@ -598,74 +553,8 @@ func (h *EventHandler) handlePlaybarMotion(msg tea.MouseMsg, a *model.App, main 
 		newHover = PlaybarElementProgressBar
 		needsPointer = true
 	} else if mouse.Y == playModeRow {
-		curSong := player.CurSong()
-		if curSong.Id == 0 {
-			menuStartColumn := main.MenuStartColumn()
-			if menuStartColumn > MenuArrowWidth {
-				playModeEndX := menuStartColumn + PlayModeClickWidth
-				if mouse.X >= menuStartColumn-MenuArrowWidth && mouse.X <= playModeEndX {
-					newHover = PlaybarElementMode
-					needsPointer = true
-				}
-			}
-		} else {
-			menuStartColumn := main.MenuStartColumn()
-			leftPad := 0
-			if !main.CenterEverything() && menuStartColumn-MenuArrowWidth > 0 {
-				leftPad = menuStartColumn - MenuArrowWidth
-			}
-			currentX := leftPad
-
-			if menuStartColumn-MenuArrowWidth > 0 {
-				modeWidth := runewidth.StringWidth(fmt.Sprintf("[%s] ", player.Mode().Name()))
-				volWidth := runewidth.StringWidth(fmt.Sprintf("%d%% ", player.Volume()))
-				if mouse.X >= currentX && mouse.X < currentX+modeWidth {
-					newHover = PlaybarElementMode
-					needsPointer = true
-				}
-				currentX += modeWidth + volWidth
-			}
-
-			stateText := "_ z Z Z "
-			if player.State() == types.Playing {
-				stateText = "♫ ♪ ♫ ♪ "
-			}
-			stateWidth := runewidth.StringWidth(stateText)
-			if mouse.X >= currentX && mouse.X < currentX+stateWidth {
-				newHover = PlaybarElementState
-				needsPointer = true
-			}
-			currentX += stateWidth
-
-			heartWidth := runewidth.StringWidth("♥ ")
-			if mouse.X >= currentX && mouse.X < currentX+heartWidth {
-				newHover = PlaybarElementHeart
-				needsPointer = true
-			}
-			currentX += heartWidth
-
-			songShownWidth := runewidth.StringWidth(curSong.Name)
-			if !main.CenterEverything() {
-				prefixLen := SongInfoPrefixBaseWidth
-				if main.MenuStartColumn()-MenuArrowWidth > 0 {
-					prefixLen += SongInfoPrefixExtraWidth
-				}
-				maxSongWidth := a.WindowWidth() - main.MenuStartColumn() - prefixLen
-				if songShownWidth > maxSongWidth {
-					songShownWidth = maxSongWidth
-				}
-			}
-			if mouse.X >= currentX && mouse.X < currentX+songShownWidth {
-				newHover = PlaybarElementSongName
-				needsPointer = true
-			}
-			currentX += songShownWidth + 1
-
-			if mouse.X >= currentX {
-				newHover = PlaybarElementArtist
-				needsPointer = true
-			}
-		}
+		newHover = h.netease.songInfoRenderer.elementAt(mouse.X)
+		needsPointer = newHover != PlaybarElementNone
 	}
 
 	if newHover != h.netease.playbarHoveredElement {

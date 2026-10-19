@@ -207,6 +207,19 @@ type Theme struct {
 	MenuSelectedSepLeft  string
 	MenuSelectedSepRight string
 
+	// Selected menu row marker; must be 3 cells wide. Default: "=> ".
+	MenuSelectedArrow string
+	MenuArrow         Highlight // fg of the marker; bg→row
+	MenuIndex         Highlight // fg of the row number; bg→row
+
+	// StatusBarTimeIcon precedes the clock. nil keeps the default icon; an
+	// empty string removes it.
+	StatusBarTimeIcon *string
+
+	// TabBorder colors the borders of unfocused tabs; nil leaves them in the
+	// terminal's default color.
+	TabBorder color.Color
+
 	AppBackground  Highlight // Bg→transparent (terminal shows through)
 	SelectedItemBg Highlight // Bg→transparent (falls back to AppBackground.Bg)
 
@@ -555,6 +568,16 @@ type StyleSet struct {
 	// Default: "\uE0B4". Set to "" to disable.
 	MenuSelectedSepRight string
 
+	// MenuSelectedArrow marks the selected menu row; always 3 cells wide.
+	MenuSelectedArrow string
+
+	// MenuArrow and MenuIndex color the selection marker and the row number.
+	MenuArrow lipgloss.Style
+	MenuIndex lipgloss.Style
+
+	// StatusBarTimeIcon precedes the clock in the status bar.
+	StatusBarTimeIcon string
+
 	// BackButton is the style for the back/return icon button shown before the
 	// menu title when inside a submenu. Uses primary color to indicate clickability.
 	BackButton lipgloss.Style
@@ -589,6 +612,12 @@ type StyleSet struct {
 //   - transparent (no background set)
 func (ss StyleSet) BlankStyle() lipgloss.Style {
 	return ss.AppBackground
+}
+
+// Theme returns the theme this StyleSet was built from, before defaults were
+// resolved: unset roles stay nil.
+func (ss StyleSet) Theme() Theme {
+	return ss.theme
 }
 
 // NewStyleSet creates a pre-configured set of styles from a Theme.
@@ -936,7 +965,7 @@ func NewStyleSet(theme Theme) StyleSet {
 
 	base.MenuTitle = applyHL(lipgloss.NewStyle().Background(appBg), Highlight{Fg: menuTitleHL.Fg})
 
-	base.MenuItem = lipgloss.NewStyle().Background(selectedItemBg)
+	base.MenuItem = applyHL(lipgloss.NewStyle().Background(selectedItemBg), Highlight{Fg: theme.MenuItem.Fg})
 
 	base.MenuItemHover = applyHL(lipgloss.NewStyle(), menuItemHoverHL)
 
@@ -1102,6 +1131,16 @@ func NewStyleSet(theme Theme) StyleSet {
 	base.StatusBarBreadcrumbSepRight = theme.StatusBarBreadcrumbSepRight
 	base.MenuSelectedSepLeft = theme.MenuSelectedSepLeft
 	base.MenuSelectedSepRight = theme.MenuSelectedSepRight
+	base.MenuSelectedArrow = "=> "
+	if lipgloss.Width(theme.MenuSelectedArrow) == 3 {
+		base.MenuSelectedArrow = theme.MenuSelectedArrow
+	}
+	base.MenuArrow = applyHL(lipgloss.NewStyle(), Highlight{Fg: theme.MenuArrow.Fg})
+	base.MenuIndex = applyHL(lipgloss.NewStyle(), Highlight{Fg: theme.MenuIndex.Fg})
+	base.StatusBarTimeIcon = "\ue384 "
+	if theme.StatusBarTimeIcon != nil {
+		base.StatusBarTimeIcon = *theme.StatusBarTimeIcon
+	}
 
 	// App background
 	base.AppBackground = lipgloss.NewStyle().Background(appBg)

@@ -48,8 +48,9 @@ type Netease struct {
 	lastfm *lastfm.Client
 
 	*model.App
-	login  *LoginPage
-	search *SearchPage
+	login      *LoginPage
+	search     *SearchPage
+	nowPlaying *NowPlayingPage
 
 	lyricService *lyric.Service
 
@@ -157,6 +158,7 @@ func (n *Netease) EffectiveWindowHeight() int {
 // ToLoginPage 需要登录的处理
 func (n *Netease) ToLoginPage(callback func() model.Page) (model.Page, tea.Cmd) {
 	n.login.AfterLogin = callback
+	n.login.applyFocus() // the page was built before the theme took effect
 	n.coverRenderer.ClearDisplayed()
 	return n.login, tickLogin(time.Nanosecond)
 }
@@ -164,8 +166,27 @@ func (n *Netease) ToLoginPage(callback func() model.Page) (model.Page, tea.Cmd) 
 // ToSearchPage 搜索
 func (n *Netease) ToSearchPage(searchType SearchType) (model.Page, tea.Cmd) {
 	n.search.searchType = searchType
+	// The page was built before the theme took effect.
+	if n.search.index == 0 {
+		focusPageInput(&n.search.wordsInput)
+	} else {
+		blurPageInput(&n.search.wordsInput)
+	}
+	n.search.submitButton = pageSubmitButton(n.search.index == 1)
 	n.coverRenderer.ClearDisplayed()
 	return n.search, tickSearch(time.Nanosecond)
+}
+
+// ToNowPlayingPage 播放页
+func (n *Netease) ToNowPlayingPage(handler *EventHandler) (model.Page, tea.Cmd) {
+	if n.nowPlaying == nil {
+		n.nowPlaying = NewNowPlayingPage(n, handler)
+	}
+	if n.coverRenderer != nil {
+		n.coverRenderer.ClearDisplayed()
+	}
+	n.nowPlaying.enter(time.Now())
+	return n.nowPlaying, nil
 }
 
 func (n *Netease) InitHook(_ *model.App) {
@@ -659,13 +680,15 @@ func showChangelogPopup(app *model.App) {
 	maxHeight := max(app.WindowHeight()*80/100, 10)
 
 	popup, err := model.NewMarkdownPopup(model.MarkdownPopupSpec{
-		Title:           types.AppVersion + " 更新日志",
-		MarkdownContent: string(data),
-		MaxWidth:        popupWidth,
-		MaxHeight:       maxHeight,
-		Anchor:          model.AnchorCenter,
-		DisableResize:   false,
-		CloseKeys:       []string{"esc", "q"},
+		Title:              types.AppVersion + " 更新日志",
+		MarkdownContent:    string(data),
+		MarkdownDarkStyle:  markdownStyle(true),
+		MarkdownLightStyle: markdownStyle(false),
+		MaxWidth:           popupWidth,
+		MaxHeight:          maxHeight,
+		Anchor:             model.AnchorCenter,
+		DisableResize:      false,
+		CloseKeys:          []string{"esc", "q"},
 	})
 	if err != nil {
 		slog.Error("changelog popup creation failure", slogx.Error(err))
@@ -721,6 +744,7 @@ func (n *Netease) notifyThemeSwitch(app *model.App, title, name string) {
 		Timeout: timeout,
 	}
 	if n.themeNotifID == 0 {
+		markForeignNotify()
 		n.themeNotifID = app.Notify(spec)
 	} else {
 		app.UpdateNotification(n.themeNotifID, spec)

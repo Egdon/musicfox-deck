@@ -52,6 +52,7 @@ func (n *Netease) registerToastHook() {
 		return
 	}
 	notify.SetToastHook(func(content notify.NotifyContent, level notify.ToastLevel) {
+		markForeignNotify()
 		n.App.Notify(buildToastNotificationSpec(content, level, open.Start))
 	})
 }

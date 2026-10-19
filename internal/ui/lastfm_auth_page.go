@@ -388,11 +388,11 @@ func (l *LastfmAuthPage) applyFocus() {
 	case 1:
 		focusPageInput(&l.passwordInput)
 	case l.submitIndex:
-		l.tips = util.SetFgStyle("使用账号密码登录并授权", lipgloss.BrightBlue)
+		l.tips = util.SetFgStyle("使用账号密码登录并授权", tipInfo())
 	case l.qrAuthIndex:
-		l.tips = util.SetFgStyle("请使用可扫码设备扫码并在浏览器授权", lipgloss.BrightBlue)
+		l.tips = util.SetFgStyle("请使用可扫码设备扫码并在浏览器授权", tipInfo())
 	case l.browserIndex:
-		l.tips = util.SetFgStyle("在默认浏览器中打开链接并授权", lipgloss.BrightBlue)
+		l.tips = util.SetFgStyle("在默认浏览器中打开链接并授权", tipInfo())
 	}
 
 	l.submitButton = pageSubmitButton(l.index == l.submitIndex)
@@ -426,7 +426,7 @@ func (l *LastfmAuthPage) enterHandler() (model.Page, tea.Cmd) {
 		// 提交
 		// 简单的账号密码判断
 		if len(l.accountInput.Value()) < 2 || len(l.accountInput.Value()) > 15 || len(l.passwordInput.Value()) < 6 {
-			l.tips = util.SetFgStyle("请正确输入账号或密码", lipgloss.BrightRed)
+			l.tips = util.SetFgStyle("请正确输入账号或密码", tipError())
 			return l, nil
 		}
 		return l.authByLogin()
@@ -447,7 +447,7 @@ func (l *LastfmAuthPage) getAuthUrlWithToken() bool {
 	}
 
 	if !lastfm.IsAvailable() {
-		l.tips = util.SetFgStyle("请确保正确设置 API key 及 secret", lipgloss.BrightRed)
+		l.tips = util.SetFgStyle("请确保正确设置 API key 及 secret", tipError())
 		return false
 	}
 
@@ -455,7 +455,7 @@ func (l *LastfmAuthPage) getAuthUrlWithToken() bool {
 	if l.token, l.url, err = l.netease.lastfm.GetAuthUrlWithToken(); err != nil {
 		slog.Info("token", slog.Any("token", l.token))
 		slog.Info("url", slog.Any("url", l.url))
-		l.tips = util.SetFgStyle("token 或 url 获取失败", lipgloss.BrightRed)
+		l.tips = util.SetFgStyle("token 或 url 获取失败", tipError())
 		slog.Error("token 或 url 获取失败", slog.Any("error", err))
 		return false
 	}
@@ -470,7 +470,7 @@ func (l *LastfmAuthPage) getSessionKey() bool {
 
 	var err error
 	if l.sessionKey, err = l.netease.lastfm.GetSession(l.token); err != nil {
-		l.tips = util.SetFgStyle("sessionKey 获取失败", lipgloss.BrightRed)
+		l.tips = util.SetFgStyle("sessionKey 获取失败", tipError())
 		slog.Error("sessionKey 获取失败", slogx.Error(err))
 		return false
 	}
@@ -480,7 +480,7 @@ func (l *LastfmAuthPage) getSessionKey() bool {
 func (l *LastfmAuthPage) initUserInfo() bool {
 	user, err := l.netease.lastfm.GetUserInfo(map[string]any{})
 	if err != nil {
-		l.tips = util.SetFgStyle("用户信息获取失败", lipgloss.BrightRed)
+		l.tips = util.SetFgStyle("用户信息获取失败", tipError())
 		slog.Error("用户信息获取失败", slogx.Error(err))
 		return false
 	}
@@ -499,7 +499,7 @@ func (l *LastfmAuthPage) authByLogin() (model.Page, tea.Cmd) {
 	var err error
 	l.sessionKey, err = l.netease.lastfm.Login(l.accountInput.Value(), l.passwordInput.Value())
 	if err != nil {
-		l.tips = util.SetFgStyle("登录失败，请检查", lipgloss.BrightRed)
+		l.tips = util.SetFgStyle("登录失败，请检查", tipError())
 		slog.Error("登录失败", slogx.Error(err))
 		return l, nil
 	}
@@ -522,11 +522,11 @@ func (l *LastfmAuthPage) authByBrower() (model.Page, tea.Cmd) {
 		}
 
 		if err := open.Start(l.url); err != nil {
-			l.tips = util.SetFgStyle("认证页打开失败，请确认浏览器是否工作", lipgloss.BrightRed)
+			l.tips = util.SetFgStyle("认证页打开失败，请确认浏览器是否工作", tipError())
 			slog.Error("认证页打开失败", slogx.Error(err))
 			return l, nil
 		}
-		l.tips = util.SetFgStyle("请在浏览器中授权后继续，若未正确跳转，请更换认证方式", lipgloss.BrightBlue)
+		l.tips = util.SetFgStyle("请在浏览器中授权后继续，若未正确跳转，请更换认证方式", tipInfo())
 		l.browserAuthStep++
 		l.browserButton = util.GetFocusedButton(l.browserButtonTextByStep())
 		return l, nil

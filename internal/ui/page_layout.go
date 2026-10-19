@@ -7,7 +7,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/anhoder/foxful-cli/model"
 	"github.com/anhoder/foxful-cli/style"
-	"github.com/anhoder/foxful-cli/util"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -56,18 +55,19 @@ func pageSubmitButton(focused bool) string {
 
 func pageButton(text string, focused bool) string {
 	if focused {
-		return "[ " + util.GetPrimaryFontStyle(false).Render(text) + " ]"
+		return lipgloss.NewStyle().Foreground(themePrimary()).Render("[ " + text + " ]")
 	}
-	return util.GetBlurredButton(text)
+	return style.CurrentStyleSet().ButtonBlurred.Render("[ " + text + " ]")
 }
 
 func pageInputStyles() textinput.Styles {
 	styles := textinput.DefaultStyles(style.HasDarkBackground())
-	primary := util.GetPrimaryFontStyle(false)
+	primary := lipgloss.NewStyle().Foreground(themePrimary())
 	styles.Focused.Text = primary
 	styles.Focused.Prompt = primary
 	styles.Focused.Suggestion = primary
-	styles.Cursor.Color = util.GetPrimaryColor()
+	styles.Cursor.Color = themePrimary()
+	styles.Blurred.Prompt = lipgloss.NewStyle().Foreground(themeSecondary())
 	return styles
 }
 
@@ -89,7 +89,7 @@ func pageInputView(input textinput.Model, hovered bool) string {
 	}
 
 	styles := input.Styles()
-	hoverStyle := util.GetPrimaryFontStyle(false)
+	hoverStyle := lipgloss.NewStyle().Foreground(themePrimary())
 	styles.Focused.Text = hoverStyle
 	styles.Focused.Prompt = hoverStyle
 	styles.Blurred.Text = hoverStyle
@@ -99,7 +99,7 @@ func pageInputView(input textinput.Model, hovered bool) string {
 }
 
 func pageButtonHoverView(text string) string {
-	return "[ " + util.GetPrimaryFontStyle(true).Underline(true).Render(text) + " ]"
+	return "[ " + lipgloss.NewStyle().Foreground(themePrimary()).Bold(true).Underline(true).Render(text) + " ]"
 }
 
 func setPageInputCursor(input *textinput.Model, mouseX, inputStartX int) {

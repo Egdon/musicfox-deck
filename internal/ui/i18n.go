@@ -84,6 +84,13 @@ const (
 	MsgErrorNoArtist    model.MessageID = "error.no_artist"
 	MsgPromptConfirm    model.MessageID = "prompt.confirm"
 	MsgPromptClearCache model.MessageID = "prompt.clear_cache"
+
+	MsgNowPlayingShuffleNext model.MessageID = "now_playing.shuffle_next"
+	MsgNowPlayingRepeatOne   model.MessageID = "now_playing.repeat_one"
+	MsgNowPlayingEndOfList   model.MessageID = "now_playing.end_of_list"
+	MsgNowPlayingNoLyrics    model.MessageID = "now_playing.no_lyrics"
+	MsgNowPlayingStartHint   model.MessageID = "now_playing.start_hint"
+	MsgNowPlayingEmptyQueue  model.MessageID = "now_playing.empty_queue"
 )
 
 // zhMessages 覆盖 foxful-cli 内置组件（帮助提示、表格、文件选择器、表单、弹窗等）
@@ -183,6 +190,13 @@ var zhMessages = map[model.MessageID]string{
 	MsgErrorNoArtist:    "歌曲没有歌手信息",
 	MsgPromptConfirm:    "确定",
 	MsgPromptClearCache: "清除缓存",
+
+	MsgNowPlayingShuffleNext: "随机播放 · 下一首未定",
+	MsgNowPlayingRepeatOne:   "单曲循环 · 本曲重复",
+	MsgNowPlayingEndOfList:   "已到列表末尾",
+	MsgNowPlayingNoLyrics:    "暂无歌词",
+	MsgNowPlayingStartHint:   "按 %s 开始播放",
+	MsgNowPlayingEmptyQueue:  "播放队列为空",
 }
 
 // SetupI18n 将中文文案注册到 foxful-cli 的默认 Catalog，并按 locale 选择界面语言。

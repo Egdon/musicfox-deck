@@ -167,22 +167,10 @@ const (
 
 	// ---- Song info constants / 歌曲信息常量 ----
 
-	// SongInfoPrefixBaseWidth is the base character width of the prefix
-	// area (mode indicator + volume + playing status icon) before the
-	// song name.
-	// 歌名前缀区域（播放模式指示器 + 音量 + 播放状态图标）的基础字符宽度。
-	SongInfoPrefixBaseWidth = 10
-
 	// MenuArrowWidth is the estimated width of the menu selection arrow
 	// (and its surrounding padding) that marks the currently selected item.
 	// 菜单选中项箭头（含周围内边距）的估算宽度。
 	MenuArrowWidth = 4
-
-	// SongInfoPrefixExtraWidth is the additional characters added to the
-	// prefix when there is sufficient menu start column space (for mode
-	// and volume display).
-	// 当菜单起始列空间充足时，额外添加到前缀的字符宽度（用于显示模式和音量）。
-	SongInfoPrefixExtraWidth = 12
 
 	// SongInfoHorizontalPadding is the total horizontal padding (2 on each
 	// side) used in centered-mode song info width calculations.
@@ -195,11 +183,6 @@ const (
 	// mode indicator row (within the fixed bottom area).
 	// 播放模式指示器行距窗口底部的偏移量（位于底部固定区域内）。
 	PlayModeRowOffset = 3
-
-	// PlayModeClickWidth is the width (columns) of the clickable play mode
-	// indicator area from MenuStartColumn.
-	// 可点击的播放模式指示器区域距 MenuStartColumn 的宽度（列）。
-	PlayModeClickWidth = 5
 
 	// DualColumnWindowThreshold is the minimum window width for the
 	// dual-column layout to use a max-width column (44 cols).

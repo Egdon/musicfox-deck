@@ -27,6 +27,11 @@ func GetProgressColor() (start, end string) {
 	return progressStartColor, progressEndColor
 }
 
+// SetProgressColor replaces the random progress gradient with fixed colors.
+func SetProgressColor(start, end string) {
+	progressStartColor, progressEndColor = start, end
+}
+
 type tickStartupMsg struct{}
 
 type StartupPage struct {

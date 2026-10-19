@@ -6,7 +6,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/anhoder/foxful-cli/style"
-	"github.com/anhoder/foxful-cli/util"
 
 	"github.com/go-musicfox/netease-music/service"
 
@@ -26,7 +25,7 @@ func TestFormatQueueAndQualityIncludesMusicfox(t *testing.T) {
 	player.InitSongManager(0, []structs.Song{{Id: 1}, {Id: 2}})
 
 	statusTextStyle := style.CurrentStyleSet().StatusBarText
-	want := statusTextStyle.Foreground(util.GetPrimaryColor()).Render("musicfox") +
+	want := statusTextStyle.Foreground(themePrimary()).Render("musicfox") +
 		statusTextStyle.Render(" · [1/2] · 无损")
 	if got := formatQueueAndQuality(player); got != want {
 		t.Fatalf("formatQueueAndQuality() = %q, want %q", got, want)

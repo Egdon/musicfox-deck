@@ -401,6 +401,7 @@ DLNA 引擎允许你将音乐投送到兼容 DLNA 的设备（如智能电视、
 - **Dracula** - 流行的 Dracula 配色
 - **Nord** - 北欧冷色调
 - **Gruvbox** - 复古暖色调
+- **Warm Night** - 暖夜：Braun 式暖炭灰底配米灰文字，信号橙只标出正在发生的事，灰绿表示已开启的开关；为夜间使用设计，与播放页共用一套色板
 
 #### 使用方式
 
@@ -422,6 +423,55 @@ DLNA 引擎允许你将音乐投送到兼容 DLNA 的设备（如智能电视、
      - Windows: `%AppData%\go-musicfox\themes\mytheme.toml`）
    - 主题文件必须包含 `name` 字段和 `[dark]` 或 `[light]` 配置表
    - 详细配置参见 [内置主题示例](./utils/filex/embed/themes/)
+
+</details>
+<details>
+<summary>
+全屏播放页：立体磁带、录像机 OSD 与瑞士网格排版。
+### 播放页
+</summary>
+
+在主界面按 `i` 进入，`i` 或 `Esc` 返回。
+
+- **画面**：
+  - 页头色带上的指示灯常驻显示随机、循环、单曲、红心、歌词、高音质等状态。
+  - 录像机风格的 OSD 显示播放状态、音量、快进快退。
+  - 左侧是曲目信息、七段数码管计数器和歌词。
+  - 右侧是一盘立体磁带，标签上写着歌名和歌手。两个带盘的带层随播放进度此消彼长，按真实走带速度转动，启动和停止有缓动；快进快退时带盘快速卷动。
+  - 切歌时旧磁带弹出、新磁带插入。
+  - 停止且队列为空时显示录像机的 NO SIGNAL 蓝屏。
+- **配色**：跟随当前主题，主题没有提供的颜色用 Warm Night 补齐。
+- **字符**：在 Ghostty 中，磁带用八分块字符（U+1CD00–U+1CDE5，每格 2×4 个子像素）绘制，由终端直接画出，与字体无关；其他终端自动改用四分块字符，精度减半。
+- **接下来播放**：顺序、列表循环、列表随机模式下列出队列里接下来的歌，单击可直接播放。
+- **全屏歌词**：按 `L` 在磁带视图与歌词视图之间切换。
+- **页内按键**：
+  - `←` / `→` 快退 / 快进 5 秒，`↑` / `↓` 调音量。
+  - 其余快捷键沿用你的绑定，但都作用于正在播放的歌曲。空格只切换播放 / 暂停，不会播放主界面选中的歌。
+  - 会打开菜单的操作（如 `c` 播放列表、`a` 专辑）执行后回到主界面显示结果。
+- **鼠标**：点进度条跳转，点底部按键栏控制播放，滚轮调音量。
+- **动效**：克制为主，只在有事发生时出现：显像管开机 / 关机（300ms 内）、切歌时一道 tracking 扫线、磁带弹出插入、带盘转动、OSD 淡出。可在配置中调整：
+  ```toml
+  [main.nowPlaying]
+  effects = "full"  # full / subtle（无开关机和扫线）/ off（无动画）
+  ```
+- **推荐搭配**：Warm Night 主题加扁平进度条，主界面与播放页风格一致：
+  ```toml
+  [theme]
+  activeTheme = "Warm Night"
+
+  [theme.progress]
+  renderMode = "flat"  # 跟随主题：已播放部分用 secondary，播放头用 accent
+  fullChar = "━"
+  fullCharWhenFirst = "━"
+  fullCharWhenLast = "━"
+  lastFullChar = "●"
+  emptyChar = "─"
+  emptyCharWhenFirst = "─"
+  emptyCharWhenLast = "─"
+  firstEmptyChar = "─"
+  ```
+
+主界面调音量、暂停、快进、切换模式时，右上角也会短暂显示同样风格的 OSD 提示（`[main.notification] inApp = false` 时关闭）。
 
 </details>
 <details>
@@ -628,6 +678,7 @@ musicfox upgrade-config
 | `actionOfPlayingSong`               | 对于当前播放的操作            | `M`                                          |
 | `switchTheme`                       | 切换主题样式                  | *(无，可通过右键菜单触发)*                      |
 | `toggleSortOrder`                   | 切换排序顺序（电台/播客列表） | `|`                                          |
+| `nowPlaying`                        | 进入/退出播放页               | `i`                                             |
 
 注意：
 - 非字符快捷键大小写不敏感，如 `shift+tab` 等同 `Shift+Tab`，但 `a` 与 `A` 不同
