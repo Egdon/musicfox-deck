@@ -7,6 +7,7 @@ on:
     paths:
       - "go.mod"
       - "go.sum"
+      - "third_party/foxful-cli/**"
       - ".github/workflows/vendor-sync.yml"
 
 jobs:

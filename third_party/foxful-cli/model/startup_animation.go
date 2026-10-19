@@ -170,6 +170,12 @@ func renderStartupLogo(logo string, effect startupLogoEffect, progress float64, 
 		return logo
 	}
 
+	// The logo takes the theme's title color, else the legacy primary color.
+	logoColor := util.GetPrimaryColor()
+	if c := style.CurrentStyleSet().Title.GetForeground(); !isNoColor(c) {
+		logoColor = c
+	}
+
 	var b strings.Builder
 	seen := 0
 	for y, line := range lines {
@@ -181,7 +187,7 @@ func renderStartupLogo(logo string, effect startupLogoEffect, progress float64, 
 			seen++
 			visible := true
 			glyph := r
-			var fg color.Color = util.GetPrimaryColor()
+			var fg color.Color = logoColor
 
 			switch effect {
 			case logoFade:

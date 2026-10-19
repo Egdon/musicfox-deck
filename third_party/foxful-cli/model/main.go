@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"image/color"
 	"math"
 	"runtime"
 	"slices"
@@ -1216,7 +1217,7 @@ func (m *Main) formatEntry(item *MenuItem, index int, targetLength int) string {
 	if selected {
 		// No leading space: leftSep(1) + "=> "(3) == unselected "    "(4), so the
 		// index column aligns between selected and unselected rows.
-		fmtStart = "=> "
+		fmtStart = ss.MenuSelectedArrow
 	}
 
 	// Reserve the left separator in the content budget. The right separator
@@ -1260,10 +1261,35 @@ func (m *Main) formatEntry(item *MenuItem, index int, targetLength int) string {
 			rightSepView = sepStyle.Render(rightSep)
 		}
 		return sepStyle.Render(leftSep) +
-			ss.SelectedItem.Render(songEntry) +
+			styleMenuRow(songEntry, 3, m.getMaxIndexWidth()+2, ss.SelectedItem) +
 			rightSepView
 	}
-	return songEntry
+	return styleMenuRow(songEntry, 4, m.getMaxIndexWidth()+2, ss.MenuItem)
+}
+
+// styleMenuRow colors a formatted menu row in three parts cut by display
+// width: the selection marker, the "%*d. " row number and the title. The row
+// may already be truncated.
+func styleMenuRow(row string, arrowWidth, indexWidth int, rowStyle lipgloss.Style) string {
+	ss := style.CurrentStyleSet()
+	w := ansi.StringWidth(row)
+	a, i := min(arrowWidth, w), min(arrowWidth+indexWidth, w)
+	arrowStyle, indexStyle := rowStyle, rowStyle
+	if fg := ss.MenuArrow.GetForeground(); !isNoColor(fg) {
+		arrowStyle = rowStyle.Foreground(fg)
+	}
+	if fg := ss.MenuIndex.GetForeground(); !isNoColor(fg) {
+		indexStyle = rowStyle.Foreground(fg)
+	}
+	return arrowStyle.Render(ansi.Cut(row, 0, a)) + indexStyle.Render(ansi.Cut(row, a, i)) + rowStyle.Render(ansi.Cut(row, i, w))
+}
+
+func isNoColor(c color.Color) bool {
+	if c == nil {
+		return true
+	}
+	_, ok := c.(lipgloss.NoColor)
+	return ok
 }
 
 func (m *Main) centeredMenuView(a *App, lines int) string {
@@ -1479,7 +1505,7 @@ func (m *Main) menuItemView(a *App, index int) (string, int) {
 	}
 
 	if isSelected {
-		menuTitle = fmt.Sprintf(fmt.Sprintf("=> %%%dd. %%s", maxIndexWidth), index, m.menuList[index].Title)
+		menuTitle = fmt.Sprintf(fmt.Sprintf("%%s%%%dd. %%s", maxIndexWidth), ss.MenuSelectedArrow, index, m.menuList[index].Title)
 	} else {
 		menuTitle = fmt.Sprintf(fmt.Sprintf("    %%%dd. %%s", maxIndexWidth), index, m.menuList[index].Title)
 		// if len(m.menuList[index].Subtitle) != 0 {
@@ -1526,13 +1552,18 @@ func (m *Main) menuItemView(a *App, index int) (string, int) {
 	contentMaxLen := max(itemMaxLen-sepWidth, 0)
 
 	renderTitlePart := func(title string) string {
+		arrowWidth := 4
+		if isSelected {
+			arrowWidth = 3
+		}
+		body := styleMenuRow(title, arrowWidth, maxIndexWidth+2, titleStyle)
 		if !isSelected {
-			return titleStyle.Render(title)
+			return body
 		}
 		selBg := titleStyle.GetBackground()
 		sepBg := ss.MenuItem.GetBackground()
 		return lipgloss.NewStyle().Foreground(selBg).Background(sepBg).Render(leftSep) +
-			titleStyle.Render(title) +
+			body +
 			lipgloss.NewStyle().Foreground(selBg).Background(sepBg).Render(rightSep)
 	}
 

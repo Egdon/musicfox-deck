@@ -213,6 +213,9 @@ func (t *Tabs) renderTabBar(ss style.StyleSet, hoveredIdx int) string {
 
 	// 只有获得键盘焦点的活动 Tab 使用主色边框；其他边框不指定颜色。
 	inactiveBorderColor := color.Color(lipgloss.NoColor{})
+	if border := ss.Theme().TabBorder; !isNoColor(border) {
+		inactiveBorderColor = border
+	}
 	activeBorderColor := inactiveBorderColor
 	if t.focused {
 		activeBorderColor = ss.SelectedItem.GetForeground()

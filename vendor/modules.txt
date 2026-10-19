@@ -47,7 +47,7 @@ github.com/alecthomas/chroma/v2/styles
 ## explicit; go 1.22
 github.com/andybalholm/brotli
 github.com/andybalholm/brotli/matchfinder
-# github.com/anhoder/foxful-cli v1.1.4
+# github.com/anhoder/foxful-cli v1.1.4 => ./third_party/foxful-cli
 ## explicit; go 1.25.8
 github.com/anhoder/foxful-cli/layout
 github.com/anhoder/foxful-cli/model
@@ -586,6 +586,7 @@ gopkg.in/retry.v1
 rsc.io/qr
 rsc.io/qr/coding
 rsc.io/qr/gf256
+# github.com/anhoder/foxful-cli => ./third_party/foxful-cli
 # github.com/cnsilvan/UnblockNeteaseMusic => github.com/go-musicfox/UnblockNeteaseMusic v0.1.6
 # github.com/saltosystems/winrt-go => github.com/go-musicfox/winrt-go v0.1.4
 # github.com/shkh/lastfm-go => github.com/go-musicfox/lastfm-go v0.0.2

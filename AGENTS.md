@@ -110,7 +110,7 @@ go-musicfox 是基于 Go 和 bubbletea 的网易云音乐 TUI 客户端，支持
 - **配置**：TOML + mapstructure；`configs.SetTOMLValue(path, keyPath, value)` 使用 `github.com/pelletier/go-toml/v2/unstable/edit` 按键路径保真编辑既有 TOML。`configs.UpgradeConfig(path)` 将内嵌默认 TOML 中用户文件缺失的叶子项追加到对应 table；`upgrade-config` 子命令调用它。两者均保留无关注释、布局、已有值、未知键与原文件权限，并以原子替换写回。
 - **API**：netease-music SDK
 
-**项目结构**：`cmd/` 入口 | `internal/` 核心业务（22个包） | `utils/` 工具 | `configs/` 嵌入式配置
+**项目结构**：`cmd/` 入口 | `internal/` 核心业务（22个包） | `utils/` 工具 | `configs/` 嵌入式配置 | `third_party/foxful-cli/` 内置 UI 框架
 
 ## 核心架构
 
@@ -188,7 +188,7 @@ type Player interface {
   - **按键语义**：复用 `EventHandler.keyToOperateMap`，但都作用于正在播放的歌曲。播放/暂停不走依赖菜单选中项的 `playOrToggle`；上一首/下一首先开始弹出磁带，`npEjectDuration` 后才在 `npDeferredMsg` 中切歌（`PlaySong` 同步请求网络，期间界面停在弹出帧），`poll` 检测到歌曲变化后插入新磁带，1.5s 内没有变化则插回原磁带；打开菜单的操作执行后关机回 Main；`*Selected*` 与 `enter` 等依赖 Main 选中项的操作忽略。走 `ShowLoading().Execute()` 的操作只会在 Main 处理 tick 时执行，页面在无弹窗时调用 `main.Update(main.Msg(), a)` 手动冲刷。
   - **接下来播放**：`PlaylistManager.Upcoming(n)` 只读预览自动播放顺序（无限随机返回 nil）。列表随机照搬 `NextSong` 读取 `randomOrder[currentPos+1:]`：`Initialize` 会把 `currentPos` 定位到当前歌曲，但洗牌顺序走到末尾即停，排在当前歌曲之前的歌不会自动播放，当前歌曲排在末位时预览为空。点击第 k 项通过 `playlistManager.NextSong(true)` 前进 k 步再 `Player.NextSong(true)`，保留洗牌顺序。
 - **OSD**：`internal/ui/osd.go` 提供录像机风格文案，播放页与主界面共用。主界面 OSD 在 `EventHandler.KeyMsgHandle` 与滚轮调音量后以单个 toast 显示，`[main.notification] inApp = false` 时关闭。`App.Notify` 返回的 ID 只是预测值：新增任何非 OSD 的 `App.Notify` 调用点前必须先调用 `markForeignNotify()`，OSD 只在与其他通知相隔 500ms 以上时原地更新。
-- **Warm Night 主题**：`utils/filex/embed/themes/warm_night.toml`，只做深色，`[light]` 镜像 `[dark]`。角色：bg `#151412`、surface `#1D1C19`、text `#CBC4B6`、hero `#DDD6C9`、secondary `#9E978A`、rule `#544F47`、accent `#D2714F`（信号橙）、accent2 `#93AC82`（灰绿）。为夜间使用而设计：不用纯白，彩色格子控制在约 5% 以内，不要把 accent 用于普通文字。markdown 样式为 `builtin:warm_night`。依赖 vendor 本地补丁（见「foxful-cli 依赖更新流程」）。
+- **Warm Night 主题**：`utils/filex/embed/themes/warm_night.toml`，只做深色，`[light]` 镜像 `[dark]`。角色：bg `#151412`、surface `#1D1C19`、text `#CBC4B6`、hero `#DDD6C9`、secondary `#9E978A`、rule `#544F47`、accent `#D2714F`（信号橙）、accent2 `#93AC82`（灰绿）。为夜间使用而设计：不用纯白，彩色格子控制在约 5% 以内，不要把 accent 用于普通文字。markdown 样式为 `builtin:warm_night`。依赖内置 foxful-cli 的改动（见「foxful-cli（内置源码）」）。
 - **主题扩展键**（`internal/configs/theme_file.go` 的 `toTheme`，未设置时外观不变）：顶层 `menuSelectedArrow`（选中行标记，必须正好 3 格宽，否则用 `=> `）；`[highlights]` `selectedItemBg`、`menuArrow`、`menuIndex`、`tabBorder`；`[popup]` `actionFocusedFg`、`actionFocusedBg`、`contextMenuItem`；`[notification]` `title`、`message`、`infoIcon`、`successIcon`、`warningIcon`、`errorIcon`；`[statusBar]` `barBg`、`breadcrumbBg`、`timeBg`、`timeIcon`（`""` 去掉时钟图标）；`[app]` `contextMenuBorder`（此前声明了也不生效，现在 Dracula、Nord、Gruvbox、GitHub 的右键菜单边框按其声明着色）。`[*.markdown]` 的值以 `builtin:` 开头时指向 `utils/filex/embed/markdown/<name>.json`：glamour 只读文件，`markdownStyle` 先把它写到缓存目录的 `markdown/` 下。
 - **主题色辅助函数**：`internal/ui/theme_colors.go` 的 `themePrimary`、`themeSecondary`、`themeAccent` 读取当前 StyleSet 的 `Theme()`，主题未设置时回退旧的 `[theme].primaryColor`；新界面代码应使用它们而不是 `util.GetPrimaryColor()`。表单页提示色用 `tipError`、`tipSuccess`、`tipInfo`，读取主题 `[app]` 的 `loginError`、`loginSuccess`、`authStatus`，默认 ANSI 亮红、亮绿、亮蓝。Login、Search 页的输入框和按钮在构造时主题尚未生效，进入页面时按当前主题刷新样式。
 - **播放栏**：`SongInfoRenderer.View` 生成片段（模式、`VOL n`、`▶`/`‖`、`♥`、歌名、歌手）并记录每段含居中填充的绝对列区间，与视图一起缓存；点击和悬停一律经 `songInfoRenderer.elementAt(x)` 命中，不要在 `event_handler.go` 里另算宽度。
@@ -233,24 +233,22 @@ type Player interface {
 make vendor
 ```
 
-#### foxful-cli 依赖更新流程
+#### foxful-cli（内置源码）
 
-foxful-cli 是本项目的核心 UI 框架，位于 `vendor/github.com/anhoder/foxful-cli/`。更新流程：
+foxful-cli 是本项目的核心 UI 框架，源码在 `third_party/foxful-cli/` 内置维护（独立 go.mod，模块路径仍为 `github.com/anhoder/foxful-cli`）。根 go.mod 以 `replace github.com/anhoder/foxful-cli => ./third_party/foxful-cli` 引用，require 保留上游基线版本，导入路径与上游 go-musicfox 一致，便于合并上游提交。
 
-1. 在 `go.mod` 中使用 `replace` 指向本地 foxful-cli 仓库开发
-2. foxful-cli 改动完成后，在 `~/Desktop/foxful-cli` 中 commit 并推送
-3. 在 foxful-cli 仓库打 tag（如 `v1.0.5`）
-4. 在本项目 `go.mod` 中注释掉本地 `replace`，将版本升为新 tag
-5. 执行 `make vendor` 同步 vendor 目录
-
-**vendor 本地补丁**：以下 foxful-cli 改动直接写在 vendor 中，`make vendor` 会全部冲掉。更新 foxful-cli 前先把它们合入上游，或在 `make vendor` 后重新应用：
-
-1. `style/theme.go`：`base.MenuItem` 应用 `highlights.menuItem` 前景色（上游只设背景，未选中菜单项显示终端默认色）；`StyleSet.Theme()` 访问器；Theme 与 StyleSet 新字段 `MenuSelectedArrow`、`MenuArrow`、`MenuIndex`、`StatusBarTimeIcon`（默认 `"\ue384 "`），Theme 新字段 `TabBorder`。
-2. `model/main.go`：`formatEntry` 与 `menuItemView` 使用 `ss.MenuSelectedArrow`，经 `styleMenuRow` 按显示宽度把一行切成标记、编号、标题三段分别着色（前缀总宽仍为 4+N+2，点击检测不变）；居中模式下的未选中行改用 `ss.MenuItem`（上游没有样式）；新增 `isNoColor`。
-3. `model/statusbar.go`：时钟前缀改用 `ss.StatusBarTimeIcon`。
-4. `model/tabs.go`：未聚焦标签的边框使用 `Theme().TabBorder`。
-5. `model/startup.go`：新增 `SetProgressColor(start, end)`。
-6. `model/startup_animation.go`：启动 logo 取 `Title` 前景色，未设置时回退 `util.GetPrimaryColor()`。
+- `vendor/github.com/anhoder/foxful-cli/` 是 `make vendor` 生成的副本，禁止直接修改。改了 third_party 不执行 `make vendor` 时，默认的 vendor 模式构建仍用旧副本；`internal/forkcheck` 测试会在副本过期时失败。
+- 开发：改 `third_party/foxful-cli` 后执行 `make vendor`（需要联网补全模块缓存；`modvendor` 装在 `$(go env GOPATH)/bin`，不在 PATH 时临时加入），再 `make test`。框架自身的测试用 `go test -mod=readonly github.com/anhoder/foxful-cli/model/... github.com/anhoder/foxful-cli/style/...`（`example/global_key` 需要 X11 开发头文件，不在测试范围内）。模块缓存完整时也可以 `GOFLAGS=-mod=readonly make build` 直接编译 third_party。
+- 来源与基线记录在 `third_party/foxful-cli/UPSTREAM.md`。提交 `chore(foxful-cli): import pristine v1.1.4` 是未修改的上游原版，`git diff <该提交> -- third_party/foxful-cli` 即全部框架改动。
+- 合并上游 go-musicfox 时如果 foxful-cli 的 require 版本变了，`TestFoxfulBaseVersion` 会失败：把「旧基线 → 新版本」的差异三方合并进 third_party，更新 UPSTREAM.md 的 Base，再 `make vendor`。vendor 冲突一律以重新生成为准。
+- 上游仓库没有 LICENSE 文件；不要在 third_party 内添加声明上游许可的文件。
+- 框架改动清单（相对上游 v1.1.4）：
+  1. `style/theme.go`：`base.MenuItem` 应用 `highlights.menuItem` 前景色（上游只设背景，未选中菜单项显示终端默认色）；`StyleSet.Theme()` 访问器；Theme 与 StyleSet 新字段 `MenuSelectedArrow`、`MenuArrow`、`MenuIndex`、`StatusBarTimeIcon`（默认 `"\ue384 "`），Theme 新字段 `TabBorder`。
+  2. `model/main.go`：`formatEntry` 与 `menuItemView` 使用 `ss.MenuSelectedArrow`，经 `styleMenuRow` 按显示宽度把一行切成标记、编号、标题三段分别着色（前缀总宽仍为 4+N+2，点击检测不变）；居中模式下的未选中行改用 `ss.MenuItem`（上游没有样式）；新增 `isNoColor`。
+  3. `model/statusbar.go`：时钟前缀改用 `ss.StatusBarTimeIcon`。
+  4. `model/tabs.go`：未聚焦标签的边框使用 `Theme().TabBorder`。
+  5. `model/startup.go`：新增 `SetProgressColor(start, end)`。
+  6. `model/startup_animation.go`：启动 logo 取 `Title` 前景色，未设置时回退 `util.GetPrimaryColor()`。
 
 ### 跨平台构建兼容性
 

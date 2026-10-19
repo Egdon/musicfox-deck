@@ -121,6 +121,8 @@ require (
 
 replace (
 	charm.land/bubbletea/v2 v2.0.8 => github.com/go-musicfox/bubbletea/v2 v2.0.8-foxful-1.2
+	// The framework is maintained in-tree; see third_party/foxful-cli/UPSTREAM.md.
+	github.com/anhoder/foxful-cli => ./third_party/foxful-cli
 	github.com/cnsilvan/UnblockNeteaseMusic => github.com/go-musicfox/UnblockNeteaseMusic v0.1.6
 	// github.com/cnsilvan/UnblockNeteaseMusic => ../UnblockNeteaseMusic
 	github.com/cocoonlife/goflac v0.0.0-20170210142907-50ea06ed5a9d => github.com/go-musicfox/goflac v0.1.5
