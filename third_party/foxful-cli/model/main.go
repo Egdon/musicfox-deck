@@ -401,9 +401,10 @@ func (m *Main) Update(msg tea.Msg, a *App) (Page, tea.Cmd) {
 		if m.statusBar != nil && m.options.StatusBarPosition == StatusBarTop {
 			m.options.WhetherDisplayTitle = false
 		}
-		// Next to a side panel the menu starts near the top.
+		// Next to a side panel, and as a tracklist, the menu starts near the
+		// top.
 		panel := m.sidePanelLayout(msg.Width, msg.Height)
-		if panel.Width > 0 {
+		if panel.Width > 0 || m.useTracklist() {
 			m.menuStartRow = 5
 		}
 		if m.isDualColumn {
