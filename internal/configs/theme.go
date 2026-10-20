@@ -23,7 +23,7 @@ type ProgressOptions struct {
 
 // ThemeConfig 主题设置
 type ThemeConfig struct {
-	// 活跃主题名称（对应主题文件名中的 name 字段，默认 "Default"）
+	// 活跃主题名称（对应主题文件名中的 name 字段，默认 "Warm Night"）
 	ActiveTheme string `koanf:"activeTheme"`
 	// Deprecated: migrated to theme files. Kept for backward compatibility.
 	PrimaryColor string `koanf:"primaryColor"`

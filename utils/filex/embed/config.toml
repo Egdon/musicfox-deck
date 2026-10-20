@@ -15,7 +15,7 @@ loadingSeconds = 2
 # 启动页欢迎语
 welcome = "musicfox"
 # 启动页动画：deck（磁带从景深处转入，字标逐字浮现）、sequence、fade-in、rainbow-wave、typewriter、spinner、slide-in、glitch、matrix-rain、particle-burst
-animation = "sequence"
+animation = "deck"
 # 是否停用启动页动画以减少动态效果
 reducedMotion = false
 # 启动时是否自动签到 (网易云有风控，建议关闭)
@@ -241,9 +241,9 @@ neteaseCookie = ""
 
 # 主题设置
 [theme]
-# 活跃主题名称（对应主题文件中的 name 字段，默认 "Default"）
+# 活跃主题名称（对应主题文件中的 name 字段，默认 "Warm Night"；原版配色为 "Default"）
 # 主题文件存放于 embed/themes/（内置）和 ~/.config/go-musicfox/themes/（用户自定义）
-activeTheme = "Default"
+activeTheme = "Warm Night"
 # 主界面布局：
 #   deck：左侧曲目表（序号、歌名、歌手、时长）占满高度，宽度够时右侧显示磁带面板
 #   classic：原版布局
