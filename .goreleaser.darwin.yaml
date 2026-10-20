@@ -35,7 +35,7 @@ archives:
     formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     wrap_in_directory: true
-    files: [LICENSE, README.md]
+    files: [LICENSE, README.md, README.en.md]
   - id: darwin-app
     ids: [darwin-app]
     formats: [zip]

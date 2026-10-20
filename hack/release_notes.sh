@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Prints the release notes of a version, its section of CHANGELOG.md followed
-# by the files to download, for the draft release that
-# .github/workflows/release.yaml creates:
+# Prints the release notes of a version, its section of CHANGELOG.md in
+# Chinese and then in English, each followed by the files to download, for
+# the draft release that .github/workflows/release.yaml creates:
 #
 #   hack/release_notes.sh v1.0.0
 
@@ -36,23 +36,61 @@ section() {
 }
 
 # A prerelease such as 1.0.0-rc.1 has the notes of 1.0.0.
-section "$version" || section "${version%%-*}" ||
+notes=$(section "$version" || section "${version%%-*}") ||
 	{ echo "CHANGELOG.md has no section for $version" >&2; exit 1; }
 
+# The Chinese notes come first; a line "<!-- en -->" starts the English ones.
+# Each language gets its own table of downloads.
+zh=$(printf '%s\n' "$notes" | sed '/^<!-- en -->$/,$d')
+en=$(printf '%s\n' "$notes" | sed -n '/^<!-- en -->$/,$p' | sed '1d;/./,$!d')
+
+# f SUFFIX_A SUFFIX_B prints the file names of both architectures.
+f() { printf '`musicfox-deck%s` / `musicfox-deck%s`' "$1" "$2"; }
+v=$version
+macos=$(f "_${v}_darwin_arm64.tar.gz" "_${v}_darwin_amd64.tar.gz")
+windows=$(f "_${v}_windows_amd64.zip" "_${v}_windows_arm64.zip")
+deb=$(f "_${v}_amd64.deb" "_${v}_arm64.deb")
+rpm=$(f "-${v}-1.x86_64.rpm" "-${v}-1.aarch64.rpm")
+arch=$(f "-${v}-1-x86_64.pkg.tar.zst" "-${v}-1-aarch64.pkg.tar.zst")
+linux=$(f "_${v}_linux_amd64.tar.gz" "_${v}_linux_arm64.tar.gz")
+
 cat <<EOF
+$zh
 
 ## 下载
 
-| 系统 | 文件 |
+| 平台 | 文件 |
 |---|---|
-| macOS（Apple 芯片 / Intel） | \`musicfox-deck_${version}_darwin_arm64.tar.gz\` / \`darwin_amd64.tar.gz\`，或用 Homebrew：\`brew install egdon/tap/musicfox-deck\` |
-| Windows（x64 / ARM64） | \`musicfox-deck_${version}_windows_amd64.zip\` / \`windows_arm64.zip\` |
-| Debian、Ubuntu | \`musicfox-deck_${version}_amd64.deb\` / \`arm64.deb\` |
-| Fedora、openSUSE | \`musicfox-deck-${version}-1.x86_64.rpm\` / \`aarch64.rpm\` |
-| Arch Linux | \`musicfox-deck-${version}-1-x86_64.pkg.tar.zst\` / \`aarch64.pkg.tar.zst\` |
-| 其他 Linux | \`musicfox-deck_${version}_linux_amd64.tar.gz\` / \`linux_arm64.tar.gz\` |
+| macOS（Apple 芯片 / Intel） | $macos；或 \`brew install egdon/tap/musicfox-deck\` |
+| Windows（x64 / ARM64） | $windows |
+| Debian / Ubuntu | $deb |
+| Fedora / openSUSE | $rpm |
+| Arch Linux | $arch |
+| 其他 Linux 发行版 | $linux |
 
-- Linux 版需要 glibc 2.34 以上（2021 年以后的发行版）和 ALSA。
-- macOS 版和 Windows 版没有签名，第一次运行前的放行方法见 [README](https://github.com/Egdon/musicfox-deck#安装)。macOS 的 \`*_macapp.zip\` 是 .app 版，系统通知会带上应用图标。
-- 各文件的 SHA-256 在 \`SHA256SUMS\` 里。
+- Linux 版需要 glibc 2.34 及以上与 ALSA（\`libasound.so.2\`）。
+- macOS 与 Windows 版未签名，首次运行前的设置参见 [README](https://github.com/Egdon/musicfox-deck#安装)。\`*_macapp.zip\` 为 macOS 的 .app 版本，系统通知中显示应用图标。
+- 各文件的 SHA-256 校验值见 \`SHA256SUMS\`。
+
+---
+EOF
+if [[ -n $en ]]; then
+	printf '\n%s\n' "$en"
+fi
+cat <<EOF
+
+## Downloads
+
+| Platform | Files |
+|---|---|
+| macOS (Apple silicon / Intel) | $macos; or \`brew install egdon/tap/musicfox-deck\` |
+| Windows (x64 / ARM64) | $windows |
+| Debian / Ubuntu | $deb |
+| Fedora / openSUSE | $rpm |
+| Arch Linux | $arch |
+| Other Linux distributions | $linux |
+
+- The Linux builds need glibc 2.34 or later and ALSA (\`libasound.so.2\`).
+- The macOS and Windows builds are not signed; see the [README](https://github.com/Egdon/musicfox-deck/blob/master/README.en.md#installation) for the first run. \`*_macapp.zip\` is the macOS .app version, whose notifications show the app icon.
+- \`SHA256SUMS\` lists the SHA-256 checksum of each file.
 EOF

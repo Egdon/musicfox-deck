@@ -62,7 +62,7 @@ archives:
     formats: [tar.gz]
     name_template: &archive "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     wrap_in_directory: true
-    files: &docs [LICENSE, README.md]
+    files: &docs [LICENSE, README.md, README.en.md]
   - id: windows
     ids: [windows-amd64, windows-arm64]
     formats: [zip]
@@ -79,7 +79,7 @@ nfpms:
     homepage: https://github.com/Egdon/musicfox-deck
     maintainer: Egdon <Egdon@users.noreply.github.com>
     description: |-
-      Netease Cloud Music in the terminal, with a 3D cassette deck.
+      NetEase Cloud Music in the terminal, with a 3D cassette deck.
       musicfox-deck is a fork of go-musicfox.
     license: GPL-3.0-only
     section: sound
@@ -90,6 +90,8 @@ nfpms:
         dst: /usr/share/licenses/musicfox-deck/LICENSE
       - src: README.md
         dst: /usr/share/doc/musicfox-deck/README.md
+      - src: README.en.md
+        dst: /usr/share/doc/musicfox-deck/README.en.md
     # Both install /usr/bin/musicfox.
     conflicts: [go-musicfox]
     # The web login loads WebKitGTK when it is there (Arch packages from
@@ -104,7 +106,7 @@ nfpms:
       archlinux:
         dependencies: [glibc, alsa-lib]
     rpm:
-      summary: Netease Cloud Music in the terminal, with a 3D cassette deck
+      summary: NetEase Cloud Music in the terminal, with a 3D cassette deck
     archlinux:
       packager: Egdon <Egdon@users.noreply.github.com>
 
