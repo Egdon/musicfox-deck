@@ -151,8 +151,11 @@ func init() {
 				webkitVersion = Version6
 				return
 			}
+			// WebKitGTK 6.0 has no webkit_web_view_new_with_network_session
+			// (it takes the session as a construct property), so this is the
+			// usual path and not worth a warning on every start.
 			if !webkitUsable() {
-				slog.Warn("webkitgtk: libwebkitgtk-6.0.so.4 loaded but missing required symbols; falling back to 4.1")
+				slog.Debug("webkitgtk: libwebkitgtk-6.0.so.4 loaded but missing required symbols; falling back to 4.1")
 			}
 		}
 
