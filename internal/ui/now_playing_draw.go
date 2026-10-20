@@ -134,6 +134,12 @@ func (s *npScreen) text(x, y int, str string, st uv.Style, maxW int) int {
 	return col
 }
 
+// centered draws str centered on row y, within maxW columns.
+func (s *npScreen) centered(y int, str string, st uv.Style, maxW int) {
+	sw := min(npWidth(npSanitize(str)), maxW)
+	s.text((s.w-sw)/2, y, str, st, maxW)
+}
+
 // ---- half-block pixels ----
 
 // npPixels is a pixel canvas drawn with half blocks: every cell holds a top
@@ -244,29 +250,6 @@ func (s *npScreen) counter(x, y int, d time.Duration, lit, ghost color.Color) {
 	s.blit(p, x, y)
 }
 
-// deckStrip draws a one-line cassette: tape packs as nested brackets that
-// follow progress, hubs that turn with the reel angles.
-func (s *npScreen) deckStrip(x, y, w int, progress float64, angles [2]float64) {
-	if w < 16 {
-		return
-	}
-	p := min(max(progress, 0), 1)
-	packs := [2]int{int(math.Round((1 - p) * 3)), int(math.Round(p * 3))}
-	frames := [...]string{"│", "╱", "─", "╲"}
-	reel := func(x0, n int, angle float64) {
-		frame := int(math.Floor(angle/(math.Pi/4))) % 4
-		if frame < 0 {
-			frame += 4
-		}
-		s.repeat(x0+3-n, y, n, "(", uv.Style{Fg: s.pal.Rule})
-		s.set(x0+3, y, frames[frame], 1, uv.Style{Fg: s.pal.Text})
-		s.repeat(x0+4, y, n, ")", uv.Style{Fg: s.pal.Rule})
-	}
-	reel(x, packs[0], angles[0])
-	s.repeat(x+7, y, w-14, "═", uv.Style{Fg: s.pal.Ghost})
-	reel(x+w-7, packs[1], angles[1])
-}
-
 // ---- effects ----
 
 func npLerp(from, to color.Color, t float64) color.Color {
@@ -361,6 +344,8 @@ func (s *npScreen) paint(frame string, k float64) {
 }
 
 // drawDeck copies the cells a cassette frame draws onto the screen at (x, y).
+// Where only its shadow falls on something already drawn, that is darkened
+// instead, so a cassette passing over text does not cut a hole in it.
 func (s *npScreen) drawDeck(f *deck.Frame, x, y int) {
 	if f == nil {
 		return
@@ -369,12 +354,40 @@ func (s *npScreen) drawDeck(f *deck.Frame, x, y int) {
 		if c.Ch == "" {
 			continue
 		}
+		cx, cy := x+i%f.W, y+i/f.W
+		if c.Shadow > 0 && s.shade(cx, cy, c.Shadow) {
+			continue
+		}
 		st := uv.Style{Bg: c.Bg}
 		if c.Ch != " " {
 			st.Fg = c.Fg
 		}
-		s.set(x+i%f.W, y+i/f.W, c.Ch, 1, st)
+		s.set(cx, cy, c.Ch, 1, st)
 	}
+}
+
+// shade darkens the cell at (x, y) by k and reports whether it did; blank
+// cells on the page background are left for the shadow's own glyphs.
+func (s *npScreen) shade(x, y int, k float64) bool {
+	c := s.buf.CellAt(x, y)
+	switch {
+	case c == nil:
+		return true
+	case c.Width == 0: // the tail of a wide character: its head carries the color
+		return true
+	case (c.Content == " " || c.Content == "") && (c.Style.Bg == nil || npSameColor(c.Style.Bg, s.pal.Bg)):
+		return false
+	}
+	black := color.RGBA{A: 0xff}
+	if c.Style.Fg != nil {
+		c.Style.Fg = npLerp(c.Style.Fg, black, k)
+	}
+	bg := c.Style.Bg
+	if bg == nil {
+		bg = s.pal.Bg
+	}
+	c.Style.Bg = npLerp(bg, black, k)
+	return true
 }
 
 // ---- page layout ----
@@ -406,6 +419,7 @@ type npSnapshot struct {
 	Keys       npKeys
 	Angles     [2]float64
 	Deck       *deck.Frame // the cassette on the stage; nil draws none
+	Aspect     float64     // cell height over width; 0 means 2
 }
 
 type npLyricLine struct {
@@ -507,13 +521,18 @@ func npTapeTag(mins int) string {
 // npRender lays out the page for the snapshot and returns the clickable regions.
 func npRender(scr *npScreen, s *npSnapshot) []npHit {
 	scr.pal = s.Pal
-	switch {
-	case s.BlueScreen:
+	if s.BlueScreen {
 		return npRenderBlueScreen(scr, s)
-	case npWide(scr.w, scr.h) && !s.LyricsMode:
+	}
+	switch npLayoutOf(scr.w, scr.h, s.LyricsMode) {
+	case npLayoutWide:
 		return npRenderWide(scr, s)
-	case scr.w >= 60 && scr.h >= 20:
-		return npRenderStacked(scr, s)
+	case npLayoutLandscape:
+		return npRenderLandscape(scr, s)
+	case npLayoutPoster:
+		return npRenderPoster(scr, s)
+	case npLayoutLyrics:
+		return npRenderLyrics(scr, s)
 	default:
 		return npRenderCompact(scr, s)
 	}
@@ -649,6 +668,48 @@ func npUpNext(scr *npScreen, x, y, w, rows int, s *npSnapshot) []npHit {
 	return hits
 }
 
+// npLyricRow is a row of the lyrics: a line or its translation, and how
+// many lines away from the current one it is.
+type npLyricRow struct {
+	text  string
+	trans bool
+	dist  int
+}
+
+// style dims a row with its distance from the current line.
+func (r npLyricRow) style(p npPalette) uv.Style {
+	switch {
+	case r.dist == 0:
+		return uv.Style{Fg: p.Text}
+	case r.dist <= 2:
+		return uv.Style{Fg: p.Secondary}
+	default:
+		return uv.Style{Fg: p.Rule}
+	}
+}
+
+// npLyricWindow picks up to n rows around the current line; each
+// translation sits under its line.
+func npLyricWindow(s *npSnapshot, n int) []npLyricRow {
+	var out []npLyricRow
+	cur := 0
+	for i, l := range s.Lyrics {
+		if i == s.LyricIndex {
+			cur = len(out)
+		}
+		d := i - s.LyricIndex
+		if d < 0 {
+			d = -d
+		}
+		out = append(out, npLyricRow{l.Text, false, d})
+		if l.Trans != "" {
+			out = append(out, npLyricRow{l.Trans, true, d})
+		}
+	}
+	start := min(max(cur-(n-1)/2, 0), max(len(out)-n, 0))
+	return out[start:min(start+n, len(out))]
+}
+
 // npLyrics shows the lyrics centered on the current line; each translation
 // sits under its line, and lines fade with their distance from the current one.
 func npLyrics(scr *npScreen, x, y, w, rows int, s *npSnapshot) {
@@ -660,43 +721,33 @@ func npLyrics(scr *npScreen, x, y, w, rows int, s *npSnapshot) {
 		scr.text(x+2, y+rows/2, model.T(MsgNowPlayingNoLyrics), uv.Style{Fg: p.Rule}, w-2)
 		return
 	}
-	type row struct {
-		text  string
-		trans bool
-		dist  int
-	}
-	var out []row
-	cur := 0
-	for i, l := range s.Lyrics {
-		if i == s.LyricIndex {
-			cur = len(out)
-		}
-		d := i - s.LyricIndex
-		if d < 0 {
-			d = -d
-		}
-		out = append(out, row{l.Text, false, d})
-		if l.Trans != "" {
-			out = append(out, row{l.Trans, true, d})
-		}
-	}
-	start := min(max(cur-(rows-1)/2, 0), max(len(out)-rows, 0))
-	for r := 0; r < rows && start+r < len(out); r++ {
-		ln := out[start+r]
-		var st uv.Style
-		switch {
-		case ln.dist == 0 && !ln.trans:
+	for r, ln := range npLyricWindow(s, rows) {
+		if ln.dist == 0 && !ln.trans {
 			scr.text(x, y+r, "▸", uv.Style{Fg: p.Accent}, 1)
 			scr.karaoke(x+2, y+r, ln.text, s.Sung, w-2)
 			continue
-		case ln.dist == 0:
-			st = uv.Style{Fg: p.Text}
-		case ln.dist <= 2:
-			st = uv.Style{Fg: p.Secondary}
-		default:
-			st = uv.Style{Fg: p.Rule}
 		}
-		scr.text(x+2, y+r, ln.text, st, w-2)
+		scr.text(x+2, y+r, ln.text, ln.style(p), w-2)
+	}
+}
+
+// npLyricsCentered is npLyrics with every line centered on the screen.
+func npLyricsCentered(scr *npScreen, y, rows, w int, s *npSnapshot) {
+	if rows <= 0 || w <= 2 {
+		return
+	}
+	p := scr.pal
+	if len(s.Lyrics) == 0 {
+		scr.centered(y+rows/2, model.T(MsgNowPlayingNoLyrics), uv.Style{Fg: p.Rule}, w)
+		return
+	}
+	for r, ln := range npLyricWindow(s, rows) {
+		if ln.dist == 0 && !ln.trans {
+			lw := min(npWidth(npSanitize(ln.text)), w)
+			scr.karaoke((scr.w-lw)/2, y+r, ln.text, s.Sung, w)
+			continue
+		}
+		scr.centered(y+r, ln.text, ln.style(p), w)
 	}
 }
 
@@ -833,13 +884,50 @@ func npLegend(scr *npScreen, y int, s *npSnapshot, onBlue bool) []npHit {
 	return hits
 }
 
-// npWide reports whether the stage layout fits.
-func npWide(w, h int) bool { return w >= 100 && h >= 28 }
+// npLayout is an arrangement of the page; the window size picks one.
+type npLayout int
 
-// npStage is where the cassette rests in the wide layout: the left part of
-// the screen, between the OSD row and the counter.
-func npStage(w, h int) (x, y, sw, sh int) {
-	return 2, 3, (w - 4) * 56 / 100, h - 10
+const (
+	npLayoutCompact   npLayout = iota // text only, for tiny windows
+	npLayoutLyrics                    // the lyrics view
+	npLayoutWide                      // the cassette on a stage at the left, numbered columns at the right
+	npLayoutLandscape                 // the wide layout for short windows, without the counter and the queue
+	npLayoutPoster                    // narrow windows: the cassette with the track centered under it
+)
+
+func npLayoutOf(w, h int, lyricsMode bool) npLayout {
+	switch {
+	case w < 60 || h < 20:
+		return npLayoutCompact
+	case lyricsMode:
+		return npLayoutLyrics
+	case w >= 100 && h >= 28:
+		return npLayoutWide
+	case w >= 100:
+		return npLayoutLandscape
+	default:
+		return npLayoutPoster
+	}
+}
+
+// npStage is where the cassette rests in a layout, in cells; sh is 0 in
+// the layouts without one.
+func npStage(l npLayout, w, h int, aspect float64) (x, y, sw, sh int) {
+	if aspect <= 0 {
+		aspect = 2
+	}
+	switch l {
+	case npLayoutWide: // between the OSD row and the counter
+		return 2, 3, (w - 4) * 56 / 100, h - 10
+	case npLayoutLandscape: // down to the progress bar
+		sh = h - 6
+		return 2, 3, min(int(float64(sh)*aspect*deck.FitAspect+0.5), (w-4)/2), sh
+	case npLayoutPoster: // centered, as wide as the cassette
+		pl := npPosterPlan(w, h, aspect)
+		sw = min(int(float64(pl.stageH)*aspect*deck.FitAspect+0.5), w-4)
+		return (w - sw) / 2, pl.stageY, sw, pl.stageH
+	}
+	return 0, 0, 0, 0
 }
 
 // npRenderWide puts the cassette on a stage at the left; the track and its
@@ -853,7 +941,7 @@ func npRenderWide(scr *npScreen, s *npSnapshot) []npHit {
 	npHeader(scr, s)
 	npOSDRow(scr, s, 1)
 
-	sx, sy, sw, _ := npStage(w, h)
+	sx, sy, sw, _ := npStage(npLayoutWide, w, h, s.Aspect)
 	scr.drawDeck(s.Deck, sx, sy)
 
 	rx := sx + sw + 3
@@ -941,54 +1029,107 @@ func (s *npScreen) karaoke(x, y int, text string, sung float64, maxW int) {
 	}
 }
 
-// npRenderStacked is the single-column layout for medium terminals and for
-// the lyrics view, where the lyrics take every spare row.
-func npRenderStacked(scr *npScreen, s *npSnapshot) []npHit {
+// npRenderLandscape is the wide layout for short windows: the cassette at
+// the left, and the track, the time and the lyrics at the right.
+func npRenderLandscape(scr *npScreen, s *npSnapshot) []npHit {
 	w, h := scr.w, scr.h
 	p := scr.pal
-	x, cw := 2, w-4
-	var hits []npHit
 
 	npHeader(scr, s)
 	npOSDRow(scr, s, 1)
 
-	y := 3
-	if s.LyricsMode {
-		n := scr.text(x, y, s.Song.Name, uv.Style{Fg: p.Hero, Attrs: uv.AttrBold}, cw)
-		scr.text(x+n, y, "   "+artistsString(s.Song), uv.Style{Fg: p.Secondary}, cw-n)
-		y += 2
-	} else {
-		npSection(scr, x, y, "02", "TRACK", cw)
-		scr.text(x, y+1, s.Song.Name, uv.Style{Fg: p.Hero, Attrs: uv.AttrBold}, cw)
-		scr.text(x, y+2, npArtistAlbum(s.Song), uv.Style{Fg: p.Text}, cw)
-		npMeta(scr, x, y+3, cw, s)
-		y += 5
-	}
+	sx, sy, sw, _ := npStage(npLayoutLandscape, w, h, s.Aspect)
+	scr.drawDeck(s.Deck, sx, sy)
 
-	times := npClock(s.Passed) + "   " + npTimes(s)
-	stripW := min(cw-npWidth(times)-3, 56)
-	scr.deckStrip(x, y, stripW, npProgressRatio(s), s.Angles)
-	scr.text(x+max(stripW, 0)+3, y, times, uv.Style{Fg: p.Text}, cw-max(stripW, 0)-3)
+	rx := sx + sw + 3
+	rw := w - 2 - rx
+	npSection(scr, rx, sy, "02", "TRACK", rw)
+	y := sy + 2
+	for _, line := range npWrap(s.Song.Name, rw, 2) {
+		scr.text(rx, y, line, uv.Style{Fg: p.Hero, Attrs: uv.AttrBold}, rw)
+		y++
+	}
+	scr.text(rx, y, npArtistAlbum(s.Song), uv.Style{Fg: p.Text}, rw)
 	y += 2
+	n := scr.text(rx, y, npClock(s.Passed), uv.Style{Fg: p.Text, Attrs: uv.AttrBold}, rw)
+	scr.text(rx+n+3, y, npTimes(s), uv.Style{Fg: p.Secondary}, rw-n-3)
+	y += 2
+	npSection(scr, rx, y, "03", "LYRICS", rw)
+	npLyrics(scr, rx, y+2, rw, h-3-(y+2), s)
 
-	bottom := h - 3 // first row after the content area
-	upRows := 0
-	if !s.LyricsMode && bottom-y >= 10 {
-		upRows = 3
-	}
-	lyricRows := bottom - y - 1
-	if upRows > 0 {
-		lyricRows -= upRows + 2
-	}
-	npSection(scr, x, y, "04", "LYRICS", cw)
-	npLyrics(scr, x, y+1, cw, lyricRows, s)
-	if upRows > 0 {
-		upY := bottom - upRows - 1
-		npSection(scr, x, upY, "05", "UP NEXT", cw)
-		hits = append(hits, npUpNext(scr, x, upY+1, cw, upRows, s)...)
-	}
+	hits := npProgressBar(scr, h-2, s)
+	return append(hits, npLegend(scr, h-1, s, false)...)
+}
 
-	hits = append(hits, npProgressBar(scr, h-2, s)...)
+// npPoster is the poster layout from top to bottom: the cassette, a gap,
+// the title and the artist, a gap, then the lyrics. The block sits a little
+// above the middle of the rows over the times.
+type npPoster struct {
+	stageY, stageH     int
+	titleY             int
+	lyricsY, lyricRows int
+}
+
+func npPosterPlan(w, h int, aspect float64) npPoster {
+	const top = 3
+	if aspect <= 0 {
+		aspect = 2
+	}
+	avail := h - 7 // down to two rows over the times, the bar and the legend
+	lyricRows := 1
+	switch {
+	case avail >= 22:
+		lyricRows = 5
+	case avail >= 15:
+		lyricRows = 3
+	}
+	text := 3 + lyricRows
+	stageH := min(avail-1-text, h*55/100, int(float64(w-8)/(aspect*deck.FitAspect)))
+	y := top + (avail-stageH-1-text)*2/5
+	return npPoster{stageY: y, stageH: stageH, titleY: y + stageH + 1, lyricsY: y + stageH + 4, lyricRows: lyricRows}
+}
+
+// npRenderPoster is the layout for narrow windows: the cassette, the track
+// and the lines around the one being sung, all centered, then the times
+// over the progress bar.
+func npRenderPoster(scr *npScreen, s *npSnapshot) []npHit {
+	w, h := scr.w, scr.h
+	p := scr.pal
+	tw := w - 8
+
+	npHeader(scr, s)
+	npOSDRow(scr, s, 1)
+
+	pl := npPosterPlan(w, h, s.Aspect)
+	sx, sy, _, _ := npStage(npLayoutPoster, w, h, s.Aspect)
+	scr.drawDeck(s.Deck, sx, sy)
+	scr.centered(pl.titleY, s.Song.Name, uv.Style{Fg: p.Hero, Attrs: uv.AttrBold}, tw)
+	scr.centered(pl.titleY+1, npArtistAlbum(s.Song), uv.Style{Fg: p.Text}, tw)
+	npLyricsCentered(scr, pl.lyricsY, pl.lyricRows, tw, s)
+
+	scr.text(2, h-3, npClock(s.Passed), uv.Style{Fg: p.Text}, 6)
+	left := "−" + npClock(s.Song.Duration-s.Passed)
+	scr.text(w-2-npWidth(left), h-3, left, uv.Style{Fg: p.Secondary}, npWidth(left))
+	hits := npProgressBar(scr, h-2, s)
+	return append(hits, npLegend(scr, h-1, s, false)...)
+}
+
+// npRenderLyrics is the lyrics view: the track on one line, then as many
+// lines of the lyrics as fit.
+func npRenderLyrics(scr *npScreen, s *npSnapshot) []npHit {
+	w, h := scr.w, scr.h
+	p := scr.pal
+	x, cw := 2, w-4
+
+	npHeader(scr, s)
+	npOSDRow(scr, s, 1)
+
+	n := scr.text(x, 3, s.Song.Name, uv.Style{Fg: p.Hero, Attrs: uv.AttrBold}, cw)
+	scr.text(x+n, 3, "   "+artistsString(s.Song), uv.Style{Fg: p.Secondary}, cw-n)
+	npSection(scr, x, 5, "03", "LYRICS", cw)
+	npLyrics(scr, x, 6, cw, h-9, s)
+
+	hits := npProgressBar(scr, h-2, s)
 	return append(hits, npLegend(scr, h-1, s, false)...)
 }
 

@@ -17,14 +17,28 @@ import (
 	"github.com/go-musicfox/go-musicfox/internal/structs"
 	"github.com/go-musicfox/go-musicfox/internal/types"
 	"github.com/go-musicfox/go-musicfox/internal/ui/deck"
+	"github.com/go-musicfox/go-musicfox/utils/likelist"
 )
 
 const (
-	deckPanelMinWidth  = 110 // narrower windows keep the classic bottom area
+	deckPanelMinWidth  = 110 // narrower windows dock the panel under the menu
 	deckPanelMinHeight = 24
 	deckPanelFooter    = 3 // song info (2 rows) and progress bar
 	deckPanelLyrics    = 5
 	deckPanelQueue     = 30
+
+	deckDockRows        = 6 // a rule, then five rows of cassette and track
+	deckDockTallRows    = 7 // with a row of air under the rule, in windows deckDockTall rows high
+	deckDockTall        = 28
+	deckDockFooter      = 1  // the progress bar: the dock shows the track itself
+	deckDockMinMenu     = 5  // menu rows a dock must leave
+	deckDockMinCassette = 48 // narrower docks leave the cassette out
+
+	// The dock's cassette is a few rows high, where the rest pose's
+	// perspective only blurs it: it is turned this far towards the viewer
+	// and fills this much more of its box, as it barely floats there.
+	deckDockTurn = 0.5
+	deckDockGrow = 0.1
 )
 
 // deckJumpMsg plays the k-th song of the panel's up-next list.
@@ -51,6 +65,7 @@ type DeckPanel struct {
 
 	// Where things were drawn in the last frame, in panel cells.
 	deckBox  image.Rectangle
+	docked   bool
 	queueTop int
 	queueLen int
 }
@@ -63,19 +78,45 @@ func NewDeckPanel(n *Netease, h *EventHandler) *DeckPanel {
 	return p
 }
 
-// CassetteBox returns where the cassette was drawn in the last frame, in
-// window cells, and whether the panel showed.
-func (p *DeckPanel) CassetteBox() (deck.Rect, bool) {
+// deckPlacement is how the panel drew its cassette, in window cells: the
+// cells it may cover, the box it was fitted to and how far it was turned
+// towards the viewer.
+type deckPlacement struct {
+	Cells, Fit deck.Rect
+	Turn       float64
+}
+
+// CassettePlacement returns how the cassette was drawn in the last frame,
+// and whether the panel showed.
+func (p *DeckPanel) CassettePlacement() (deckPlacement, bool) {
 	main := p.netease.MustMain()
 	if main == nil {
-		return deck.Rect{}, false
+		return deckPlacement{}, false
 	}
 	x, y, _, _, ok := main.PanelRect()
 	if !ok || p.deckBox.Empty() {
-		return deck.Rect{}, false
+		return deckPlacement{}, false
 	}
 	b := p.deckBox
-	return deck.Rect{X: float64(x + b.Min.X), Y: float64(y + b.Min.Y), W: float64(b.Dx()), H: float64(b.Dy())}, true
+	cells := deck.Rect{X: float64(x + b.Min.X), Y: float64(y + b.Min.Y), W: float64(b.Dx()), H: float64(b.Dy())}
+	if !p.docked {
+		return deckPlacement{Cells: cells, Fit: cells}, true
+	}
+	return deckPlacement{Cells: cells, Fit: deckGrow(cells, deckDockGrow), Turn: deckDockTurn}, true
+}
+
+// deckTurned turns a pose k of the way from the rest pose's angles towards
+// facing the viewer.
+func deckTurned(pose deck.Pose, k float64) deck.Pose {
+	rest := deck.RestPose()
+	pose.Yaw -= rest.Yaw * k
+	pose.Pitch -= rest.Pitch * k
+	return pose
+}
+
+// deckGrow grows a box by a fraction of its size around its center.
+func deckGrow(r deck.Rect, k float64) deck.Rect {
+	return deck.Rect{X: r.X - r.W*k/2, Y: r.Y - r.H*k/2, W: r.W * (1 + k), H: r.H * (1 + k)}
 }
 
 // adopt takes over the cassette's state from the now-playing page, so the
@@ -85,11 +126,24 @@ func (p *DeckPanel) adopt(m deck.Motion, r deck.Reels) {
 	p.motion, p.reels = m, r
 }
 
+// Layout puts the panel beside the menu in wide windows and docks it under
+// the menu in narrow ones, keeping at least five rows of the list: the
+// rows above it are the status bar, two blank rows, the header and its rule.
 func (p *DeckPanel) Layout(_ *model.App, w, h int) model.SidePanelLayout {
-	if !configs.AppConfig.Theme.DeckLayout() || w < deckPanelMinWidth || h < deckPanelMinHeight {
+	switch {
+	case !configs.AppConfig.Theme.DeckLayout():
 		return model.SidePanelLayout{}
+	case w >= deckPanelMinWidth && h >= deckPanelMinHeight:
+		return model.SidePanelLayout{Width: min(max(int(float64(w)*0.34+0.5), 36), 56), FooterRows: deckPanelFooter}
 	}
-	return model.SidePanelLayout{Width: min(max(int(float64(w)*0.34+0.5), 36), 56), FooterRows: deckPanelFooter}
+	rows := deckDockRows
+	if h >= deckDockTall {
+		rows = deckDockTallRows
+	}
+	if h-5-rows-deckDockFooter >= deckDockMinMenu { // 5: the status bar and the menu's header
+		return model.SidePanelLayout{Height: rows, FooterRows: deckDockFooter}
+	}
+	return model.SidePanelLayout{}
 }
 
 func (p *DeckPanel) Update(msg tea.Msg, a *model.App) {
@@ -207,22 +261,51 @@ func (p *DeckPanel) View(a *model.App, _ *model.Main, w, h int) string {
 	now := a.FrameTime()
 	player := p.netease.player
 	song := p.currentSong()
-	s := &deckPanelSnapshot{Pal: p.palette(), Song: song, Idle: song.Id == 0}
+	s := &deckPanelSnapshot{Pal: p.palette(), Song: song, Idle: song.Id == 0,
+		Liked: song.Id > 0 && likelist.IsLikeSong(song.Id), Mode: player.Mode(), Volume: player.Volume()}
 	if total := len(player.playlistManager.GetPlaylist()); total > 0 {
 		s.Pos, s.Total = player.CurSongIndex()+1, total
 	}
+	docked := h <= deckDockTallRows // a column is always taller
 	cw, ch := deckPanelCassette(w, h, deckAspect(a))
-	pose, lift := p.motion.At(now)
-	sideB := p.motion.SideB(now)
-	s.Deck = p.renderer.Render(deck.View{W: cw, H: ch, Tier: deckTier(a), Aspect: deckAspect(a)}, deckPaletteOf(s.Pal), pose,
-		deck.State{Radii: deck.PackRadii(p.progress(), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift})
+	if docked {
+		cw, ch = deckDockCassette(w, h, deckAspect(a))
+	}
+	if cw > 0 && ch > 0 {
+		pose, lift := p.motion.At(now)
+		sideB := p.motion.SideB(now)
+		v := deck.View{W: cw, H: ch, Tier: deckTier(a), Aspect: deckAspect(a)}
+		if docked {
+			pose, v.Fit = deckTurned(pose, deckDockTurn), deckGrow(deck.Rect{W: float64(cw), H: float64(ch)}, deckDockGrow)
+		}
+		s.Deck = p.renderer.Render(v, deckPaletteOf(s.Pal), pose,
+			deck.State{Radii: deck.PackRadii(p.progress(), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift})
+	}
+	p.docked = docked
 	if !s.Idle {
 		s.Lyrics, s.Cur, s.Sung = lyricsNow(p.netease.lyricService, player.PassedTime())
 		s.Queue = p.upcoming(now)
 	}
-	lines, layout := renderDeckPanel(s, w, h)
+	render := renderDeckPanel
+	if docked {
+		render = renderDeckDock
+	}
+	lines, layout := render(s, w, h)
 	p.deckBox, p.queueTop, p.queueLen = layout.deck, layout.queueTop, layout.queueLen
 	return strings.Join(lines, "\n")
+}
+
+// deckDockCassette sizes the dock's cassette to its height; narrow docks
+// have none.
+func deckDockCassette(w, h int, aspect float64) (cw, ch int) {
+	if w < deckDockMinCassette {
+		return 0, 0
+	}
+	if aspect <= 0 {
+		aspect = 2
+	}
+	ch = h - 1
+	return min(int(float64(ch)*aspect*deck.FitAspect+0.5), w*2/5), ch
 }
 
 // deckPanelCassette sizes the cassette to the panel's width, leaving room for
@@ -232,7 +315,7 @@ func deckPanelCassette(w, h int, aspect float64) (cw, ch int) {
 		aspect = 2
 	}
 	cw = w - 2
-	return cw, min(int(float64(cw)*60/88/aspect+0.5), max((h-8)/2, 4))
+	return cw, min(int(float64(cw)/deck.FitAspect/aspect+0.5), max((h-8)/2, 4))
 }
 
 // deckPanelSnapshot is what the panel shows in one frame.
@@ -246,6 +329,9 @@ type deckPanelSnapshot struct {
 	Cur        int
 	Sung       float64
 	Queue      []structs.Song
+	Liked      bool
+	Mode       types.Mode
+	Volume     int
 }
 
 // deckPanelLayout is where things went, in panel cells.
@@ -346,6 +432,120 @@ func renderDeckPanel(s *deckPanelSnapshot, w, h int) ([]string, deckPanelLayout)
 			})
 			out.queueLen++
 		}
+	}
+	return fitPanelRows(lines, h, w, bgSGR), out
+}
+
+// renderDeckDock draws the panel as a strip under the menu: a rule, then
+// the cassette with the track beside it, the player's state flush right and
+// the line being sung under them. Exactly h lines of w cells.
+func renderDeckDock(s *deckPanelSnapshot, w, h int) ([]string, deckPanelLayout) {
+	var out deckPanelLayout
+	pal := s.Pal
+	bgSGR := fmt.Sprintf("\x1b[48;2;%d;%d;%dm", pal.Bg.R, pal.Bg.G, pal.Bg.B)
+	text := func(str string, max int) string { return ansix.Truncate(ansix.Normalize(str), max, "…") }
+
+	rule := &panelText{bg: pal.Bg}
+	rule.add("  "+strings.Repeat("─", max(w-4, 0)), pal.Rule, false)
+	lines := []string{ansix.Fit(rule.String(), w, bgSGR)}
+
+	var deckRows []string
+	x0 := 2
+	if s.Deck != nil {
+		deckRows = deckLines(s.Deck, pal.Bg)
+		out.deck = image.Rect(2, 1, 2+s.Deck.W, 1+s.Deck.H)
+		x0 = 2 + s.Deck.W + 3
+	}
+
+	// The text beside the cassette: each row draws its left part within the
+	// columns it is given and may have a part flush right.
+	type span struct {
+		s  string
+		fg color.Color
+	}
+	type row struct {
+		left  func(t *panelText, w int)
+		right []span
+	}
+	plain := func(str string, fg color.Color, bold bool) func(t *panelText, w int) {
+		return func(t *panelText, w int) { t.add(text(str, w), fg, bold) }
+	}
+	var info []row
+	if s.Idle {
+		info = append(info, row{left: plain("未在播放", pal.Secondary, false)}, row{})
+		for _, hint := range [][2]string{{"Enter", "播放选中的歌"}, {"Space", "播放 / 暂停"}, {"i", "打开播放页"}} {
+			info = append(info, row{left: func(t *panelText, w int) {
+				t.add(hint[0], pal.Text, false)
+				t.add(text(strings.Repeat(" ", max(8-len(hint[0]), 1))+hint[1], max(w-len(hint[0]), 0)), pal.Secondary, false)
+			}})
+		}
+	} else {
+		var state []span
+		if s.Liked {
+			state = append(state, span{"♥  ", pal.Accent})
+		}
+		if s.Total > 0 {
+			state = append(state, span{fmt.Sprintf("%02d / %02d", s.Pos, s.Total), pal.Secondary})
+		}
+		info = append(info,
+			row{left: plain(s.Song.Name, pal.Hero, true), right: state},
+			row{left: plain(npArtistAlbum(s.Song), pal.Secondary, false),
+				right: []span{{s.Mode.String() + "  ·  ", pal.Rule}, {fmt.Sprintf("VOL %d", s.Volume), pal.Secondary}}},
+			row{})
+		switch cur := s.Cur; {
+		case len(s.Lyrics) == 0:
+			info = append(info, row{left: plain("暂无歌词", pal.Rule, false)})
+		case cur < 0: // before the first line
+			for _, l := range s.Lyrics[:min(2, len(s.Lyrics))] {
+				info = append(info, row{left: plain("  "+l.Text, pal.Secondary, false)})
+			}
+		default:
+			info = append(info, row{left: func(t *panelText, w int) {
+				t.add("▸ ", pal.Accent, false)
+				str := text(s.Lyrics[cur].Text, max(w-2, 0))
+				runes := []rune(str)
+				for j, c := range karaokeColors(str, s.Sung, pal.Hero, pal.Secondary) {
+					t.add(string(runes[j]), c, true)
+				}
+			}})
+			// The translation of the line, or else the line after it.
+			if tr := s.Lyrics[cur].Trans; tr != "" {
+				info = append(info, row{left: plain("  "+tr, pal.Text, false)})
+			} else if cur+1 < len(s.Lyrics) {
+				info = append(info, row{left: plain("  "+s.Lyrics[cur+1].Text, pal.Secondary, false)})
+			}
+		}
+	}
+
+	iw := w - x0 - 2
+	if h > deckDockRows { // the taller dock: a row of air under the rule
+		info = append([]row{{}}, info...)
+	}
+	for r := range h - 1 {
+		var b strings.Builder
+		b.WriteString(bgSGR + "  \x1b[m")
+		if r < len(deckRows) {
+			b.WriteString(deckRows[r])
+		}
+		line := ansix.Fit(b.String(), x0, bgSGR)
+		if r < len(info) && info[r].left != nil {
+			right := &panelText{bg: pal.Bg}
+			rw := 0
+			for _, sp := range info[r].right {
+				right.add(sp.s, sp.fg, false)
+				rw += npWidth(sp.s)
+			}
+			if rw > 0 && iw-rw-3 < 24 { // too narrow for both parts
+				rw = 0
+			}
+			left := &panelText{bg: pal.Bg}
+			info[r].left(left, iw-rw-min(rw, 3))
+			line += left.String()
+			if rw > 0 {
+				line = ansix.Fit(line, w-2-rw, bgSGR) + right.String()
+			}
+		}
+		lines = append(lines, ansix.Fit(line, w, bgSGR))
 	}
 	return fitPanelRows(lines, h, w, bgSGR), out
 }

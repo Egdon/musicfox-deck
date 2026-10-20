@@ -53,10 +53,10 @@ type NowPlayingPage struct {
 	// The cassette morphs between the main screen's panel and the stage.
 	morphIn   time.Time
 	morphOut  time.Time
-	fromFrame string    // the main screen as it was left
-	toFrame   string    // the main screen to return to
-	panelBox  deck.Rect // the panel's cassette, in window cells
-	stage     deck.Rect // where the cassette rests in the current layout
+	fromFrame string        // the main screen as it was left
+	toFrame   string        // the main screen to return to
+	panel     deckPlacement // the main screen's cassette
+	stage     deck.Rect     // where the cassette rests in the current layout
 
 	exitTo       model.Page // shown after leaving; nil means Main
 	drivePending bool       // Main holds deferred work that needs a tick
@@ -149,11 +149,11 @@ func (p *NowPlayingPage) HandlePageTransition(a *model.App, tx model.PageTransit
 	if p.level != motion.Full || panel == nil || tx.From != model.Page(p.netease.MustMain()) {
 		return false
 	}
-	box, ok := panel.CassetteBox()
+	place, ok := panel.CassettePlacement()
 	if !ok {
 		return false
 	}
-	p.morphIn, p.fromFrame, p.panelBox = tx.Start, tx.FromFrame, box
+	p.morphIn, p.fromFrame, p.panel = tx.Start, tx.FromFrame, place
 	a.Animate(npMorphDuration + 50*time.Millisecond)
 	return true
 }
@@ -461,11 +461,11 @@ func (p *NowPlayingPage) startExit(a *model.App, now time.Time, to model.Page) (
 		return p.leave(a)
 	}
 	frame := a.Snapshot(main) // also lays the panel out for this window
-	box, ok := panel.CassetteBox()
+	place, ok := panel.CassettePlacement()
 	if !ok {
 		return p.leave(a)
 	}
-	p.morphOut, p.toFrame, p.panelBox = now, frame, box
+	p.morphOut, p.toFrame, p.panel = now, frame, place
 	a.Animate(npMorphDuration + 50*time.Millisecond)
 	return p, nil
 }
@@ -676,15 +676,19 @@ func (p *NowPlayingPage) View(a *model.App) string {
 // and the page in, or the other way round.
 func (p *NowPlayingPage) drawMorph(a *model.App, now time.Time, w, h int) {
 	in := p.morphOut.IsZero()
-	start, from, to := p.morphIn, p.panelBox, p.stage
+	start, from, to := p.morphIn, p.panel.Fit, p.stage
 	if !in {
-		start, from, to = p.morphOut, p.stage, p.panelBox
+		start, from, to = p.morphOut, p.stage, p.panel.Fit
 	}
 	t := min(max(float64(now.Sub(start))/float64(npMorphDuration), 0), 1)
 	e := motion.OutCubic(t)
+	turn := p.panel.Turn * (1 - e) // the panel's turn towards the viewer, eased out on the stage
+	if !in {
+		turn = p.panel.Turn * e
+	}
 	// The main screen's own cassette is the one that moves: blank it out.
 	blankPanel := func() {
-		b := p.panelBox
+		b := p.panel.Cells
 		p.scr.fill(int(b.X), int(b.Y), int(math.Ceil(b.W)), int(math.Ceil(b.H)), p.pal.Bg)
 	}
 	switch {
@@ -704,6 +708,7 @@ func (p *NowPlayingPage) drawMorph(a *model.App, now time.Time, w, h int) {
 		W: from.W + (to.W-from.W)*e, H: from.H + (to.H-from.H)*e,
 	}
 	pose, lift := p.motion.At(now)
+	pose = deckTurned(pose, turn)
 	sideB := p.motion.SideB(now)
 	f := p.morph.Render(deck.View{W: w, H: h, Tier: deckTier(a), Aspect: deckAspect(a), Fit: box}, deckPaletteOf(p.palette()), pose,
 		deck.State{Radii: deck.PackRadii(p.progress(), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift})
@@ -728,8 +733,8 @@ func (p *NowPlayingPage) snapshot(a *model.App, now time.Time, w, h int, withDec
 	blue := song.Id == 0 && !p.stoppedSince.IsZero() && now.Sub(p.stoppedSince) >= npBlueScreenDelay
 	p.stage = deck.Rect{}
 	var frame *deck.Frame
-	if !blue && !p.lyricsMode && npWide(w, h) {
-		x, y, sw, sh := npStage(w, h)
+	x, y, sw, sh := npStage(npLayoutOf(w, h, p.lyricsMode), w, h, deckAspect(a))
+	if !blue && sh > 0 {
 		p.stage = deck.Rect{X: float64(x), Y: float64(y), W: float64(sw), H: float64(sh)}
 		if withDeck {
 			pose, lift := p.motion.At(now)
@@ -768,6 +773,7 @@ func (p *NowPlayingPage) snapshot(a *model.App, now time.Time, w, h int, withDec
 		Keys:       p.keys,
 		Angles:     p.reels.Angles,
 		Deck:       frame,
+		Aspect:     deckAspect(a),
 	}
 }
 

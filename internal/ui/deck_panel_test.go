@@ -101,3 +101,44 @@ func TestMenuHeaderUnits(t *testing.T) {
 		t.Fatalf("other menus: %q", got)
 	}
 }
+
+func TestDeckDockLinesAreExact(t *testing.T) {
+	for _, idle := range []bool{false, true} {
+		for _, size := range [][2]int{{109, deckDockTallRows}, {80, deckDockRows}, {deckDockMinCassette, deckDockRows}, {deckDockMinCassette - 1, deckDockTallRows}, {30, deckDockRows}} {
+			w, h := size[0], size[1]
+			s := deckPanelTestSnapshot(t, 40, 30, idle)
+			s.Deck = nil
+			if cw, ch := deckDockCassette(w, h, 0); cw > 0 {
+				var r deck.Renderer
+				s.Deck = r.Render(deck.View{W: cw, H: ch, Tier: deck.Octant}, deckPaletteOf(npWarmNight), deck.RestPose(), deck.State{Radii: deck.ReelRadii(0.3)})
+			}
+			lines, layout := renderDeckDock(s, w, h)
+			if len(lines) != h {
+				t.Fatalf("%dx%d idle=%v: %d lines", w, h, idle, len(lines))
+			}
+			for i, l := range lines {
+				if got := ansix.Width(l); got != w {
+					t.Fatalf("%dx%d idle=%v: line %d is %d cells: %q", w, h, idle, i, got, ansi.Strip(l))
+				}
+			}
+			if (w >= deckDockMinCassette) != !layout.deck.Empty() {
+				t.Fatalf("%dx%d: cassette %v", w, h, layout.deck)
+			}
+			if layout.queueLen != 0 {
+				t.Fatalf("%dx%d: the dock has no up-next list, got %+v", w, h, layout)
+			}
+			if idle {
+				continue
+			}
+			top := 1 + h - deckDockRows // the taller dock leaves a row under the rule
+			title, artist, sung := ansi.Strip(lines[top]), ansi.Strip(lines[top+1]), ansi.Strip(lines[top+3])
+			if !strings.Contains(title, "一首") || !strings.Contains(sung, "▸") {
+				t.Fatalf("%dx%d: track %q, lyric %q", w, h, title, sung)
+			}
+			// The player's state sits flush right when there is room for it.
+			if w >= 80 && (!strings.HasSuffix(title, "07 / 20  ") || !strings.HasSuffix(artist, "VOL 0  ")) {
+				t.Fatalf("%dx%d: state %q / %q", w, h, title, artist)
+			}
+		}
+	}
+}

@@ -1,10 +1,12 @@
 package ui
 
 import (
+	"image/color"
 	"strings"
 	"testing"
 	"time"
 
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/go-musicfox/netease-music/service"
 
@@ -52,7 +54,7 @@ func npTestSnapshot() *npSnapshot {
 // Every frame must be exactly w×h cells under both width methods, with every
 // cell painted, whatever the layout and effect.
 func TestNowPlayingFrameFillsScreen(t *testing.T) {
-	sizes := [][2]int{{140, 45}, {120, 40}, {100, 30}, {99, 30}, {80, 24}, {60, 20}, {59, 20}, {50, 15}, {30, 6}, {20, 2}, {12, 1}}
+	sizes := [][2]int{{140, 45}, {120, 40}, {100, 30}, {99, 30}, {90, 30}, {99, 60}, {130, 24}, {100, 20}, {72, 40}, {80, 24}, {60, 20}, {59, 20}, {50, 15}, {30, 6}, {20, 2}, {12, 1}}
 	type variant struct {
 		name string
 		snap func(*npSnapshot)
@@ -82,8 +84,8 @@ func TestNowPlayingFrameFillsScreen(t *testing.T) {
 			if v.snap != nil {
 				v.snap(s)
 			}
-			if v.deck != 0 && npWide(w, h) {
-				_, _, sw, sh := npStage(w, h)
+			_, _, sw, sh := npStage(npLayoutOf(w, h, s.LyricsMode), w, h, 0)
+			if v.deck != 0 && sh > 0 {
 				pose := v.pose
 				if pose == (deck.Pose{}) {
 					pose = deck.RestPose()
@@ -161,6 +163,87 @@ func TestNowPlayingWrap(t *testing.T) {
 		if strings.Join(got, "|") != strings.Join(c.want, "|") {
 			t.Errorf("npWrap(%q, %d) = %q, want %q", c.text, c.w, got, c.want)
 		}
+	}
+}
+
+func TestNowPlayingLayouts(t *testing.T) {
+	for _, c := range []struct {
+		w, h   int
+		lyrics bool
+		want   npLayout
+	}{
+		{140, 45, false, npLayoutWide},
+		{100, 28, false, npLayoutWide},
+		{130, 24, false, npLayoutLandscape},
+		{99, 30, false, npLayoutPoster},
+		{60, 20, false, npLayoutPoster},
+		{140, 45, true, npLayoutLyrics},
+		{59, 30, false, npLayoutCompact},
+		{100, 19, true, npLayoutCompact},
+	} {
+		if got := npLayoutOf(c.w, c.h, c.lyrics); got != c.want {
+			t.Errorf("%dx%d lyrics=%v: layout %d, want %d", c.w, c.h, c.lyrics, got, c.want)
+		}
+	}
+}
+
+// The poster keeps its block inside the rows over the times, centers the
+// cassette and grows it with the window.
+func TestNowPlayingPosterPlan(t *testing.T) {
+	prev := 0
+	for _, size := range [][2]int{{60, 20}, {80, 24}, {90, 30}, {99, 40}, {99, 60}} {
+		w, h := size[0], size[1]
+		pl := npPosterPlan(w, h, 2)
+		x, y, sw, sh := npStage(npLayoutPoster, w, h, 2)
+		switch {
+		case y < 3 || y != pl.stageY || sh != pl.stageH:
+			t.Fatalf("%dx%d: stage at row %d, %d rows; plan %+v", w, h, y, sh, pl)
+		case pl.lyricsY+pl.lyricRows > h-4:
+			t.Fatalf("%dx%d: lyrics run into the times: %+v", w, h, pl)
+		case x < 2 || x+sw > w-2 || (w-sw)/2 != x:
+			t.Fatalf("%dx%d: cassette at %d, %d wide", w, h, x, sw)
+		case sh < prev:
+			t.Fatalf("%dx%d: the cassette shrank to %d rows", w, h, sh)
+		}
+		prev = sh
+	}
+}
+
+func TestNowPlayingPosterCentersTheTrack(t *testing.T) {
+	var scr npScreen
+	scr.reset(80, 24)
+	s := npTestSnapshot()
+	npRender(&scr, s)
+	scr.fillBackground()
+	pl := npPosterPlan(80, 24, 0)
+	lines := strings.Split(ansi.Strip(scr.render()), "\n")
+	title := lines[pl.titleY]
+	left, right := len(title)-len(strings.TrimLeft(title, " ")), len(title)-len(strings.TrimRight(title, " "))
+	if !strings.Contains(title, "ON & ON") || left-right > 1 || right-left > 1 {
+		t.Fatalf("title row %q is not centered", title)
+	}
+}
+
+// A cassette's shadow darkens the text it falls on instead of covering it.
+func TestNowPlayingDeckShadowKeepsText(t *testing.T) {
+	var scr npScreen
+	scr.reset(3, 1)
+	scr.pal = npWarmNight
+	scr.text(0, 0, "a", uv.Style{Fg: npWarmNight.Text}, 1)
+	shadow := color.RGBA{R: 9, G: 9, B: 9, A: 0xff}
+	scr.drawDeck(&deck.Frame{W: 3, H: 1, Cells: []deck.Cell{
+		{Ch: " ", Bg: shadow, Shadow: 0.4},
+		{Ch: "▀", Fg: shadow, Bg: shadow},
+		{Ch: " ", Bg: shadow, Shadow: 0.4},
+	}}, 0, 0)
+	if c := scr.buf.CellAt(0, 0); c.Content != "a" || npSameColor(c.Style.Fg, npWarmNight.Text) || c.Style.Bg == nil {
+		t.Fatalf("text under the shadow: %+v", c)
+	}
+	if c := scr.buf.CellAt(1, 0); c.Content != "▀" {
+		t.Fatalf("the cassette's cell: %+v", c)
+	}
+	if c := scr.buf.CellAt(2, 0); !npSameColor(c.Style.Bg, shadow) {
+		t.Fatalf("the shadow on a blank cell: %+v", c)
 	}
 }
 
