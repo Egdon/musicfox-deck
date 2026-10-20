@@ -71,3 +71,22 @@ func TestTracklistIsOneClickableColumn(t *testing.T) {
 		t.Fatalf("click in the right margin hits %d", got)
 	}
 }
+
+// While a menu loads, the header already names it and shows the loading
+// tips once, on its right.
+func TestTracklistHeaderWhileEntering(t *testing.T) {
+	app, main := newTracklistMain(t, 100, 30)
+	app.page = main
+	main.selectedIndex = 3
+	main.enterMenuWithLoading(&mockMenu{key: "sub", items: []MenuItem{{Title: "Inner"}}}, &MenuItem{Title: "排行榜"})
+	header := ""
+	for _, line := range strings.Split(ansi.Strip(main.View(app)), "\n") {
+		if strings.Contains(line, " ── ") && !strings.Contains(line, "foxful-cli") {
+			header = line
+			break
+		}
+	}
+	if !strings.Contains(header, "排行榜") || strings.Contains(header, "飙升榜") || strings.Count(header, main.loadingTips) != 1 {
+		t.Fatalf("header while entering: %q (tips %q)", header, main.loadingTips)
+	}
+}

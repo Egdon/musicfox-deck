@@ -645,7 +645,16 @@ func (m *Main) menuSections(a *App) []string {
 			sections = append(sections, strings.Repeat("\n", max(0, titleStartRow-1)))
 		}
 		if m.useTracklist() {
-			sections = append(sections, m.tracklistHeader(a, mt), m.tracklistRule())
+			// The header carries the loading tips on its right, and names the
+			// menu being entered while it loads.
+			ht := mt
+			if !m.options.EnableTabs {
+				ht = m.menuTitle
+				if p := m.pendingEnterMenu; p != nil && p.newTitle != nil {
+					ht = p.newTitle
+				}
+			}
+			sections = append(sections, m.tracklistHeader(a, ht), m.tracklistRule())
 		} else {
 			sections = append(sections, m.menuTitleViewContent(a, mt))
 
