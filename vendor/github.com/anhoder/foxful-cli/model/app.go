@@ -50,6 +50,12 @@ type App struct {
 
 	motion appMotion
 
+	// Page switches: the page and frame shown last, and a running crossfade.
+	lastPage           Page
+	lastPageFrame      string
+	transition         pageTransition
+	suppressTransition bool
+
 	listeningKBEventL    sync.Mutex
 	listeningMouseEventL sync.Mutex
 
@@ -306,6 +312,7 @@ func (a *App) Update(msg tea.Msg) (model tea.Model, returnCmd tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.windowHeight = msgWithType.Height
 		a.windowWidth = msgWithType.Width
+		a.cancelTransition(msg)
 	case tea.BackgroundColorMsg:
 		// Response to RequestBackgroundColor() issued in Init(). Seeds the
 		// initial light/dark detection before the first user interaction.
@@ -473,7 +480,7 @@ func (a *App) View() tea.View {
 	a.motion.frameNow = time.Now()
 	a.motion.frameSeq++
 
-	baseContent := a.page.View(a)
+	baseContent := a.pageLayer()
 
 	// Composite modals on top of the page content (if any).
 	if len(a.modalStack) > 0 {
