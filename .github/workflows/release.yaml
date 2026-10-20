@@ -118,13 +118,15 @@ jobs:
           name: linux-windows
       - if: matrix.platform
         uses: docker/setup-qemu-action@v4
+      # Mirrors sometimes fail for a moment, so the installation is retried.
       - name: Install and start
         env:
           PLATFORM: ${{ matrix.platform && format('--platform={0}', matrix.platform) || '' }}
           INSTALL: ${{ matrix.install }}
         run: |
           docker run --rm $PLATFORM -v "$PWD:/pkg" -w /pkg -e EXPECT -e INSTALL "${{ matrix.image }}" \
-            sh -c 'eval "$INSTALL" && MUSICFOX_ROOT=$(mktemp -d) musicfox --version | tee /dev/stderr | grep -qF "$EXPECT"'
+            sh -c 'for i in 1 2 3; do eval "$INSTALL" && break; [ $i = 3 ] && exit 1; sleep 20; done
+              MUSICFOX_ROOT=$(mktemp -d) musicfox --version | tee /dev/stderr | grep -qF "$EXPECT"'
 
   try-macos:
     needs: macos
@@ -190,7 +192,8 @@ jobs:
           $server = Start-Process python -ArgumentList '-m', 'http.server', '8000', '--directory', (Resolve-Path pkg).Path -PassThru
           Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
           $env:PATH = "$env:USERPROFILE\scoop\shims;$env:PATH"
-          scoop install ./musicfox-deck.json
+          # A path with forward slashes would read as bucket/app.
+          scoop install (Resolve-Path musicfox-deck.json).Path
           $env:MUSICFOX_ROOT = (New-Item -ItemType Directory -Path "$env:RUNNER_TEMP/mfx-scoop").FullName
           $out = musicfox --version
           $out
