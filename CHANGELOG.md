@@ -8,7 +8,7 @@ musicfox-deck 的首个版本，基于 go-musicfox v5.1.0，与 go-musicfox 共�
 * 3D 磁带渲染器：透视光线投射，按终端选择八分块、六分块或四分块字符；磁带可漂浮、随鼠标倾斜，并在切歌时翻面
 * 播放页：宽窗口为舞台布局，窄窗口为海报布局；进出播放页时，磁带在面板与舞台之间形变过渡
 * 动效：页面切换、菜单进出、弹窗、通知、选中项滑动与 deck 启动动画，由 `[main] motion` 控制
-* 切歌与进入歌单等菜单在后台执行，歌词与播放进度的读取不再等待网络，界面不再停顿
+* 切歌、进入歌单、翻页加载以及喜欢、收藏等操作都在后台执行，歌词与播放进度的读取不再等待网络，界面不再停顿
 * 新增配置 `[main] motion`、`[main] blockGlyphs`、`[theme] layout` 与 `[startup] animation = "deck"`；移除 `[main.nowPlaying] effects`
 * 提供 macOS（含 Homebrew）、Windows（含 Scoop）与 Linux（deb、rpm、Arch 包与通用压缩包）安装包；Linux 版静态链接 libFLAC，不受发行版 libFLAC 版本的影响
 * 启动时不再输出 WebKitGTK 警告
@@ -22,7 +22,7 @@ The first release of musicfox-deck, based on go-musicfox v5.1.0. It shares the c
 * 3D cassette renderer: perspective ray casting with octant, sextant or quadrant characters chosen per terminal; the cassette floats, tilts toward the mouse and flips over on track changes
 * Now-playing page: a stage layout in wide windows and a poster layout in narrow ones; the cassette morphs between the panel and the stage when entering and leaving
 * Motion: page changes, menus, popups, notifications, a sliding selection and the deck startup animation, controlled by `[main] motion`
-* Track changes and menus such as playlists load in the background, and lyrics and the playback position no longer wait on the network, so the interface no longer stalls
+* Track changes, menus such as playlists, the next page of a list and actions such as liking or subscribing run in the background, and lyrics and the playback position no longer wait on the network, so the interface no longer stalls
 * New settings `[main] motion`, `[main] blockGlyphs`, `[theme] layout` and `[startup] animation = "deck"`; `[main.nowPlaying] effects` is removed
 * Packages for macOS (including Homebrew), Windows (including Scoop) and Linux (deb, rpm, Arch and a generic archive); the Linux builds link libFLAC statically and do not depend on a distribution's libFLAC version
 * No WebKitGTK warning at startup
