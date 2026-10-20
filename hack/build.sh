@@ -20,7 +20,7 @@ BUILD_TARGET=${BUILD_TARGET:-""}
 BUILD_TAGS=${BUILD_TAGS:-""}
 
 if [[ "${ACTION}" = "build" ]]; then
-	BUILD_TARGET="-o ${ROOT}/bin/musicfox"
+	BUILD_TARGET="-o ${ROOT}/bin/tapefox"
 fi
 
 VERSION_INFO=$(mktemp)

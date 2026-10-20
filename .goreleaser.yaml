@@ -3,7 +3,7 @@
 # .goreleaser.darwin.yaml. Both upload to the draft release that
 # .github/workflows/release.yaml creates, which also adds SHA256SUMS.
 version: 2
-project_name: musicfox-deck
+project_name: tapefox
 
 env:
   - CGO_ENABLED=1
@@ -11,7 +11,7 @@ env:
 builds:
   - id: linux-amd64
     main: ./cmd
-    binary: musicfox
+    binary: tapefox
     goos: [linux]
     goarch: [amd64]
     env:
@@ -23,7 +23,7 @@ builds:
     mod_timestamp: &mtime "{{ .CommitTimestamp }}"
   - id: linux-arm64
     main: ./cmd
-    binary: musicfox
+    binary: tapefox
     goos: [linux]
     goarch: [arm64]
     env:
@@ -35,7 +35,7 @@ builds:
     mod_timestamp: *mtime
   - id: windows-amd64
     main: ./cmd
-    binary: musicfox
+    binary: tapefox
     goos: [windows]
     goarch: [amd64]
     env:
@@ -46,7 +46,7 @@ builds:
     mod_timestamp: *mtime
   - id: windows-arm64
     main: ./cmd
-    binary: musicfox
+    binary: tapefox
     goos: [windows]
     goarch: [arm64]
     env:
@@ -73,27 +73,25 @@ archives:
 nfpms:
   - id: packages
     ids: [linux-amd64, linux-arm64]
-    package_name: musicfox-deck
+    package_name: tapefox
     file_name_template: "{{ .ConventionalFileName }}"
-    vendor: musicfox-deck
-    homepage: https://github.com/Egdon/musicfox-deck
+    vendor: tapefox
+    homepage: https://github.com/Egdon/tapefox
     maintainer: Egdon <Egdon@users.noreply.github.com>
     description: |-
       NetEase Cloud Music in the terminal, with a 3D cassette deck.
-      musicfox-deck is a fork of go-musicfox.
+      tapefox is a fork of go-musicfox.
     license: GPL-3.0-only
     section: sound
     formats: [deb, rpm, archlinux]
     bindir: /usr/bin
     contents:
       - src: LICENSE
-        dst: /usr/share/licenses/musicfox-deck/LICENSE
+        dst: /usr/share/licenses/tapefox/LICENSE
       - src: README.md
-        dst: /usr/share/doc/musicfox-deck/README.md
+        dst: /usr/share/doc/tapefox/README.md
       - src: README.en.md
-        dst: /usr/share/doc/musicfox-deck/README.en.md
-    # Both install /usr/bin/musicfox.
-    conflicts: [go-musicfox]
+        dst: /usr/share/doc/tapefox/README.en.md
     # The web login loads WebKitGTK when it is there (Arch packages from
     # nfpm cannot list optional dependencies).
     overrides:
@@ -122,8 +120,8 @@ snapshot:
 release:
   github:
     owner: Egdon
-    name: musicfox-deck
-  name_template: "musicfox-deck {{ .Tag }}"
+    name: tapefox
+  name_template: "tapefox {{ .Tag }}"
   prerelease: auto
   draft: true
   use_existing_draft: true

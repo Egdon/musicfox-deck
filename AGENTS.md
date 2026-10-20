@@ -1,6 +1,6 @@
-# musicfox-deck 项目架构文档
+# tapefox 项目架构文档
 
-musicfox-deck 是 go-musicfox 的二次开发版本（仓库 `Egdon/musicfox-deck`，见 `types.AppRepo`）。Go 模块路径、导入路径、二进制名 `musicfox` 和用户数据目录 `go-musicfox` 都与上游保持一致，便于合并上游提交、沿用老用户的数据。
+tapefox 是 go-musicfox 的二次开发版本（仓库 `Egdon/tapefox`，见 `types.AppRepo`）。Go 模块路径、导入路径和用户数据目录 `go-musicfox` 都与上游保持一致，便于合并上游提交、沿用老用户的数据；命令名是 `tapefox`（`types.AppName`），可与 go-musicfox 同时安装。
 
 ## 沟通语言准则
 
@@ -103,7 +103,7 @@ musicfox-deck 是 go-musicfox 的二次开发版本（仓库 `Egdon/musicfox-dec
 
 ## 项目概述
 
-go-musicfox 是基于 Go 和 bubbletea 的网易云音乐 TUI 客户端，支持 macOS/Linux/Windows。musicfox-deck 在其上加了磁带卡座界面（3D 磁带渲染器、曲目表与磁带面板、舞台式播放页）和全局动效，默认主题 Warm Night、布局 deck、启动动画 deck。
+go-musicfox 是基于 Go 和 bubbletea 的网易云音乐 TUI 客户端，支持 macOS/Linux/Windows。tapefox 在其上加了磁带卡座界面（3D 磁带渲染器、曲目表与磁带面板、舞台式播放页）和全局动效，默认主题 Warm Night、布局 deck、启动动画 deck。
 
 **技术栈**：
 - **UI 框架**：bubbletea + foxful-cli（部分定制）
@@ -174,7 +174,7 @@ type Player interface {
 - **歌词**：LRC/YRC 格式，支持 smooth/wave/glow 渲染模式；未匹配的云盘歌曲（含旧播放快照）优先通过云盘歌词接口获取内嵌歌词，失败时回退普通歌曲歌词接口
 - **播放列表**：列表循环/顺序/单曲循环/随机/无限随机/智能心动模式
 - **远程控制**：MPRIS(linux)、Now Playing(macOS)、System Media(Windows)。macOS 侧 `internal/macdriver/mediaplayer` 与 `internal/macdriver/cocoa/unnotifications.go` 的框架加载（Dlopen）失败不 panic 静默降级：MediaPlayer.framework 需 macOS 10.12.2+、UserNotifications.framework 需 10.14+，旧系统上 class 查找得 nil、objc 消息发送安全返回 0，对应功能（Now Playing 远程控制/系统通知）自动禁用而不影响主应用启动
-- **状态栏组件**：`model.DefaultStatusBar.Components` 可注入任意 `StatusBarComponent` 到居中区域；展示项只实现 `View`，可点击项额外实现 `InteractiveStatusBarComponent`，以自身局部坐标处理命中和事件。状态栏负责布局、边界与指针，不持有业务回调。播放队列适配器的 `musicfox` 前缀自行打开 `types.AppGithubUrl`（本 fork 的仓库），队列位置与音质文本不触发。
+- **状态栏组件**：`model.DefaultStatusBar.Components` 可注入任意 `StatusBarComponent` 到居中区域；展示项只实现 `View`，可点击项额外实现 `InteractiveStatusBarComponent`，以自身局部坐标处理命中和事件。状态栏负责布局、边界与指针，不持有业务回调。播放队列适配器的 `tapefox` 前缀自行打开 `types.AppGithubUrl`（本 fork 的仓库），队列位置与音质文本不触发。
 - **存储**：BoltDB，存储用户信息、播放状态、播放列表快照和桌面歌词窗口位置/显示器
 - **扫码登录**：二维码登录（`internal/ui/login_qr_page.go`）通过 `internal/ui/qr_login_client.go` 的 `qrGetKey` / `qrCheckStatus` 直接请求网易云接口，而非 `service.LoginQRService`。客户端基于 `github.com/imroc/req/v3` 的 `SetTLSFingerprintChrome()` 模拟 Chrome 的 TLS ClientHello 指纹并附带完整浏览器 Headers，规避服务端对非浏览器客户端的反爬检测（462）。`qrKeyClient` 请求 unikey 时不带 Cookie；轮询用 `newQRLoginClient(cookieJar)` 每次绑定最新的全局 CookieJar（`neteaseutil.GetGlobalCookieJar()`），避免登录 Cookie（`MUSIC_U`）写入过期 jar。轮询前 `util.ApplyRequestStrategy` 注入反风控 Cookie。462 拦截为网易云动态风控行为，与 IP/地域/频率相关，并非必现。
 - **实时频谱**：仅 macOS `osx` 播放引擎支持；`MTAudioProcessingTap` 经 PureGo 获取 PCM，由 `internal/player/spectrum.go` 异步分析。PCM 更新频谱目标值，`github.com/charmbracelet/harmonica` 的临界阻尼弹簧以每帧推进，避免 PCM 回调间隙使动画停顿。频谱分析与 UI 刷新均使用 `[main].frameRate`。`[main.visualizer]` 支持 `enable`、`maxHeight`（默认 `0` 为不限制；正数限制频谱行数）及 `fullCharHalfBlock`、`fullCharFullBlock`、`emptyCharBlock` 字符配置（各取首个 Unicode 字符，默认分别为 `▌`、`█`、空格）。`SpectrumRenderer` 将相邻频段分组为由低至高的横向进度条（低频在底部），以三态字符显示：满单元、使用前景/背景双色渐变的半单元、无样式空白单元，并以半单元为粒度提供双倍横向幅度分辨率。未限制时频谱会占满歌词与歌曲信息之间的可用行，顶部及歌曲信息前各保留一行空白。
@@ -287,7 +287,7 @@ foxful-cli 是本项目的核心 UI 框架，源码在 `third_party/foxful-cli/`
 2. 打 tag `vX.Y.Z` 并推送，`.github/workflows/release.yaml` 依次：
    - `draft`：以 `hack/release_notes.sh` 生成的说明创建草稿 Release（CHANGELOG 中文部分与中文下载表在前，英文部分与英文下载表在后）；
    - `linux-windows`：在 Ubuntu 22.04 容器里运行 `hack/release_container.sh`（Go、GoReleaser、llvm-mingw 都固定版本并校验 SHA-256），按 `.goreleaser.yaml` 编 Linux amd64/arm64 与 Windows amd64/arm64，打 tar.gz、zip、deb、rpm、Arch 包；`macos`：在 macOS runner 上按 `.goreleaser.darwin.yaml` 编两个架构的命令行版与 .app 版。两者都上传到同一个草稿（`use_existing_draft`）；
-   - `try-*`：在 Ubuntu 22.04/24.04、Debian 12（另有 arm64，经 QEMU）、Fedora、openSUSE Tumbleweed、Arch 的容器里安装包并运行 `musicfox --version`；在 macOS 上运行两个架构的二进制与 .app 版，并用生成的 formula 安装测试；在 Windows 上运行 x64 版，并用生成的 Scoop 清单（经本机 HTTP 服务提供压缩包）安装测试；
+   - `try-*`：在 Ubuntu 22.04/24.04、Debian 12（另有 arm64，经 QEMU）、Fedora、openSUSE Tumbleweed、Arch 的容器里安装包并运行 `tapefox --version`；在 macOS 上运行两个架构的二进制与 .app 版，并用生成的 formula 安装测试；在 Windows 上运行 x64 版，并用生成的 Scoop 清单（经本机 HTTP 服务提供压缩包）安装测试；
    - `checksums`：全部通过后上传 `SHA256SUMS`。
 3. 检查草稿后手动发布（`gh release edit vX.Y.Z --draft=false`）。发布正式版会触发 `.github/workflows/package-managers.yaml`：`hack/brew_formula.sh` 生成 Homebrew formula、`hack/scoop_manifest.sh` 生成 Scoop 清单，由 `hack/push_manifest.sh` 经各自的部署密钥（secret `HOMEBREW_TAP_DEPLOY_KEY`、`SCOOP_BUCKET_DEPLOY_KEY`）推到 `Egdon/homebrew-tap` 的 `Formula/` 与 `Egdon/scoop-bucket` 的 `bucket/`。该工作流也可手动运行并指定 tag。
 
@@ -300,7 +300,7 @@ foxful-cli 是本项目的核心 UI 框架，源码在 `third_party/foxful-cli/`
 
 #### 打包 RPM（本机）
 
-`hack/rpm.sh` 用系统 gcc 执行 `make build`（conda 等环境的编译器找不到系统的 FLAC、ALSA 头文件），再按 `deploy/rpm/musicfox-deck.spec` 把 `bin/musicfox` 打成本机用的 RPM，输出到 `dist/`。版本号取最近的 tag 加快照后缀（如 `1.0.0^20261020git11c1f7e`）。依赖由 rpmbuild 从二进制推导（本机的 `libFLAC.so.N`、`libasound.so.2`、glibc），只适合在打包的这台机器所用的发行版上安装；分发用 Release 里的 rpm。WebKitGTK 只在网页登录时动态加载，列为推荐依赖。该脚本只用于 Linux。
+`hack/rpm.sh` 用系统 gcc 执行 `make build`（conda 等环境的编译器找不到系统的 FLAC、ALSA 头文件），再按 `deploy/rpm/tapefox.spec` 把 `bin/tapefox` 打成本机用的 RPM，输出到 `dist/`。版本号取最近的 tag 加快照后缀（如 `1.0.0^20261020git11c1f7e`）。依赖由 rpmbuild 从二进制推导（本机的 `libFLAC.so.N`、`libasound.so.2`、glibc），只适合在打包的这台机器所用的发行版上安装；分发用 Release 里的 rpm。WebKitGTK 只在网页登录时动态加载，列为推荐依赖。该脚本只用于 Linux。
 
 ### 跨平台构建兼容性
 

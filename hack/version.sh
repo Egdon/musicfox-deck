@@ -13,7 +13,7 @@ GIT_REMOTE_INFO=""
 # get latest git info from remote repo
 fetch_remote_git_info() {
 	if [[ -z "${GIT_REMOTE_INFO}" ]]; then
-		GIT_REMOTE_INFO=$(git ls-remote --tags https://github.com/Egdon/musicfox-deck)
+		GIT_REMOTE_INFO=$(git ls-remote --tags https://github.com/Egdon/tapefox)
 	fi
 }
 

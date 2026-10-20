@@ -40,15 +40,15 @@ build-macapp:
 ifeq ($(IS_MACOS),Darwin)
 	@mkdir -p $(PACKAGE_ROOT)/bin
 	BUILD_TAGS="enable_global_hotkey,purego" $(BUILD_SCRIPT) build
-	@mkdir -p $(PACKAGE_ROOT)/bin/musicfox.app/Contents/MacOS
-	@mkdir -p $(PACKAGE_ROOT)/bin/musicfox.app/Contents/Resources
-	@cp $(PACKAGE_ROOT)/bin/musicfox $(PACKAGE_ROOT)/bin/musicfox.app/Contents/MacOS/go-musicfox
-	@cp $(PACKAGE_ROOT)/deploy/musicfox-app.wrapper.sh $(PACKAGE_ROOT)/bin/musicfox.app/Contents/MacOS/musicfox
-	@cp $(PACKAGE_ROOT)/deploy/musicfox.app/Contents/Info.plist $(PACKAGE_ROOT)/bin/musicfox.app/Contents/Info.plist
-	@cp $(PACKAGE_ROOT)/deploy/musicfox.app/Contents/Resources/Musicfox.icns $(PACKAGE_ROOT)/bin/musicfox.app/Contents/Resources/Musicfox.icns
-	@chmod +x $(PACKAGE_ROOT)/bin/musicfox.app/Contents/MacOS/go-musicfox
-	@chmod +x $(PACKAGE_ROOT)/bin/musicfox.app/Contents/MacOS/musicfox
-	@xattr -r -d com.apple.quarantine -- $(PACKAGE_ROOT)/bin/musicfox.app
+	@mkdir -p $(PACKAGE_ROOT)/bin/tapefox.app/Contents/MacOS
+	@mkdir -p $(PACKAGE_ROOT)/bin/tapefox.app/Contents/Resources
+	@cp $(PACKAGE_ROOT)/bin/tapefox $(PACKAGE_ROOT)/bin/tapefox.app/Contents/MacOS/go-musicfox
+	@cp $(PACKAGE_ROOT)/deploy/musicfox-app.wrapper.sh $(PACKAGE_ROOT)/bin/tapefox.app/Contents/MacOS/tapefox
+	@cp $(PACKAGE_ROOT)/deploy/musicfox.app/Contents/Info.plist $(PACKAGE_ROOT)/bin/tapefox.app/Contents/Info.plist
+	@cp $(PACKAGE_ROOT)/deploy/musicfox.app/Contents/Resources/Musicfox.icns $(PACKAGE_ROOT)/bin/tapefox.app/Contents/Resources/Musicfox.icns
+	@chmod +x $(PACKAGE_ROOT)/bin/tapefox.app/Contents/MacOS/go-musicfox
+	@chmod +x $(PACKAGE_ROOT)/bin/tapefox.app/Contents/MacOS/tapefox
+	@xattr -r -d com.apple.quarantine -- $(PACKAGE_ROOT)/bin/tapefox.app
 else
 	@echo "build-macapp is only supported on macOS"
 endif

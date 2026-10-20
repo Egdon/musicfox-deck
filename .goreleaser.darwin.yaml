@@ -2,7 +2,7 @@
 # Linux and Windows are in .goreleaser.yaml. The binaries are not signed
 # beyond the ad-hoc signature the linker gives them.
 version: 2
-project_name: musicfox-deck
+project_name: tapefox
 
 env:
   - CGO_ENABLED=1
@@ -10,7 +10,7 @@ env:
 builds:
   - id: darwin
     main: ./cmd
-    binary: musicfox
+    binary: tapefox
     goos: [darwin]
     goarch: [amd64, arm64]
     flags: &flags [-trimpath]
@@ -21,7 +21,7 @@ builds:
   # The app bundle gives notifications the app's icon (utils/notify).
   - id: darwin-app
     main: ./cmd
-    binary: musicfox.app/Contents/MacOS/go-musicfox
+    binary: tapefox.app/Contents/MacOS/go-musicfox
     goos: [darwin]
     goarch: [amd64, arm64]
     flags: *flags
@@ -42,11 +42,11 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}_macapp"
     files:
       - src: deploy/musicfox.app/Contents/Info.plist
-        dst: musicfox.app/Contents/Info.plist
+        dst: tapefox.app/Contents/Info.plist
       - src: deploy/musicfox.app/Contents/Resources/Musicfox.icns
-        dst: musicfox.app/Contents/Resources/Musicfox.icns
+        dst: tapefox.app/Contents/Resources/Musicfox.icns
       - src: deploy/musicfox-app.wrapper.sh
-        dst: musicfox.app/Contents/MacOS/musicfox
+        dst: tapefox.app/Contents/MacOS/tapefox
         info:
           mode: 0755
 
@@ -62,8 +62,8 @@ snapshot:
 release:
   github:
     owner: Egdon
-    name: musicfox-deck
-  name_template: "musicfox-deck {{ .Tag }}"
+    name: tapefox
+  name_template: "tapefox {{ .Tag }}"
   prerelease: auto
   draft: true
   use_existing_draft: true

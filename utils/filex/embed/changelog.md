@@ -1,4 +1,4 @@
-# musicfox-deck v1.0.0
+# tapefox v1.0.0
 
 基于 go-musicfox v5.1.0 的二次开发版本，配置和数据目录与原版共用。
 

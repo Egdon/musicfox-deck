@@ -63,7 +63,7 @@ func TestToastLevelToModel(t *testing.T) {
 func TestBuildHelpMarkdown(t *testing.T) {
 	keybindings.InitDefaults(true)
 	md := buildHelpMarkdown()
-	if !strings.Contains(md, "# musicfox-deck 快捷键") {
+	if !strings.Contains(md, "# tapefox 快捷键") {
 		t.Errorf("help markdown missing title heading:\n%s", md)
 	}
 	if strings.Contains(strings.ToLower(md), "star") {

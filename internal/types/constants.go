@@ -12,18 +12,18 @@ var (
 	LastfmSecret = ""
 )
 
-const AppName = "musicfox"
+const AppName = "tapefox"
 
-// UpstreamVersion is the go-musicfox release musicfox-deck is based on;
+// UpstreamVersion is the go-musicfox release tapefox is based on;
 // update it when merging upstream.
 const UpstreamVersion = "v5.1.0"
 
 const GroupID = "com.anhoder.musicfox"
-const AppDescription = "<cyan>musicfox-deck - 磁带卡座风格的命令行网易云音乐</>"
+const AppDescription = "<cyan>tapefox - 磁带卡座风格的命令行网易云音乐</>"
 
-// AppRepo is the GitHub repository of musicfox-deck, a fork of
+// AppRepo is the GitHub repository of tapefox, a fork of
 // go-musicfox/go-musicfox: releases, update checks and bug reports go there.
-const AppRepo = "Egdon/musicfox-deck"
+const AppRepo = "Egdon/tapefox"
 const AppGithubUrl = "https://github.com/" + AppRepo
 const AppLatestReleases = AppGithubUrl + "/releases/latest"
 const AppCheckUpdateUrl = "https://api.github.com/repos/" + AppRepo + "/releases/latest"

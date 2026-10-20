@@ -26,12 +26,12 @@ jobs:
         include:
           - name: Homebrew
             repo: Egdon/homebrew-tap
-            path: Formula/musicfox-deck.rb
+            path: Formula/tapefox.rb
             script: hack/brew_formula.sh
             key: HOMEBREW_TAP_DEPLOY_KEY
           - name: Scoop
             repo: Egdon/scoop-bucket
-            path: bucket/musicfox-deck.json
+            path: bucket/tapefox.json
             script: hack/scoop_manifest.sh
             key: SCOOP_BUCKET_DEPLOY_KEY
     name: ${{ matrix.name }}
@@ -51,4 +51,4 @@ jobs:
           DEPLOY_KEY: ${{ secrets[matrix.key] }}
           REPO: ${{ matrix.repo }}
           DEST: ${{ matrix.path }}
-        run: hack/push_manifest.sh "$REPO" "$DEST" manifest "musicfox-deck ${TAG#v}"
+        run: hack/push_manifest.sh "$REPO" "$DEST" manifest "tapefox ${TAG#v}"

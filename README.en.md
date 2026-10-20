@@ -1,7 +1,7 @@
-<h1 align="center">musicfox-deck</h1>
+<h1 align="center">tapefox</h1>
 
 <p align="center">
-  <a href="https://github.com/Egdon/musicfox-deck/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Egdon/musicfox-deck?include_prereleases&label=release"></a>
+  <a href="https://github.com/Egdon/tapefox/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Egdon/tapefox?include_prereleases&label=release"></a>
   <img alt="macOS" src="https://img.shields.io/badge/macOS-Apple%20silicon%20%2F%20Intel-000000">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%2F%2011-0078d4">
   <img alt="Linux" src="https://img.shields.io/badge/Linux-x86__64%20%2F%20ARM64-fcc624">
@@ -12,11 +12,11 @@
 <p align="center">A terminal client for NetEase Cloud Music with a cassette-deck interface: a 3D cassette rendered in real time sits at its center, and page changes, menus and popups all have transitions.</p>
 
 <p align="center">
-  <a href="https://github.com/Egdon/musicfox-deck/releases/latest"><strong>Download the latest release</strong></a>
+  <a href="https://github.com/Egdon/tapefox/releases/latest"><strong>Download the latest release</strong></a>
   ·
   <a href="./CHANGELOG.md">Changelog</a>
   ·
-  <a href="https://github.com/Egdon/musicfox-deck/issues">Issues</a>
+  <a href="https://github.com/Egdon/tapefox/issues">Issues</a>
   ·
   <a href="./README.md">简体中文</a>
 </p>
@@ -25,11 +25,11 @@
 
 ### Main screen: tracklist and 3D cassette panel
 
-![musicfox-deck main screen: tracklist and 3D cassette panel](./docs/assets/deck-panel.gif)
+![tapefox main screen: tracklist and 3D cassette panel](./docs/assets/deck-panel.gif)
 
 ### Now playing: the floating cassette and word-by-word lyrics
 
-![musicfox-deck now-playing page: floating cassette and word-by-word lyrics](./docs/assets/now-playing.gif)
+![tapefox now-playing page: floating cassette and word-by-word lyrics](./docs/assets/now-playing.gif)
 
 <table>
   <tr>
@@ -60,7 +60,7 @@ These recordings come from the program running for real. The cassette is drawn w
 
 ## About
 
-musicfox-deck is a fork of [go-musicfox](https://github.com/go-musicfox/go-musicfox) v5.1.0 that reworks the main screen, the now-playing page and the motion: it adds a 3D cassette renderer, a tracklist with a cassette panel, a stage-style now-playing page, transitions throughout and the Warm Night theme, and ships prebuilt packages for macOS, Windows and Linux. Everything else comes from go-musicfox, and the two share their configuration and data directory.
+tapefox is a fork of [go-musicfox](https://github.com/go-musicfox/go-musicfox) v5.1.0 that reworks the main screen, the now-playing page and the motion: it adds a 3D cassette renderer, a tracklist with a cassette panel, a stage-style now-playing page, transitions throughout and the Warm Night theme, and ships prebuilt packages for macOS, Windows and Linux. Everything else comes from go-musicfox, and the two share their configuration and data directory.
 
 This repository is not the official go-musicfox repository, and its original authors do not support or endorse this project. All changes are listed in the [changelog](./CHANGELOG.md).
 
@@ -68,41 +68,41 @@ This repository is not the official go-musicfox repository, and its original aut
 
 | Platform | Installation | Architectures |
 | --- | --- | --- |
-| macOS 12 or later | Homebrew: `brew install egdon/tap/musicfox-deck` | Apple silicon, Intel |
-| Windows 10 / 11 | Scoop: `scoop bucket add egdon https://github.com/Egdon/scoop-bucket`, then `scoop install musicfox-deck` | x64, ARM64 |
-| Debian / Ubuntu | Download the `.deb`, then `sudo apt install ./musicfox-deck_*_amd64.deb` | x86_64, ARM64 |
-| Fedora / openSUSE | Download the `.rpm`, then `sudo dnf install ./musicfox-deck-*.x86_64.rpm` | x86_64, ARM64 |
-| Arch Linux | Download the `.pkg.tar.zst`, then `sudo pacman -U musicfox-deck-*-x86_64.pkg.tar.zst` | x86_64, ARM64 |
-| Other Linux distributions | Download `linux_amd64.tar.gz` and put `musicfox` on your `PATH` | x86_64, ARM64 |
+| macOS 12 or later | Homebrew: `brew install egdon/tap/tapefox` | Apple silicon, Intel |
+| Windows 10 / 11 | Scoop: `scoop bucket add egdon https://github.com/Egdon/scoop-bucket`, then `scoop install tapefox` | x64, ARM64 |
+| Debian / Ubuntu | Download the `.deb`, then `sudo apt install ./tapefox_*_amd64.deb` | x86_64, ARM64 |
+| Fedora / openSUSE | Download the `.rpm`, then `sudo dnf install ./tapefox-*.x86_64.rpm` | x86_64, ARM64 |
+| Arch Linux | Download the `.pkg.tar.zst`, then `sudo pacman -U tapefox-*-x86_64.pkg.tar.zst` | x86_64, ARM64 |
+| Other Linux distributions | Download `linux_amd64.tar.gz` and put `tapefox` on your `PATH` | x86_64, ARM64 |
 
-Every package and archive is published on [GitHub Releases](https://github.com/Egdon/musicfox-deck/releases/latest) together with a `SHA256SUMS` file. `amd64` and `x86_64` in file names both mean x86_64; `arm64` and `aarch64` both mean ARM64. Once installed, run `musicfox` in a terminal.
+Every package and archive is published on [GitHub Releases](https://github.com/Egdon/tapefox/releases/latest) together with a `SHA256SUMS` file. `amd64` and `x86_64` in file names both mean x86_64; `arm64` and `aarch64` both mean ARM64. Once installed, run `tapefox` in a terminal.
 
 ### macOS
 
 Homebrew is the recommended method:
 
 ```sh
-brew install egdon/tap/musicfox-deck
+brew install egdon/tap/tapefox
 ```
 
 To install manually, download `darwin_arm64.tar.gz` (Apple silicon) or `darwin_amd64.tar.gz` (Intel). The binary is not notarized by Apple: a file downloaded with a browser needs its quarantine attribute removed before the first run, or permission in System Settings → Privacy & Security:
 
 ```sh
-xattr -d com.apple.quarantine ./musicfox
+xattr -d com.apple.quarantine ./tapefox
 ```
 
 Binaries installed by Homebrew carry no quarantine attribute and need no such step. `darwin_*_macapp.zip` holds the .app version, whose notifications show the app icon.
 
 ### Windows
 
-Scoop is the recommended method; `scoop update musicfox-deck` upgrades it later:
+Scoop is the recommended method; `scoop update tapefox` upgrades it later:
 
 ```powershell
 scoop bucket add egdon https://github.com/Egdon/scoop-bucket
-scoop install musicfox-deck
+scoop install tapefox
 ```
 
-To install manually, download `windows_amd64.zip` (x64) or `windows_arm64.zip` (ARM64), extract it and run `musicfox.exe` in [Windows Terminal](https://aka.ms/terminal), or add its directory to your `PATH`.
+To install manually, download `windows_amd64.zip` (x64) or `windows_arm64.zip` (ARM64), extract it and run `tapefox.exe` in [Windows Terminal](https://aka.ms/terminal), or add its directory to your `PATH`.
 
 The binary is not signed. Started from File Explorer, it may bring up a SmartScreen prompt, where "More info" → "Run anyway" lets it run; with Smart App Control turned on in Windows 11, unsigned programs cannot run. If security software reports it, check the file against `SHA256SUMS` on the Releases page.
 
@@ -159,16 +159,16 @@ The `MUSICFOX_ROOT` environment variable selects another directory. Every instal
 
 ### Migrating from go-musicfox
 
-musicfox-deck shares the configuration and data directory with go-musicfox, so the login, configuration and cache stay in use. Both install an executable named `musicfox` and cannot be installed side by side: uninstall go-musicfox first (for example `brew uninstall go-musicfox` or `scoop uninstall go-musicfox`).
+tapefox shares the configuration and data directory with go-musicfox, so the login, configuration and cache stay in use. Their commands are `tapefox` and `tapefox`, so both can be installed side by side; when both run at once, the one started second works on a temporary copy of the database and its changes are not kept.
 
-go-musicfox installed with Scoop keeps its data in `~\scoop\persist\go-musicfox\data`. After uninstalling it, copy the contents of that directory to `%AppData%\go-musicfox` to keep using them.
+go-musicfox installed with Scoop keeps its data in `~\scoop\persist\go-musicfox\data`; copy the contents of that directory to `%AppData%\go-musicfox` to keep using them in tapefox.
 
-Settings that are new in musicfox-deck can be added to an existing configuration with `musicfox upgrade-config`; see [Configuration upgrade](#configuration-upgrade).
+Settings that are new in tapefox can be added to an existing configuration with `tapefox upgrade-config`; see [Configuration upgrade](#configuration-upgrade).
 
 ## Usage
 
 ```sh
-musicfox
+tapefox
 ```
 
 <details>
@@ -383,7 +383,7 @@ Requires mouse support (`enableMouseEvent = true`).
 The `upgrade-config` subcommand adds the settings of a new version to the user's configuration file:
 
 ```sh
-musicfox upgrade-config
+tapefox upgrade-config
 ```
 
 - Settings present in the built-in defaults but missing from the user's file are appended to their tables
@@ -606,9 +606,9 @@ Requirements:
 Build and install:
 
 ```sh
-git clone https://github.com/Egdon/musicfox-deck
-cd musicfox-deck
-make           # builds bin/musicfox
+git clone https://github.com/Egdon/tapefox
+cd tapefox
+make           # builds bin/tapefox
 make install   # installs to $GOPATH/bin
 ```
 
@@ -628,7 +628,7 @@ On Fedora, `./hack/rpm.sh` (requires `rpm-build`) builds an RPM for the local sy
 
 ## Issues and contributions
 
-Report problems with musicfox-deck in [Issues](https://github.com/Egdon/musicfox-deck/issues), with the output of `musicfox --version`, the operating system and terminal, the steps to reproduce and any relevant logs.
+Report problems with tapefox in [Issues](https://github.com/Egdon/tapefox/issues), with the output of `tapefox --version`, the operating system and terminal, the steps to reproduce and any relevant logs.
 
 Keep pull requests focused and describe their purpose and impact; commit messages follow [Conventional Commits](https://www.conventionalcommits.org/). Do not commit build output, private configuration or tokens.
 
@@ -639,10 +639,10 @@ Keep pull requests focused and describe their purpose and impact; commit message
 
 ## Acknowledgements
 
-musicfox-deck builds on:
+tapefox builds on:
 
 - [go-musicfox](https://github.com/go-musicfox/go-musicfox) (GPL-3.0): the upstream project, whose updates are merged regularly. Thanks to anhoder and all contributors.
-- [foxful-cli](https://github.com/anhoder/foxful-cli): the TUI framework of go-musicfox. musicfox-deck maintains a modified copy in `third_party/foxful-cli`, with its origin and base version recorded in `UPSTREAM.md`; the upstream repository has no license file at present.
+- [foxful-cli](https://github.com/anhoder/foxful-cli): the TUI framework of go-musicfox. tapefox maintains a modified copy in `third_party/foxful-cli`, with its origin and base version recorded in `UPSTREAM.md`; the upstream repository has no license file at present.
 
 And the projects go-musicfox thanks, with their contributors (among others):
 
@@ -657,6 +657,6 @@ Thanks to the [LINUX DO](https://linux.do) community for its support.
 
 ## Disclaimer
 
-- musicfox-deck is an independent fork of go-musicfox, not an official version.
+- tapefox is an independent fork of go-musicfox, not an official version.
 - This project owns no audio, lyrics, cover art or other copyrighted data of any music platform.
 - Users are responsible for checking the laws where they live and the terms of the music platforms, and use the software at their own risk.

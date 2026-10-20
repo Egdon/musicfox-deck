@@ -1,7 +1,7 @@
-<h1 align="center">musicfox-deck</h1>
+<h1 align="center">tapefox</h1>
 
 <p align="center">
-  <a href="https://github.com/Egdon/musicfox-deck/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Egdon/musicfox-deck?include_prereleases&label=release"></a>
+  <a href="https://github.com/Egdon/tapefox/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Egdon/tapefox?include_prereleases&label=release"></a>
   <img alt="macOS" src="https://img.shields.io/badge/macOS-Apple%20%E8%8A%AF%E7%89%87%20%2F%20Intel-000000">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%2F%2011-0078d4">
   <img alt="Linux" src="https://img.shields.io/badge/Linux-x86__64%20%2F%20ARM64-fcc624">
@@ -12,11 +12,11 @@
 <p align="center">磁带卡座风格的命令行网易云音乐客户端：实时渲染的 3D 磁带位于界面中心，页面切换、菜单与弹窗均配有过渡动效。</p>
 
 <p align="center">
-  <a href="https://github.com/Egdon/musicfox-deck/releases/latest"><strong>下载最新版本</strong></a>
+  <a href="https://github.com/Egdon/tapefox/releases/latest"><strong>下载最新版本</strong></a>
   ·
   <a href="./CHANGELOG.md">更新日志</a>
   ·
-  <a href="https://github.com/Egdon/musicfox-deck/issues">问题反馈</a>
+  <a href="https://github.com/Egdon/tapefox/issues">问题反馈</a>
   ·
   <a href="./README.en.md">English</a>
 </p>
@@ -25,11 +25,11 @@
 
 ### 主界面：曲目表与 3D 磁带面板
 
-![musicfox-deck 主界面：曲目表与 3D 磁带面板](./docs/assets/deck-panel.gif)
+![tapefox 主界面：曲目表与 3D 磁带面板](./docs/assets/deck-panel.gif)
 
 ### 播放页：漂浮的磁带与逐字歌词
 
-![musicfox-deck 播放页：漂浮的磁带与逐字歌词](./docs/assets/now-playing.gif)
+![tapefox 播放页：漂浮的磁带与逐字歌词](./docs/assets/now-playing.gif)
 
 <table>
   <tr>
@@ -60,7 +60,7 @@
 
 ## 项目说明
 
-musicfox-deck 基于 [go-musicfox](https://github.com/go-musicfox/go-musicfox) v5.1.0 二次开发，重做了主界面、播放页与动效：新增 3D 磁带渲染器、曲目表与磁带面板、舞台式播放页、全局过渡动效与 Warm Night 主题，并提供 macOS、Windows 与 Linux 的预编译安装包。其余功能沿用 go-musicfox，配置与数据目录与之共用。
+tapefox 基于 [go-musicfox](https://github.com/go-musicfox/go-musicfox) v5.1.0 二次开发，重做了主界面、播放页与动效：新增 3D 磁带渲染器、曲目表与磁带面板、舞台式播放页、全局过渡动效与 Warm Night 主题，并提供 macOS、Windows 与 Linux 的预编译安装包。其余功能沿用 go-musicfox，配置与数据目录与之共用。
 
 本仓库不是 go-musicfox 官方仓库，也不代表原作者对本项目提供支持或背书。完整变更见[更新日志](./CHANGELOG.md)。
 
@@ -68,41 +68,41 @@ musicfox-deck 基于 [go-musicfox](https://github.com/go-musicfox/go-musicfox) v
 
 | 平台 | 安装方式 | 架构 |
 | --- | --- | --- |
-| macOS 12 及以上 | Homebrew：`brew install egdon/tap/musicfox-deck` | Apple 芯片、Intel |
-| Windows 10 / 11 | Scoop：`scoop bucket add egdon https://github.com/Egdon/scoop-bucket` 后执行 `scoop install musicfox-deck` | x64、ARM64 |
-| Debian / Ubuntu | 下载 `.deb`，执行 `sudo apt install ./musicfox-deck_*_amd64.deb` | x86_64、ARM64 |
-| Fedora / openSUSE | 下载 `.rpm`，执行 `sudo dnf install ./musicfox-deck-*.x86_64.rpm` | x86_64、ARM64 |
-| Arch Linux | 下载 `.pkg.tar.zst`，执行 `sudo pacman -U musicfox-deck-*-x86_64.pkg.tar.zst` | x86_64、ARM64 |
-| 其他 Linux 发行版 | 下载 `linux_amd64.tar.gz`，将其中的 `musicfox` 放入 `PATH` | x86_64、ARM64 |
+| macOS 12 及以上 | Homebrew：`brew install egdon/tap/tapefox` | Apple 芯片、Intel |
+| Windows 10 / 11 | Scoop：`scoop bucket add egdon https://github.com/Egdon/scoop-bucket` 后执行 `scoop install tapefox` | x64、ARM64 |
+| Debian / Ubuntu | 下载 `.deb`，执行 `sudo apt install ./tapefox_*_amd64.deb` | x86_64、ARM64 |
+| Fedora / openSUSE | 下载 `.rpm`，执行 `sudo dnf install ./tapefox-*.x86_64.rpm` | x86_64、ARM64 |
+| Arch Linux | 下载 `.pkg.tar.zst`，执行 `sudo pacman -U tapefox-*-x86_64.pkg.tar.zst` | x86_64、ARM64 |
+| 其他 Linux 发行版 | 下载 `linux_amd64.tar.gz`，将其中的 `tapefox` 放入 `PATH` | x86_64、ARM64 |
 
-所有安装包与压缩包均发布在 [GitHub Releases](https://github.com/Egdon/musicfox-deck/releases/latest)，并附 `SHA256SUMS` 校验文件。文件名中的 `amd64` 与 `x86_64` 指 x86_64 架构，`arm64` 与 `aarch64` 指 ARM64 架构。安装后在终端中运行 `musicfox` 启动。
+所有安装包与压缩包均发布在 [GitHub Releases](https://github.com/Egdon/tapefox/releases/latest)，并附 `SHA256SUMS` 校验文件。文件名中的 `amd64` 与 `x86_64` 指 x86_64 架构，`arm64` 与 `aarch64` 指 ARM64 架构。安装后在终端中运行 `tapefox` 启动。
 
 ### macOS
 
 推荐使用 Homebrew 安装：
 
 ```sh
-brew install egdon/tap/musicfox-deck
+brew install egdon/tap/tapefox
 ```
 
 手动安装时，下载 `darwin_arm64.tar.gz`（Apple 芯片）或 `darwin_amd64.tar.gz`（Intel）。程序未经 Apple 公证，经浏览器下载的文件在首次运行前需移除隔离属性，或在「系统设置 → 隐私与安全性」中允许运行：
 
 ```sh
-xattr -d com.apple.quarantine ./musicfox
+xattr -d com.apple.quarantine ./tapefox
 ```
 
 Homebrew 安装的程序不带隔离属性，无需此步骤。`darwin_*_macapp.zip` 为 .app 版本，系统通知中显示应用图标。
 
 ### Windows
 
-推荐使用 Scoop 安装，之后可通过 `scoop update musicfox-deck` 升级：
+推荐使用 Scoop 安装，之后可通过 `scoop update tapefox` 升级：
 
 ```powershell
 scoop bucket add egdon https://github.com/Egdon/scoop-bucket
-scoop install musicfox-deck
+scoop install tapefox
 ```
 
-手动安装时，下载 `windows_amd64.zip`（x64）或 `windows_arm64.zip`（ARM64），解压后在 [Windows Terminal](https://aka.ms/terminal) 中运行 `musicfox.exe`，也可将其所在目录加入 `PATH`。
+手动安装时，下载 `windows_amd64.zip`（x64）或 `windows_arm64.zip`（ARM64），解压后在 [Windows Terminal](https://aka.ms/terminal) 中运行 `tapefox.exe`，也可将其所在目录加入 `PATH`。
 
 程序未签名：从资源管理器启动时可能出现 SmartScreen 提示，可选择「更多信息」→「仍要运行」；开启 Windows 11 的「智能应用控制」时，未签名的程序无法运行。如安全软件报告异常，可使用 Releases 中的 `SHA256SUMS` 校验文件。
 
@@ -159,16 +159,16 @@ deb、rpm 与 Arch 安装包会自动声明以上依赖。
 
 ### 从 go-musicfox 迁移
 
-musicfox-deck 与 go-musicfox 共用配置与数据目录，登录状态、配置与缓存可继续使用。两者的可执行文件均名为 `musicfox`，不能同时安装，安装前需先卸载 go-musicfox（例如 `brew uninstall go-musicfox` 或 `scoop uninstall go-musicfox`）。
+tapefox 与 go-musicfox 共用配置与数据目录，登录状态、配置与缓存可继续使用。两者的命令分别为 `tapefox` 与 `tapefox`，可以同时安装；两者同时运行时，后启动的一个使用数据库的临时副本，其中的改动不会保存。
 
-通过 Scoop 安装的 go-musicfox 将数据保存在 `~\scoop\persist\go-musicfox\data`。卸载后，将该目录中的内容复制到 `%AppData%\go-musicfox` 即可继续使用。
+通过 Scoop 安装的 go-musicfox 将数据保存在 `~\scoop\persist\go-musicfox\data`，将该目录中的内容复制到 `%AppData%\go-musicfox` 即可在 tapefox 中继续使用。
 
-go-musicfox 配置中缺少的新配置项可通过 `musicfox upgrade-config` 补全，参见[配置升级](#配置升级)。
+go-musicfox 配置中缺少的新配置项可通过 `tapefox upgrade-config` 补全，参见[配置升级](#配置升级)。
 
 ## 使用说明
 
 ```sh
-musicfox
+tapefox
 ```
 
 <details>
@@ -383,7 +383,7 @@ animation = "deck"
 `upgrade-config` 子命令将新版本新增的配置项同步到用户的配置文件：
 
 ```sh
-musicfox upgrade-config
+tapefox upgrade-config
 ```
 
 - 将内置默认配置中存在、用户配置中缺失的配置项追加到对应的表
@@ -606,9 +606,9 @@ song = "分享{{if .SongArtists}}{{.SongArtists}}的{{end}}单曲《{{.SongName}
 编译与安装：
 
 ```sh
-git clone https://github.com/Egdon/musicfox-deck
-cd musicfox-deck
-make           # 编译至 bin/musicfox
+git clone https://github.com/Egdon/tapefox
+cd tapefox
+make           # 编译至 bin/tapefox
 make install   # 安装至 $GOPATH/bin
 ```
 
@@ -628,7 +628,7 @@ make release-snapshot
 
 ## 问题反馈与贡献
 
-musicfox-deck 相关问题请在 [Issues](https://github.com/Egdon/musicfox-deck/issues) 反馈，并附上 `musicfox --version` 的输出、操作系统与终端、复现步骤和相关日志。
+tapefox 相关问题请在 [Issues](https://github.com/Egdon/tapefox/issues) 反馈，并附上 `tapefox --version` 的输出、操作系统与终端、复现步骤和相关日志。
 
 提交 PR 时请保持改动聚焦，说明变更目的与影响范围；提交信息遵循 [Conventional Commits](https://www.conventionalcommits.org/)，并避免提交构建产物、私有配置或令牌。
 
@@ -639,7 +639,7 @@ musicfox-deck 相关问题请在 [Issues](https://github.com/Egdon/musicfox-deck
 
 ## 致谢
 
-musicfox-deck 基于以下项目：
+tapefox 基于以下项目：
 
 - [go-musicfox](https://github.com/go-musicfox/go-musicfox)（GPL-3.0）：本项目的上游，持续合并其更新。感谢 anhoder 与全体贡献者。
 - [foxful-cli](https://github.com/anhoder/foxful-cli)：go-musicfox 的 TUI 框架。本项目在 `third_party/foxful-cli` 中维护其修改版本，来源与基线版本记录于其中的 `UPSTREAM.md`；该仓库目前未附带许可证文件。
@@ -657,6 +657,6 @@ musicfox-deck 基于以下项目：
 
 ## 免责声明
 
-- musicfox-deck 是 go-musicfox 的独立二次开发版本，并非官方版本。
+- tapefox 是 go-musicfox 的独立二次开发版本，并非官方版本。
 - 本项目不拥有任何音乐平台的音频、歌词、封面等版权数据。
 - 使用者应自行确认所在地的法律法规与音乐平台的服务条款，并自行承担使用风险。

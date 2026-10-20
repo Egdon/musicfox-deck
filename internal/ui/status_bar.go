@@ -14,7 +14,7 @@ import (
 	"github.com/go-musicfox/go-musicfox/internal/types"
 )
 
-const musicfoxStatusBarLabel = "musicfox"
+const appStatusBarLabel = types.AppName
 
 // qualityDisplayName 返回音质的中文显示名称。
 func qualityDisplayName(level service.SongQualityLevel) string {
@@ -64,7 +64,7 @@ func formatQueueAndQuality(player *Player) string {
 	qualityName := qualityDisplayName(quality)
 
 	statusTextStyle := style.CurrentStyleSet().StatusBarText
-	return statusTextStyle.Foreground(themePrimary()).Render(musicfoxStatusBarLabel) +
+	return statusTextStyle.Foreground(themePrimary()).Render(appStatusBarLabel) +
 		statusTextStyle.Render(fmt.Sprintf(" · %s · %s", position, qualityName))
 }
 
@@ -90,7 +90,7 @@ func (c *queueQualityStatusBarComponent) HandleMouse(mouse tea.Mouse, x, _ int) 
 }
 
 func (c *queueQualityStatusBarComponent) IsMouseOver(x, _ int) bool {
-	return x >= 0 && x < len(musicfoxStatusBarLabel)
+	return x >= 0 && x < len(appStatusBarLabel)
 }
 
 // NewQueueQualityStatusBar 创建带队列位置与音质中间文本的 DefaultStatusBar。

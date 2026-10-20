@@ -28,7 +28,7 @@ func buildHelpMarkdown() string {
 	slices.Sort(customOps)
 
 	var sb strings.Builder
-	sb.WriteString("# musicfox-deck 快捷键\n\n")
+	sb.WriteString("# tapefox 快捷键\n\n")
 
 	writeGroup := func(title string, ops []keybindings.OperateType) {
 		rows := make([]string, 0, len(ops))

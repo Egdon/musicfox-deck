@@ -19,6 +19,6 @@ version="${base#v}^$(git log -1 --date=format:%Y%m%d --format=%cd)git$(git rev-p
 top=$(mktemp -d)
 trap 'rm -rf "$top"' EXIT
 mkdir -p "$top/SOURCES" dist
-cp bin/musicfox LICENSE README.md "$top/SOURCES/"
-rpmbuild -bb --quiet --define "_topdir $top" --define "deck_version $version" deploy/rpm/musicfox-deck.spec
+cp bin/tapefox LICENSE README.md "$top/SOURCES/"
+rpmbuild -bb --quiet --define "_topdir $top" --define "deck_version $version" deploy/rpm/tapefox.spec
 find "$top/RPMS" -name '*.rpm' -exec cp {} dist/ \; -exec basename {} \;

@@ -45,18 +45,18 @@ zh=$(printf '%s\n' "$notes" | sed '/^<!-- en -->$/,$d')
 en=$(printf '%s\n' "$notes" | sed -n '/^<!-- en -->$/,$p' | sed '1d;/./,$!d')
 
 v=$version
-macos_x86=musicfox-deck_${v}_darwin_amd64.tar.gz
-macos_arm=musicfox-deck_${v}_darwin_arm64.tar.gz
-windows_x86=musicfox-deck_${v}_windows_amd64.zip
-windows_arm=musicfox-deck_${v}_windows_arm64.zip
-deb_x86=musicfox-deck_${v}_amd64.deb
-deb_arm=musicfox-deck_${v}_arm64.deb
-rpm_x86=musicfox-deck-${v}-1.x86_64.rpm
-rpm_arm=musicfox-deck-${v}-1.aarch64.rpm
-arch_x86=musicfox-deck-${v}-1-x86_64.pkg.tar.zst
-arch_arm=musicfox-deck-${v}-1-aarch64.pkg.tar.zst
-linux_x86=musicfox-deck_${v}_linux_amd64.tar.gz
-linux_arm=musicfox-deck_${v}_linux_arm64.tar.gz
+macos_x86=tapefox_${v}_darwin_amd64.tar.gz
+macos_arm=tapefox_${v}_darwin_arm64.tar.gz
+windows_x86=tapefox_${v}_windows_amd64.zip
+windows_arm=tapefox_${v}_windows_arm64.zip
+deb_x86=tapefox_${v}_amd64.deb
+deb_arm=tapefox_${v}_arm64.deb
+rpm_x86=tapefox-${v}-1.x86_64.rpm
+rpm_arm=tapefox-${v}-1.aarch64.rpm
+arch_x86=tapefox-${v}-1-x86_64.pkg.tar.zst
+arch_arm=tapefox-${v}-1-aarch64.pkg.tar.zst
+linux_x86=tapefox_${v}_linux_amd64.tar.gz
+linux_arm=tapefox_${v}_linux_arm64.tar.gz
 
 cat <<EOF
 $zh
@@ -73,10 +73,10 @@ $zh
 | 其他 Linux 发行版 | \`$linux_x86\` | \`$linux_arm\` |
 
 - 文件名中的 \`amd64\` 与 \`x86_64\` 均指 x86_64 架构，\`arm64\` 与 \`aarch64\` 均指 ARM64 架构。
-- macOS 也可通过 Homebrew 安装：\`brew install egdon/tap/musicfox-deck\`。\`*_macapp.zip\` 为 .app 版本，系统通知中显示应用图标。
-- Windows 也可通过 Scoop 安装：\`scoop bucket add egdon https://github.com/Egdon/scoop-bucket\` 后执行 \`scoop install musicfox-deck\`。
+- macOS 也可通过 Homebrew 安装：\`brew install egdon/tap/tapefox\`。\`*_macapp.zip\` 为 .app 版本，系统通知中显示应用图标。
+- Windows 也可通过 Scoop 安装：\`scoop bucket add egdon https://github.com/Egdon/scoop-bucket\` 后执行 \`scoop install tapefox\`。
 - Linux 版需要 glibc 2.34 及以上与 ALSA（\`libasound.so.2\`）。
-- macOS 与 Windows 版未签名，首次运行前的设置参见 [README](https://github.com/Egdon/musicfox-deck#安装)。
+- macOS 与 Windows 版未签名，首次运行前的设置参见 [README](https://github.com/Egdon/tapefox#安装)。
 - 各文件的 SHA-256 校验值见 \`SHA256SUMS\`。
 
 ---
@@ -98,9 +98,9 @@ cat <<EOF
 | Other Linux distributions | \`$linux_x86\` | \`$linux_arm\` |
 
 - \`amd64\` and \`x86_64\` in file names both mean x86_64; \`arm64\` and \`aarch64\` both mean ARM64.
-- macOS can also install with Homebrew: \`brew install egdon/tap/musicfox-deck\`. \`*_macapp.zip\` is the .app version, whose notifications show the app icon.
-- Windows can also install with Scoop: \`scoop bucket add egdon https://github.com/Egdon/scoop-bucket\`, then \`scoop install musicfox-deck\`.
+- macOS can also install with Homebrew: \`brew install egdon/tap/tapefox\`. \`*_macapp.zip\` is the .app version, whose notifications show the app icon.
+- Windows can also install with Scoop: \`scoop bucket add egdon https://github.com/Egdon/scoop-bucket\`, then \`scoop install tapefox\`.
 - The Linux builds need glibc 2.34 or later and ALSA (\`libasound.so.2\`).
-- The macOS and Windows builds are not signed; see the [README](https://github.com/Egdon/musicfox-deck/blob/master/README.en.md#installation) for the first run.
+- The macOS and Windows builds are not signed; see the [README](https://github.com/Egdon/tapefox/blob/master/README.en.md#installation) for the first run.
 - \`SHA256SUMS\` lists the SHA-256 checksum of each file.
 EOF

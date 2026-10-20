@@ -2,7 +2,7 @@
 =============
 2026-10-20
 
-musicfox-deck 的首个版本，基于 go-musicfox v5.1.0，与 go-musicfox 共用配置与数据目录。
+tapefox 的首个版本，基于 go-musicfox v5.1.0，与 go-musicfox 共用配置与数据目录。
 
 * 磁带卡座界面：曲目表与右侧 3D 磁带面板（逐字歌词、播放队列），窄窗口改为底部播放条
 * 3D 磁带渲染器：透视光线投射，按终端选择八分块、六分块或四分块字符；磁带可漂浮、随鼠标倾斜，并在切歌时翻面
@@ -16,7 +16,7 @@ musicfox-deck 的首个版本，基于 go-musicfox v5.1.0，与 go-musicfox 共�
 
 <!-- en -->
 
-The first release of musicfox-deck, based on go-musicfox v5.1.0. It shares the configuration and data directory with go-musicfox.
+The first release of tapefox, based on go-musicfox v5.1.0. It shares the configuration and data directory with go-musicfox.
 
 * Cassette deck interface: a tracklist with a 3D cassette panel on the right (word-by-word lyrics, play queue); narrow windows get a player strip at the bottom
 * 3D cassette renderer: perspective ray casting with octant, sextant or quadrant characters chosen per terminal; the cassette floats, tilts toward the mouse and flips over on track changes

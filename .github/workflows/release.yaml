@@ -36,7 +36,7 @@ jobs:
           hack/release_notes.sh "$TAG" > notes.md
           flags=()
           if [[ $TAG == *-* ]]; then flags+=(--prerelease); fi
-          gh release create "$TAG" --draft --verify-tag --title "musicfox-deck $TAG" --notes-file notes.md "${flags[@]}"
+          gh release create "$TAG" --draft --verify-tag --title "tapefox $TAG" --notes-file notes.md "${flags[@]}"
 
   linux-windows:
     needs: draft
@@ -97,20 +97,20 @@ jobs:
       matrix:
         include:
           - image: ubuntu:22.04
-            install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./musicfox-deck_*_amd64.deb
+            install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./tapefox_*_amd64.deb
           - image: ubuntu:24.04
-            install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./musicfox-deck_*_amd64.deb
+            install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./tapefox_*_amd64.deb
           - image: debian:12
-            install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./musicfox-deck_*_amd64.deb
+            install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./tapefox_*_amd64.deb
           - image: fedora:latest
-            install: dnf install -y -q --setopt=install_weak_deps=False ./musicfox-deck-*.x86_64.rpm
+            install: dnf install -y -q --setopt=install_weak_deps=False ./tapefox-*.x86_64.rpm
           - image: opensuse/tumbleweed
-            install: zypper -n -q install --no-recommends --allow-unsigned-rpm ./musicfox-deck-*.x86_64.rpm
+            install: zypper -n -q install --no-recommends --allow-unsigned-rpm ./tapefox-*.x86_64.rpm
           - image: archlinux:latest
-            install: pacman -Sy --noconfirm && pacman -U --noconfirm ./musicfox-deck-*-x86_64.pkg.tar.zst
+            install: pacman -Sy --noconfirm && pacman -U --noconfirm ./tapefox-*-x86_64.pkg.tar.zst
           - image: debian:12
             platform: linux/arm64
-            install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./musicfox-deck_*_arm64.deb
+            install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./tapefox_*_arm64.deb
     name: try-linux (${{ matrix.image }}${{ matrix.platform && ', arm64' || '' }})
     steps:
       - uses: actions/download-artifact@v8
@@ -126,7 +126,7 @@ jobs:
         run: |
           docker run --rm $PLATFORM -v "$PWD:/pkg" -w /pkg -e EXPECT -e INSTALL "${{ matrix.image }}" \
             sh -c 'for i in 1 2 3; do eval "$INSTALL" && break; [ $i = 3 ] && exit 1; sleep 20; done
-              MUSICFOX_ROOT=$(mktemp -d) musicfox --version | tee /dev/stderr | grep -qF "$EXPECT"'
+              MUSICFOX_ROOT=$(mktemp -d) tapefox --version | tee /dev/stderr | grep -qF "$EXPECT"'
 
   try-macos:
     needs: macos
@@ -144,23 +144,23 @@ jobs:
         run: |
           export MUSICFOX_ROOT=$(mktemp -d)
           for arch in arm64 amd64; do
-            mkdir -p "x/$arch" && tar -xzf pkg/musicfox-deck_*_darwin_$arch.tar.gz -C "x/$arch"
+            mkdir -p "x/$arch" && tar -xzf pkg/tapefox_*_darwin_$arch.tar.gz -C "x/$arch"
           done
-          x/arm64/*/musicfox --version | tee /dev/stderr | grep -qF "$EXPECT"
+          x/arm64/*/tapefox --version | tee /dev/stderr | grep -qF "$EXPECT"
           if arch -x86_64 /usr/bin/true 2>/dev/null; then
-            arch -x86_64 x/amd64/*/musicfox --version | grep -qF "$EXPECT"
+            arch -x86_64 x/amd64/*/tapefox --version | grep -qF "$EXPECT"
           else
             echo "::notice::No Rosetta on this runner; the Intel binary was not started"
           fi
-          unzip -q pkg/musicfox-deck_*_darwin_arm64_macapp.zip -d app
-          app/musicfox.app/Contents/MacOS/musicfox --version | grep -qF "$EXPECT"
+          unzip -q pkg/tapefox_*_darwin_arm64_macapp.zip -d app
+          app/tapefox.app/Contents/MacOS/tapefox --version | grep -qF "$EXPECT"
       - name: Install with the formula
         run: |
           (cd pkg && shasum -a 256 *.tar.gz) > SHA256SUMS
           brew tap-new --no-git local/try
-          hack/brew_formula.sh "$EXPECT" SHA256SUMS "file://$PWD/pkg" > "$(brew --repository local/try)/Formula/musicfox-deck.rb"
-          brew install local/try/musicfox-deck
-          brew test local/try/musicfox-deck
+          hack/brew_formula.sh "$EXPECT" SHA256SUMS "file://$PWD/pkg" > "$(brew --repository local/try)/Formula/tapefox.rb"
+          brew install local/try/tapefox
+          brew test local/try/tapefox
 
   try-windows:
     needs: linux-windows
@@ -175,17 +175,17 @@ jobs:
       - name: Start the binary
         shell: pwsh
         run: |
-          Expand-Archive (Get-Item pkg/musicfox-deck_*_windows_amd64.zip) -DestinationPath x
+          Expand-Archive (Get-Item pkg/tapefox_*_windows_amd64.zip) -DestinationPath x
           $env:MUSICFOX_ROOT = (New-Item -ItemType Directory -Path "$env:RUNNER_TEMP/mfx").FullName
-          $out = & (Get-Item x/*/musicfox.exe) --version
+          $out = & (Get-Item x/*/tapefox.exe) --version
           $out
-          if ($LASTEXITCODE -ne 0 -or -not ($out -match [regex]::Escape($env:EXPECT))) { throw "musicfox --version failed" }
+          if ($LASTEXITCODE -ne 0 -or -not ($out -match [regex]::Escape($env:EXPECT))) { throw "tapefox --version failed" }
       # The manifest points at the archives, served from this machine.
       - name: Write a Scoop manifest
         shell: bash
         run: |
           (cd pkg && sha256sum -- *_windows_*.zip) > SHA256SUMS
-          hack/scoop_manifest.sh "$EXPECT" SHA256SUMS http://localhost:8000 > musicfox-deck.json
+          hack/scoop_manifest.sh "$EXPECT" SHA256SUMS http://localhost:8000 > tapefox.json
       - name: Install with Scoop
         shell: pwsh
         run: |
@@ -193,13 +193,13 @@ jobs:
           Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
           $env:PATH = "$env:USERPROFILE\scoop\shims;$env:PATH"
           # A path with forward slashes would read as bucket/app.
-          scoop install (Resolve-Path musicfox-deck.json).Path
+          scoop install (Resolve-Path tapefox.json).Path
           $env:MUSICFOX_ROOT = (New-Item -ItemType Directory -Path "$env:RUNNER_TEMP/mfx-scoop").FullName
-          $out = musicfox --version
+          $out = tapefox --version
           $out
           $ok = $LASTEXITCODE -eq 0 -and ($out -match [regex]::Escape($env:EXPECT))
           Stop-Process -Id $server.Id
-          if (-not $ok) { throw "musicfox from Scoop failed" }
+          if (-not $ok) { throw "tapefox from Scoop failed" }
 
   checksums:
     needs: [linux-windows, macos, try-linux, try-macos, try-windows]

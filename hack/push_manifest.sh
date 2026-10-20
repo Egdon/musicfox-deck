@@ -2,7 +2,7 @@
 # Commits FILE as PATH to the GitHub repository REPO over SSH, with the
 # private deploy key in $DEPLOY_KEY (.github/workflows/package-managers.yaml):
 #
-#   hack/push_manifest.sh Egdon/homebrew-tap Formula/musicfox-deck.rb FILE "musicfox-deck 1.0.0"
+#   hack/push_manifest.sh Egdon/homebrew-tap Formula/tapefox.rb FILE "tapefox 1.0.0"
 
 set -euo pipefail
 

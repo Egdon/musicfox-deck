@@ -30,7 +30,7 @@ if (-not $Goarch) { $Goarch = & $GoBinary env GOARCH 2>$null }
 if (-not $BuildTags) { $BuildTags = $env:BUILD_TAGS }
 
 if ($Action -eq "build") {
-    $BuildOutput = "${root}\bin\musicfox.exe"
+    $BuildOutput = "${root}\bin\tapefox.exe"
 }
 
 # Get version info from version.ps1

@@ -4,7 +4,7 @@ import "github.com/go-musicfox/go-musicfox/internal/types"
 
 // ChangelogSeen tracks the last version for which the user has seen the
 // changelog popup. Stored as a JSON-serialized KV model in BoltDB, under a
-// key of musicfox-deck's own: it shares go-musicfox's data directory but
+// key of tapefox's own: it shares go-musicfox's data directory but
 // numbers its versions afresh.
 type ChangelogSeen struct {
 	Version string `json:"version"`

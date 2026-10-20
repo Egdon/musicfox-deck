@@ -1,5 +1,5 @@
 name: "Bug Report / 反馈Bug"
-description: "Create a report about the issues you encountered while using musicfox / 反馈你使用musicfox时遇到的问题"
+description: "Create a report about the issues you encountered while using tapefox / 反馈你使用 tapefox 时遇到的问题"
 labels: ["bug"]
 body:
   - type: checkboxes
@@ -28,8 +28,8 @@ body:
     attributes:
       label: Environment / 运行环境
       description: |
-        Describe the OS, CPU Arch of your machine and the version of musicfox (`musicfox -V`).
-        描述你电脑的操作系统及CPU架构，以及musicfox的版本(可通过`musicfox -V`获取)
+        Describe the OS, CPU Arch of your machine and the version of tapefox (`tapefox -V`).
+        描述你电脑的操作系统及CPU架构，以及 tapefox 的版本(可通过`tapefox -V`获取)
     validations:
       required: true
   - type: textarea

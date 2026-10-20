@@ -21,7 +21,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev libflac-dev
 
       # TestPlaylistManagerWithUIInteraction is flaky upstream as well.
-      - name: Test musicfox-deck
+      - name: Test tapefox
         run: MUSICFOX_ROOT=$(mktemp -d) go test ./internal/... ./utils/... -skip TestPlaylistManagerWithUIInteraction
 
       - name: Test foxful-cli

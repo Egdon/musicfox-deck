@@ -25,7 +25,7 @@ func TestFormatQueueAndQualityIncludesMusicfox(t *testing.T) {
 	player.InitSongManager(0, []structs.Song{{Id: 1}, {Id: 2}})
 
 	statusTextStyle := style.CurrentStyleSet().StatusBarText
-	want := statusTextStyle.Foreground(themePrimary()).Render("musicfox") +
+	want := statusTextStyle.Foreground(themePrimary()).Render("tapefox") +
 		statusTextStyle.Render(" · [1/2] · 无损")
 	if got := formatQueueAndQuality(player); got != want {
 		t.Fatalf("formatQueueAndQuality() = %q, want %q", got, want)
@@ -57,7 +57,7 @@ func TestQueueQualityStatusBarMusicfoxComponentOpensRepository(t *testing.T) {
 		t.Fatalf("opened URL = %q, want %q", got, want)
 	}
 
-	handled, cmd = component.HandleMouse(tea.Mouse{Button: tea.MouseLeft}, len(musicfoxStatusBarLabel), 0)
+	handled, cmd = component.HandleMouse(tea.Mouse{Button: tea.MouseLeft}, len(appStatusBarLabel), 0)
 	if handled || cmd != nil {
 		t.Fatalf("adjacent text click handled=%v cmd=%v, want no action", handled, cmd)
 	}

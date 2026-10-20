@@ -27,7 +27,7 @@ const (
 	startupNominal   = 2 * time.Second
 )
 
-const startupWord = "MUSICFOX"
+const startupWord = "TAPEFOX"
 
 // DeckStartup draws the startup page: the cassette turns in from the depth
 // of the screen and settles, the wordmark comes in letter by letter under
