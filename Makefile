@@ -1,15 +1,8 @@
-PACKAGE_NAME          := go-musicfox
 PACKAGE_ROOT          := $(CURDIR)
-GOLANG_CROSS_VERSION  ?= v1.26.3
 INJECT_PACKAGE        ?= github.com/go-musicfox/go-musicfox/internal/types
 LDFLAGS               := -s -w
 LASTFM_KEY            ?=
 LASTFM_SECRET         ?=
-REGISTRY              ?=
-GORELEASER_IMAGE      ?= alanalbert/goreleaser-musicfox:$(GOLANG_CROSS_VERSION)
-
-SYSROOT_DIR     ?= sysroots
-SYSROOT_ARCHIVE ?= sysroots.tar.bz2
 
 # modvendor 用于在 go mod vendor 后复制 C/C++ 头文件等非 Go 文件
 MODVENDOR_BIN := $(shell go env GOPATH)/bin/modvendor
@@ -31,10 +24,6 @@ else
     BUILD_SCRIPT := $(PACKAGE_ROOT)/hack/build.sh
     NULL_DEV     := /dev/null
     WHICH_CMD    := which
-endif
-
-ifneq ($(REGISTRY),)
-	GORELEASER_IMAGE := $(REGISTRY)/go-musicfox/goreleaser-musicfox:$(GOLANG_CROSS_VERSION)
 endif
 
 .PHONY: build
@@ -128,66 +117,17 @@ vendor: modvendor-tool
 	@echo "Copying C/C++ header files for CGo dependencies..."
 	modvendor -copy="**/*.h **/*.c" -v
 
-.PHONY: sysroot-pack
-sysroot-pack:
+# release-snapshot 在 Ubuntu 22.04 容器里试做 Linux 与 Windows 的发布包，输出到 dist/；
+# 正式发布由 .github/workflows/release.yaml 完成
+CONTAINER_ENGINE ?= $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null)
+
+.PHONY: release-snapshot
+release-snapshot:
 ifneq ($(OS),Windows_NT)
-	@tar cf - $(SYSROOT_DIR) -P | pv -s $[$(du -sk $(SYSROOT_DIR) | awk '{print $1}') * 1024] | pbzip2 > $(SYSROOT_ARCHIVE)
+	$(CONTAINER_ENGINE) run --rm --network host --security-opt label=disable \
+		-e HOST_UID=$$(id -u) -e HOST_GID=$$(id -g) \
+		-v $(PACKAGE_ROOT):/src -w /src docker.io/library/ubuntu:22.04 \
+		hack/release_container.sh --snapshot
 else
-	@echo "sysroot-pack is not supported on Windows"
+	@echo "release-snapshot is not supported on Windows"
 endif
-
-.PHONY: sysroot-unpack
-sysroot-unpack:
-ifneq ($(OS),Windows_NT)
-	@pv $(SYSROOT_ARCHIVE) | pbzip2 -cd | tar -xf -
-else
-	@echo "sysroot-unpack is not supported on Windows"
-endif
-
-.PHONY: release-dry-run
-release-dry-run:
-	@docker run \
-		--rm \
-		--privileged \
-		-e CGO_ENABLED=1 \
-		--env-file .release-env \
-		-v /var/run/docker.sock:/var/run/docker.sock \
-		-v $(PACKAGE_ROOT):/go/src/$(PACKAGE_NAME) \
-		-v $(PACKAGE_ROOT)/sysroot:/sysroot \
-		-w /go/src/$(PACKAGE_NAME) \
-		$(GORELEASER_IMAGE) \
-		--clean --skip validate --skip publish
-
-.PHONY: release
-release:
-ifneq ($(OS),Windows_NT)
-	@if [ ! -f ".release-env" ]; then \
-		echo "\033[91m.release-env is required for release\033[0m"; \
-		exit 1; \
-	fi
-endif
-	docker run \
-		--rm \
-		--privileged \
-		-e CGO_ENABLED=1 \
-		--env-file .release-env \
-		-v /var/run/docker.sock:/var/run/docker.sock \
-		-v $(PACKAGE_ROOT):/go/src/$(PACKAGE_NAME) \
-		-v $(PACKAGE_ROOT)/sysroot:/sysroot \
-		-w /go/src/$(PACKAGE_NAME) \
-		$(GORELEASER_IMAGE) \
-		release --clean
-
-.PHONY: release-debug-shell
-release-debug-shell:
-	docker run \
-		-it \
-		--rm \
-		--privileged \
-		-e CGO_ENABLED=1 \
-		-v /var/run/docker.sock:/var/run/docker.sock \
-		-v $(PACKAGE_ROOT):/go/src/$(PACKAGE_NAME) \
-		-v $(PACKAGE_ROOT)/sysroot:/sysroot \
-		-w /go/src/$(PACKAGE_NAME) \
-		--entrypoint="/bin/bash" \
-		$(GORELEASER_IMAGE)

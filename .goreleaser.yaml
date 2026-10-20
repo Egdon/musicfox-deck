@@ -1,385 +1,129 @@
+# Linux and Windows releases. hack/release_container.sh runs this inside
+# Ubuntu 22.04 (locally: make release-snapshot); the macOS builds are in
+# .goreleaser.darwin.yaml. Both upload to the draft release that
+# .github/workflows/release.yaml creates, which also adds SHA256SUMS.
 version: 2
+project_name: musicfox-deck
 
 env:
-  - GO111MODULE=on
   - CGO_ENABLED=1
-  - HOMEBREW_NAME=go-musicfox
 
 builds:
-  - id: go-musicfox-linux-amd64
+  - id: linux-amd64
     main: ./cmd
     binary: musicfox
+    goos: [linux]
+    goarch: [amd64]
     env:
-      - CC=x86_64-linux-gnu-gcc
-      - CXX=x86_64-linux-gnu-g++
-      - CFLAGS="-I/usr/x86_64-linux-gnu/include $CFLAGS"
-      - CPPFLAGS="-I/usr/x86_64-linux-gnu/include $CPPFLAGS"
-      - LDFLAGS="-L/usr/x86_64-linux-gnu/lib $LDFLAGS"
-      - CGO_LDFLAGS="-L/usr/x86_64-linux-gnu/lib $CGO_LDFLAGS"
-      - PKG_CONFIG_PATH=/usr/x86_64-linux-gnu/lib/pkgconfig:$PKG_CONFIG_PATH
-    goarch:
-      - amd64
-    goos:
-      - linux
-    ldflags:
-      - -s -w -X github.com/go-musicfox/go-musicfox/internal/types.AppVersion={{.Tag}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmKey={{.Env.LASTFM_KEY}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmSecret={{.Env.LASTFM_SECRET}}
-    tags:
-      - enable_global_hotkey
-      - purego
-  - id: go-musicfox-linux-arm64
+      - CC=gcc
+    flags: &flags [-trimpath]
+    ldflags: &ldflags
+      - -s -w -X github.com/go-musicfox/go-musicfox/internal/types.AppVersion=v{{ .Version }}
+    tags: &tags [enable_global_hotkey, purego]
+    mod_timestamp: &mtime "{{ .CommitTimestamp }}"
+  - id: linux-arm64
     main: ./cmd
     binary: musicfox
-    goarch:
-      - arm64
-    goos:
-      - linux
+    goos: [linux]
+    goarch: [arm64]
     env:
       - CC=aarch64-linux-gnu-gcc
-      - CXX=aarch64-linux-gnu-g++
-      - CFLAGS="-I/usr/aarch64-linux-gnu/include $CFLAGS"
-      - CPPFLAGS="-I/usr/aarch64-linux-gnu/include $CPPFLAGS"
-      - LDFLAGS="-L/usr/aarch64-linux-gnu/lib $LDFLAGS"
-      - CGO_LDFLAGS="-L/usr/aarch64-linux-gnu/lib $CGO_LDFLAGS"
-      - PKG_CONFIG_PATH=/usr/aarch64-linux-gnu/lib/pkgconfig:$PKG_CONFIG_PATH
-    ldflags:
-      - -s -w -X github.com/go-musicfox/go-musicfox/internal/types.AppVersion={{.Tag}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmKey={{.Env.LASTFM_KEY}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmSecret={{.Env.LASTFM_SECRET}}
-    tags:
-      - enable_global_hotkey
-      - purego
-  - id: go-musicfox-linux-arm
+      - PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
+    flags: *flags
+    ldflags: *ldflags
+    tags: *tags
+    mod_timestamp: *mtime
+  - id: windows-amd64
     main: ./cmd
     binary: musicfox
-    goarch:
-      - arm
-    goos:
-      - linux
+    goos: [windows]
+    goarch: [amd64]
     env:
-      - CC=arm-linux-gnueabi-gcc
-      - CXX=arm-linux-gnueabi-g++
-      - CFLAGS="-I/usr/arm-linux-gnueabi/include $CFLAGS"
-      - CPPFLAGS="-I/usr/arm-linux-gnueabi/include $CPPFLAGS"
-      - LDFLAGS="-L/usr/arm-linux-gnueabi/lib $LDFLAGS"
-      - CGO_LDFLAGS="-L/usr/arm-linux-gnueabi/lib $CGO_LDFLAGS"
-      - PKG_CONFIG_PATH=/usr/arm-linux-gnueabi/lib/pkgconfig:$PKG_CONFIG_PATH
-    ldflags:
-      - -s -w -X github.com/go-musicfox/go-musicfox/internal/types.AppVersion={{.Tag}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmKey={{.Env.LASTFM_KEY}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmSecret={{.Env.LASTFM_SECRET}}
-    tags:
-      - enable_global_hotkey
-      - purego
-  - id: go-musicfox-windows-amd64
+      - CC=x86_64-w64-mingw32-clang
+    flags: *flags
+    ldflags: *ldflags
+    tags: *tags
+    mod_timestamp: *mtime
+  - id: windows-arm64
     main: ./cmd
     binary: musicfox
-    goarch:
-      - amd64
-    goos:
-      - windows
-    ldflags:
-      - -s -w -X github.com/go-musicfox/go-musicfox/internal/types.AppVersion={{.Tag}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmKey={{.Env.LASTFM_KEY}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmSecret={{.Env.LASTFM_SECRET}}
-    tags:
-      - enable_global_hotkey
-      - purego
+    goos: [windows]
+    goarch: [arm64]
     env:
-      - CC=/usr/local/mingw/bin/x86_64-w64-mingw32-gcc
-      - CXX=/usr/local/mingw/bin/x86_64-w64-mingw32-g++
-      - CFLAGS="-I/usr/local/mingw/x86_64-w64-mingw32/include $CFLAGS"
-      - CPPFLAGS="-I/usr/local/mingw/x86_64-w64-mingw32/include $CPPFLAGS"
-      - LDFLAGS="-L/usr/local/mingw/x86_64-w64-mingw32/lib $LDFLAGS"
-      - CGO_LDFLAGS="-L/usr/local/mingw/x86_64-w64-mingw32/lib $CGO_LDFLAGS"
-  - id: go-musicfox-windows-arm64
-    main: ./cmd
-    binary: musicfox
-    goarch:
-      - arm64
-    goos:
-      - windows
-    ldflags:
-      - -s -w -X github.com/go-musicfox/go-musicfox/internal/types.AppVersion={{.Tag}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmKey={{.Env.LASTFM_KEY}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmSecret={{.Env.LASTFM_SECRET}}
-    tags:
-      - enable_global_hotkey
-      - purego
-    env:
-      - CC=/usr/local/mingw/bin/aarch64-w64-mingw32-gcc
-      - CXX=/usr/local/mingw/bin/aarch64-w64-mingw32-g++
-      - CFLAGS="-I/usr/local/mingw/aarch64-w64-mingw32/include $CFLAGS"
-      - CPPFLAGS="-I/usr/local/mingw/aarch64-w64-mingw32/include $CPPFLAGS"
-      - LDFLAGS="-L/usr/local/mingw/aarch64-w64-mingw32/lib $LDFLAGS"
-      - CGO_LDFLAGS="-L/usr/local/mingw/aarch64-w64-mingw32/lib $CGO_LDFLAGS"
-  - id: go-musicfox-darwin-amd64
-    main: ./cmd
-    binary: musicfox
-    goarch:
-      - amd64
-    goos:
-      - darwin
-    ldflags:
-      - -s -w -X github.com/go-musicfox/go-musicfox/internal/types.AppVersion={{.Tag}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmKey={{.Env.LASTFM_KEY}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmSecret={{.Env.LASTFM_SECRET}}
-    tags:
-      - enable_global_hotkey
-      - purego
-    env:
-      - CC=o64-clang
-      - CXX=o64-clang++
-  - id: go-musicfox-darwin-arm64
-    main: ./cmd
-    binary: musicfox
-    goarch:
-      - arm64
-    goos:
-      - darwin
-    ldflags:
-      - -s -w -X github.com/go-musicfox/go-musicfox/internal/types.AppVersion={{.Tag}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmKey={{.Env.LASTFM_KEY}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmSecret={{.Env.LASTFM_SECRET}}
-    tags:
-      - enable_global_hotkey
-      - purego
-    env:
-      - CC=oa64-clang
-      - CXX=oa64-clang++
-  - id: go-musicfox-darwin-app-amd64
-    main: ./cmd
-    binary: musicfox
-    goarch:
-      - amd64
-    goos:
-      - darwin
-    ldflags:
-      - -s -w -X github.com/go-musicfox/go-musicfox/internal/types.AppVersion={{.Tag}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmKey={{.Env.LASTFM_KEY}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmSecret={{.Env.LASTFM_SECRET}}
-    tags:
-      - enable_global_hotkey
-      - purego
-      - macapp
-    env:
-      - CC=o64-clang
-      - CXX=o64-clang++
-  - id: go-musicfox-darwin-app-arm64
-    main: ./cmd
-    binary: musicfox
-    goarch:
-      - arm64
-    goos:
-      - darwin
-    ldflags:
-      - -s -w -X github.com/go-musicfox/go-musicfox/internal/types.AppVersion={{.Tag}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmKey={{.Env.LASTFM_KEY}} -X github.com/go-musicfox/go-musicfox/internal/types.LastfmSecret={{.Env.LASTFM_SECRET}}
-    tags:
-      - enable_global_hotkey
-      - purego
-      - macapp
-    env:
-      - CC=oa64-clang
-      - CXX=oa64-clang++
+      - CC=aarch64-w64-mingw32-clang
+    flags: *flags
+    ldflags: *ldflags
+    tags: *tags
+    mod_timestamp: *mtime
 
 archives:
-  - id: musicfox
-    ids:
-      - go-musicfox-linux-amd64
-      - go-musicfox-linux-arm64
-      - go-musicfox-linux-arm
-      - go-musicfox-windows-amd64
-      - go-musicfox-windows-arm64
-      - go-musicfox-darwin-amd64
-      - go-musicfox-darwin-arm64
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: linux
+    ids: [linux-amd64, linux-arm64]
+    formats: [tar.gz]
+    name_template: &archive "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     wrap_in_directory: true
+    files: &docs [LICENSE, README.md]
+  - id: windows
+    ids: [windows-amd64, windows-arm64]
     formats: [zip]
-    files:
-      - none*
-  - id: musicfox-darwin-app
-    ids:
-      - go-musicfox-darwin-app-amd64
-      - go-musicfox-darwin-app-arm64
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}_macapp"
-    formats: [zip]
-    files:
-      - src: deploy/musicfox.app/Contents/Info.plist
-        dst: "musicfox.app/Contents/Info.plist"
-      - src: deploy/musicfox.app/Contents/Resources/Musicfox.icns
-        dst: "musicfox.app/Contents/Resources/Musicfox.icns"
-      - src: "dist/{{ .ProjectName }}-{{ .Os }}-app-{{ .Arch }}_{{ .Target }}/{{ .Binary }}"
-        dst: "musicfox.app/Contents/MacOS/go-musicfox"
-      - src: deploy/musicfox-app.wrapper.sh
-        dst: "musicfox.app/Contents/MacOS/musicfox"
+    name_template: *archive
+    wrap_in_directory: true
+    files: *docs
 
 nfpms:
-  - id: go-musicfox
+  - id: packages
+    ids: [linux-amd64, linux-arm64]
     package_name: musicfox-deck
-    ids:
-      - go-musicfox-linux-amd64
-      - go-musicfox-linux-arm64
-      - go-musicfox-linux-arm
-    maintainer: Egdon <Egdon@users.noreply.github.com>
-    description: A netease music player in the terminal, with a 3D cassette deck. A fork of go-musicfox.
+    file_name_template: "{{ .ConventionalFileName }}"
     vendor: musicfox-deck
     homepage: https://github.com/Egdon/musicfox-deck
-    license: GPL-3.0
-    formats:
-      - apk
-      - deb
-      - rpm
-      - archlinux
-    dependencies:
-      - flac
+    maintainer: Egdon <Egdon@users.noreply.github.com>
+    description: |-
+      Netease Cloud Music in the terminal, with a 3D cassette deck.
+      musicfox-deck is a fork of go-musicfox.
+    license: GPL-3.0-only
+    section: sound
+    formats: [deb, rpm, archlinux]
+    bindir: /usr/bin
     contents:
-      - src: "{{ .ArtifactPath }}"
-        dst: /usr/local/bin/musicfox
+      - src: LICENSE
+        dst: /usr/share/licenses/musicfox-deck/LICENSE
+      - src: README.md
+        dst: /usr/share/doc/musicfox-deck/README.md
+    # Both install /usr/bin/musicfox.
+    conflicts: [go-musicfox]
+    # The web login loads WebKitGTK when it is there (Arch packages from
+    # nfpm cannot list optional dependencies).
     overrides:
       deb:
-        dependencies:
-          - flac
-          - libasound2-dev
+        dependencies: ["libc6 (>= 2.34)", libasound2]
+        recommends: [libwebkit2gtk-4.1-0]
+      rpm:
+        dependencies: ["libc.so.6(GLIBC_2.34)(64bit)", "libasound.so.2()(64bit)"]
+        recommends: ["libwebkit2gtk-4.1.so.0()(64bit)"]
+      archlinux:
+        dependencies: [glibc, alsa-lib]
+    rpm:
+      summary: Netease Cloud Music in the terminal, with a 3D cassette deck
+    archlinux:
+      packager: Egdon <Egdon@users.noreply.github.com>
+
+checksum:
+  disable: true
 
 changelog:
-  use: git
-  groups:
-    - title: Features
-      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
-      order: 0
-    - title: "Bug fixes"
-      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
-      order: 1
-    - title: "Optimize"
-      regexp: '^.*?optimize(\([[:word:]]+\))??!?:.+$'
-      order: 2
-    - title: "Docs"
-      regexp: ".*docs.*"
-      order: 3
-    - title: "CI"
-      regexp: '(.*build.*)|(^ci(\([[:word:]]+\))??!?:.+$)'
-      order: 4
-    - title: Others
-      order: 999
+  disable: true
 
-# NOTE: will be deprecated
-brews:
-  - name: "{{ .Env.HOMEBREW_NAME }}"
-    repository:
-      owner: go-musicfox
-      name: homebrew-go-musicfox
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    skip_upload: true # the tap is upstream's
-    ids:
-      - musicfox
-    url_template: "https://github.com/go-musicfox/go-musicfox/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-    homepage: "https://github.com/go-musicfox/go-musicfox"
-    description: "go-musicfox是musicfox的重写版，使用Go编写的网易云音乐命令行程序。"
-    commit_author:
-      name: anhoder
-      email: anhoder@88.com
-    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
-    custom_block: |
-      head "https://github.com/go-musicfox/go-musicfox.git"
-      depends_on "go", "git" => :build if build.head?
-    install: |
-      if build.head?
-        system 'git', 'fetch', '--tags'
-        if OS.mac?
-          system "make build BUILD_TAGS='enable_global_hotkey' GOBINARY=" + ENV["HOMEBREW_PREFIX"] + "/bin/go"
-        else
-          system "make build GOBINARY=" + ENV["HOMEBREW_PREFIX"] + "/bin/go"
-        end
-        bin.install 'bin/musicfox'
-      else
-        bin.install 'musicfox'
-      end
-
-homebrew_casks:
-  - name: "{{ .Env.HOMEBREW_NAME }}"
-    repository:
-      owner: go-musicfox
-      name: homebrew-go-musicfox
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    skip_upload: true # the tap is upstream's
-    ids:
-      - musicfox
-    binary: musicfox
-    url:
-      template: "https://github.com/go-musicfox/go-musicfox/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-    homepage: "https://github.com/go-musicfox/go-musicfox"
-    description: "go-musicfox是musicfox的重写版，使用Go编写的网易云音乐命令行程序。"
-    commit_author:
-      name: anhoder
-      email: anhoder@88.com
-    commit_msg_template: "Brew cask update for {{ .ProjectName }} version {{ .Tag }}"
-    directory: Casks
-  - name: "{{ .Env.HOMEBREW_NAME }}-macapp"
-    repository:
-      owner: go-musicfox
-      name: homebrew-go-musicfox
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    skip_upload: true # the tap is upstream's
-    ids:
-      - musicfox-darwin-app
-    binary: musicfox.app/Contents/MacOS/musicfox
-    url:
-      template: "https://github.com/go-musicfox/go-musicfox/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-    homepage: "https://github.com/go-musicfox/go-musicfox"
-    description: "go-musicfox MacApp版本，使用Go编写的网易云音乐命令行程序。"
-    commit_author:
-      name: anhoder
-      email: anhoder@88.com
-    commit_msg_template: "Brew cask update for {{ .ProjectName }} version {{ .Tag }}"
-    directory: Casks
-    hooks:
-      post:
-        install: |
-          system 'xattr', '-r', '-d', 'com.apple.quarantine', '--', "#{caskroom_path}/#{version}/musicfox.app"
-
-winget:
-  - name: go-musicfox
-    publisher: go-musicfox
-    short_description: "A netease music player in terminal."
-    license: "GPL-3.0"
-    publisher_url: https://github.com/go-musicfox/go-musicfox
-    publisher_support_url: "https://github.com/go-musicfox/go-musicfox/issues/new"
-    package_identifier: go-musicfox.go-musicfox
-    url_template: "https://github.com/go-musicfox/go-musicfox/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-    commit_author:
-      name: anhoder
-      email: anhoder@88.com
-    commit_msg_template: "{{ .PackageIdentifier }}: {{ .Tag }}"
-    homepage: "https://github.com/go-musicfox/go-musicfox"
-    description: "A netease music player in terminal."
-    skip_upload: true # the winget fork is upstream's
-    release_notes: "{{.Changelog}}"
-    tags:
-      - golang
-      - cli
-      - netease music
-      - musicfox
-    repository:
-      owner: go-musicfox
-      name: winget-pkgs
-      branch: "{{.ProjectName}}-{{.Version}}"
-      token: "{{ .Env.GITHUB_TOKEN }}"
-      # pull_request:
-      #   enabled: true
-      #   draft: true
-      #   base:
-      #     owner: microsoft
-      #     name: winget-pkgs
-      #     branch: master
-
-# goreleaser支持的配置不多，暂时不用
-#scoop:
-#  url_template: "https://github.com/go-musicfox/go-musicfox/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-#  bucket:
-#    owner: go-musicfox
-#    name: go-musicfox
-#  folder: deploy/scoop
-#
-#  commit_author:
-#    name: anhoder
-#    email: anhoder@88.com
-#
-#  commit_msg_template: "Scoop update for {{ .ProjectName }} version {{ .Tag }}"
-#  homepage: "https://github.com/go-musicfox/go-musicfox"
-#  description: "go-musicfox是用Go写的又一款网易云音乐命令行客户端，支持UnblockNeteaseMusic、各种音质级别、lastfm、MPRIS..."
-#  license: GPL-3.0
-#
+snapshot:
+  version_template: 0.0.0-snapshot
 
 release:
   github:
     owner: Egdon
     name: musicfox-deck
-  discussion_category_name: General
+  name_template: "musicfox-deck {{ .Tag }}"
   prerelease: auto
-  mode: replace
-  draft: false
+  draft: true
+  use_existing_draft: true
+  replace_existing_artifacts: true
+  mode: keep-existing

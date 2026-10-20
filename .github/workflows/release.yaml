@@ -1,106 +1,197 @@
-permissions:
-  contents: write
-  packages: write
 name: Release
 
-defaults:
-  run:
-    shell: bash
+# A tag v* builds every platform into a draft release, tries the packages on
+# a range of systems and adds SHA256SUMS. Publishing the draft is left to a
+# person; it then updates the Homebrew formula (homebrew.yaml). Running this
+# workflow by hand builds and tries snapshots without releasing anything.
 
 on:
   push:
-    branches:
-      - master
-      - feature/*
-    tags:
-      - v*
-  pull_request:
-    branches:
-      - master
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
 
 env:
-  REGISTRY: ghcr.io
+  GO_VERSION: "1.26.10"
+  GORELEASER_VERSION: "v2.18.3"
+  # The version the binaries report.
+  EXPECT: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.0.0-snapshot' }}
 
 jobs:
-  goreleaser:
+  draft:
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout...
-        uses: actions/checkout@v4
-        with:
-          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          persist-credentials: true
-
-      - run: git fetch --prune --unshallow
-
-      - name: Setup go...
-        uses: actions/setup-go@v5
-        with:
-          go-version: "^1.22.0"
-
-      - name: Install modvendor
-        run: go install github.com/goware/modvendor@latest
-
-      - name: Sync Go Modules and Vendor
-        run: make vendor
-
-      - name: branch name
-        id: branch_name
-        run: |-
-          echo "RELEASE_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: setup release environment
-        run: |-
-          echo -e "HOMEBREW_TAP_TOKEN=${{secrets.ACCESS_TOKEN}}\nGITHUB_TOKEN=${{secrets.ACCESS_TOKEN || secrets.GITHUB_TOKEN}}\nLASTFM_KEY=${{secrets.LASTFM_KEY}}\nLASTFM_SECRET=${{secrets.LASTFM_SECRET}}" >> .release-env
-
-      - if: "!startsWith(github.ref ,'refs/tags/v')"
-        name: release dry-run GORELEASER_SKIP_VALIDATE=true
-        run: |-
-          make release-dry-run GORELEASER_SKIP_VALIDATE=true
-          make scoop-config-gen
-
-      #      - if: startsWith(github.ref,'refs/tags/v')
-      #        name: release dry-run
-      #        run: |-
-      #          make release-dry-run
-      #        env:
-      #          RELEASE_TAG: ${{ steps.branch_name.outputs.RELEASE_TAG }}
-
-      - if: startsWith(github.ref,'refs/tags/v') && (github.repository == 'go-musicfox/go-musicfox' || github.repository == 'Egdon/musicfox-deck')
-        name: release publish
-        run: |-
-          sudo rm -rf dist
-          make release
+      - uses: actions/checkout@v4
+      - name: Create the draft release
         env:
-          RELEASE_TAG: ${{ steps.branch_name.outputs.RELEASE_TAG }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          hack/release_notes.sh "$TAG" > notes.md
+          flags=()
+          if [[ $TAG == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$TAG" --draft --verify-tag --title "musicfox-deck $TAG" --notes-file notes.md "${flags[@]}"
 
-      - if: startsWith(github.ref,'refs/tags/v') && github.repository == 'go-musicfox/go-musicfox'
-        name: Generate scoop config and changelog, commit
-        run: |-
-          make scoop-config-gen
-          make changelog-gen
-          git config --global user.email "anhoder@88.com"
-          git config --global user.name "anhoder"
-          git add .
-          git commit -m "chore: update scoop config & changelog [skip ci]" || true
-
-      - if: startsWith(github.ref,'refs/tags/v') && github.repository == 'go-musicfox/go-musicfox'
-        name: Push scoop config
-        uses: ad-m/github-push-action@master
+  linux-windows:
+    needs: draft
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
         with:
-          ssh: true
-          branch: master
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+          fetch-depth: 0
+      - name: Build in Ubuntu 22.04
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SNAPSHOT: ${{ github.ref_type != 'tag' && '--snapshot' || '' }}
+        run: docker run --rm -v "$PWD:/src" -w /src -e GITHUB_TOKEN ubuntu:22.04 hack/release_container.sh $SNAPSHOT
+      - uses: actions/upload-artifact@v4
         with:
-          name: dist_files
+          name: linux-windows
+          retention-days: 1
           path: |
+            dist/*.tar.gz
             dist/*.zip
+            dist/*.deb
+            dist/*.rpm
+            dist/*.pkg.tar.zst
+
+  macos:
+    needs: draft
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: ${{ env.GORELEASER_VERSION }}
+          args: release --clean --config .goreleaser.darwin.yaml ${{ github.ref_type != 'tag' && '--snapshot' || '' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          retention-days: 1
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+
+  try-linux:
+    needs: linux-windows
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ubuntu:22.04
+            install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./musicfox-deck_*_amd64.deb
+          - image: ubuntu:24.04
+            install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./musicfox-deck_*_amd64.deb
+          - image: debian:12
+            install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./musicfox-deck_*_amd64.deb
+          - image: fedora:latest
+            install: dnf install -y -q --setopt=install_weak_deps=False ./musicfox-deck-*.x86_64.rpm
+          - image: opensuse/tumbleweed
+            install: zypper -n -q install --no-recommends --allow-unsigned-rpm ./musicfox-deck-*.x86_64.rpm
+          - image: archlinux:latest
+            install: pacman -Sy --noconfirm -q && pacman -U --noconfirm -q ./musicfox-deck-*-x86_64.pkg.tar.zst
+          - image: debian:12
+            platform: linux/arm64
+            install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./musicfox-deck_*_arm64.deb
+    name: try-linux (${{ matrix.image }}${{ matrix.platform && ', arm64' || '' }})
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-windows
+      - if: matrix.platform
+        uses: docker/setup-qemu-action@v3
+      - name: Install and start
+        env:
+          PLATFORM: ${{ matrix.platform && format('--platform={0}', matrix.platform) || '' }}
+          INSTALL: ${{ matrix.install }}
+        run: |
+          docker run --rm $PLATFORM -v "$PWD:/pkg" -w /pkg -e EXPECT -e INSTALL "${{ matrix.image }}" \
+            sh -c 'eval "$INSTALL" && MUSICFOX_ROOT=$(mktemp -d) musicfox --version | tee /dev/stderr | grep -qF "$EXPECT"'
+
+  try-macos:
+    needs: macos
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: macos-15
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos
+          path: pkg
+      - name: Start the binaries
+        run: |
+          export MUSICFOX_ROOT=$(mktemp -d)
+          for arch in arm64 amd64; do
+            mkdir -p "x/$arch" && tar -xzf pkg/musicfox-deck_*_darwin_$arch.tar.gz -C "x/$arch"
+          done
+          x/arm64/*/musicfox --version | tee /dev/stderr | grep -qF "$EXPECT"
+          if arch -x86_64 /usr/bin/true 2>/dev/null; then
+            arch -x86_64 x/amd64/*/musicfox --version | grep -qF "$EXPECT"
+          else
+            echo "::notice::No Rosetta on this runner; the Intel binary was not started"
+          fi
+          unzip -q pkg/musicfox-deck_*_darwin_arm64_macapp.zip -d app
+          app/musicfox.app/Contents/MacOS/musicfox --version | grep -qF "$EXPECT"
+      - name: Install with the formula
+        run: |
+          (cd pkg && shasum -a 256 *.tar.gz) > SHA256SUMS
+          brew tap-new --no-git local/try
+          hack/brew_formula.sh "$EXPECT" SHA256SUMS "file://$PWD/pkg" > "$(brew --repository local/try)/Formula/musicfox-deck.rb"
+          brew install local/try/musicfox-deck
+          brew test local/try/musicfox-deck
+
+  try-windows:
+    needs: linux-windows
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-windows
+          path: pkg
+      - name: Start the binary
+        shell: pwsh
+        run: |
+          Expand-Archive (Get-Item pkg/musicfox-deck_*_windows_amd64.zip) -DestinationPath x
+          $env:MUSICFOX_ROOT = (New-Item -ItemType Directory -Path "$env:RUNNER_TEMP/mfx").FullName
+          $out = & (Get-Item x/*/musicfox.exe) --version
+          $out
+          if ($LASTEXITCODE -ne 0 -or -not ($out -match [regex]::Escape($env:EXPECT))) { throw "musicfox --version failed" }
+
+  checksums:
+    needs: [linux-windows, macos, try-linux, try-macos, try-windows]
+    if: ${{ github.ref_type == 'tag' && !cancelled() && !failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg
+          merge-multiple: true
+      - name: Add SHA256SUMS to the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          (cd pkg && sha256sum -- *) > SHA256SUMS
+          cat SHA256SUMS
+          gh release upload "$TAG" SHA256SUMS --clobber -R "$GITHUB_REPOSITORY"

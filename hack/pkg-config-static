@@ -1,0 +1,11 @@
+#!/bin/sh
+# pkg-config for release builds (hack/release_container.sh): links libFLAC
+# and libogg statically, so the binary does not depend on a libFLAC soname,
+# which differs between distributions (.so.8, .so.12, .so.14).
+case " $* " in
+*" --libs "*" flac "*)
+	echo "-Wl,-Bstatic -lFLAC -logg -Wl,-Bdynamic -lm"
+	exit 0
+	;;
+esac
+exec pkg-config "$@"

@@ -1,0 +1,71 @@
+# macOS releases, built on a macOS runner by .github/workflows/release.yaml;
+# Linux and Windows are in .goreleaser.yaml. The binaries are not signed
+# beyond the ad-hoc signature the linker gives them.
+version: 2
+project_name: musicfox-deck
+
+env:
+  - CGO_ENABLED=1
+
+builds:
+  - id: darwin
+    main: ./cmd
+    binary: musicfox
+    goos: [darwin]
+    goarch: [amd64, arm64]
+    flags: &flags [-trimpath]
+    ldflags: &ldflags
+      - -s -w -X github.com/go-musicfox/go-musicfox/internal/types.AppVersion=v{{ .Version }}
+    tags: [enable_global_hotkey, purego]
+    mod_timestamp: &mtime "{{ .CommitTimestamp }}"
+  # The app bundle gives notifications the app's icon (utils/notify).
+  - id: darwin-app
+    main: ./cmd
+    binary: musicfox.app/Contents/MacOS/go-musicfox
+    goos: [darwin]
+    goarch: [amd64, arm64]
+    flags: *flags
+    ldflags: *ldflags
+    tags: [enable_global_hotkey, purego, macapp]
+    mod_timestamp: *mtime
+
+archives:
+  - id: darwin
+    ids: [darwin]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    wrap_in_directory: true
+    files: [LICENSE, README.md]
+  - id: darwin-app
+    ids: [darwin-app]
+    formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}_macapp"
+    files:
+      - src: deploy/musicfox.app/Contents/Info.plist
+        dst: musicfox.app/Contents/Info.plist
+      - src: deploy/musicfox.app/Contents/Resources/Musicfox.icns
+        dst: musicfox.app/Contents/Resources/Musicfox.icns
+      - src: deploy/musicfox-app.wrapper.sh
+        dst: musicfox.app/Contents/MacOS/musicfox
+        info:
+          mode: 0755
+
+checksum:
+  disable: true
+
+changelog:
+  disable: true
+
+snapshot:
+  version_template: 0.0.0-snapshot
+
+release:
+  github:
+    owner: Egdon
+    name: musicfox-deck
+  name_template: "musicfox-deck {{ .Tag }}"
+  prerelease: auto
+  draft: true
+  use_existing_draft: true
+  replace_existing_artifacts: true
+  mode: keep-existing
