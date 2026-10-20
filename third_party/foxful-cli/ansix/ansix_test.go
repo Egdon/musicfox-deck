@@ -141,6 +141,59 @@ func TestFadeToTargetPaintsTarget(t *testing.T) {
 	}
 }
 
+// Every faded line carries its own colors, so lines can be cut and drawn
+// one by one.
+func TestFadeLinesStandAlone(t *testing.T) {
+	target, fg := color.RGBA{21, 20, 18, 255}, color.RGBA{203, 196, 182, 255}
+	s := "\x1b[48;2;36;36;36mtop\nmiddle\x1b[m\n\x1b[31mbottom\x1b[m"
+	lines := strings.Split(Fade(s, 0.5, target, fg), "\n")
+	for i, l := range lines {
+		if !strings.HasPrefix(l, "\x1b[") || !strings.HasSuffix(l, "\x1b[m") {
+			t.Fatalf("line %d %q does not open and close its own style", i, l)
+		}
+	}
+	if !strings.Contains(lines[1], "48;2;") {
+		t.Fatalf("the background carried into line 1 is lost: %q", lines[1])
+	}
+}
+
+func TestRestyleOnlyTouchesItsColumns(t *testing.T) {
+	red, blue := color.RGBA{200, 0, 0, 255}, color.RGBA{0, 0, 200, 255}
+	s := "\x1b[48;2;200;0;0mabcd\x1b[m\n\x1b[48;2;200;0;0mefgh\x1b[m"
+	got := Restyle(s, 1, 3, func(st uv.Style) uv.Style {
+		if SameColor(st.Bg, red) {
+			st.Bg = blue
+		}
+		return st
+	})
+	if ansi.Strip(got) != ansi.Strip(s) || Width(got) != Width(s) {
+		t.Fatalf("Restyle changed text or width: %q", got)
+	}
+	for i, l := range strings.Split(got, "\n") {
+		cells := uv.NewScreenBuffer(4, 1)
+		uv.NewStyledString(l).Draw(cells, cells.Bounds())
+		for x := range 4 {
+			want := color.Color(red)
+			if x >= 1 && x < 3 {
+				want = blue
+			}
+			if c := cells.CellAt(x, 0); !sameRGB(c.Style.Bg, want) {
+				t.Fatalf("line %d cell %d: bg %v, want %v", i, x, c.Style.Bg, want)
+			}
+		}
+	}
+}
+
+func TestMix(t *testing.T) {
+	a, b := color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255}
+	if !sameRGB(Mix(a, b, 0), a) || !sameRGB(Mix(a, b, 1), b) {
+		t.Fatal("Mix ends at its colors")
+	}
+	if Mix(nil, b, 0.5) != nil {
+		t.Fatal("Mix keeps a nil color")
+	}
+}
+
 func sameRGB(a, b color.Color) bool {
 	if a == nil || b == nil {
 		return false

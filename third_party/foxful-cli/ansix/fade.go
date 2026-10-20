@@ -58,6 +58,10 @@ func Fade(s string, k float64, target, defaultFg color.Color) string {
 				uv.ReadStyle(p.Params(), &pen)
 				continue
 			}
+			if seq == "\n" && !out.IsZero() { // each line stands on its own, for callers that cut lines
+				b.WriteString(reset)
+				out = uv.Style{}
+			}
 			b.WriteString(seq)
 			continue
 		}
