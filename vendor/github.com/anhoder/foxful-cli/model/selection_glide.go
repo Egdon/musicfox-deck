@@ -22,7 +22,12 @@ const (
 	glideEps   = 0.02 // rows within which the bar has arrived
 )
 
-var bandFade = 150 * time.Millisecond
+var (
+	bandFade = 150 * time.Millisecond
+	// Moves closer together than this come from a held key or the wheel:
+	// the selection keeps up with them instead of animating each.
+	glideRapid = 120 * time.Millisecond
+)
 
 type selectionGlide struct {
 	key   menuKey // the page the selection was on
@@ -34,6 +39,7 @@ type selectionGlide struct {
 	steps int           // steps of a row the bar moves by
 	band  time.Time     // when the band left from; zero when it is still
 	from  int
+	moved time.Time // when the selection last moved
 }
 
 // glideSteps is how many steps of a row the bar can move by.
@@ -59,6 +65,12 @@ func (m *Main) glideRows(rows []string, cols trackColumns, first int) []string {
 	case !g.known || g.key != key || g.seq+1 != seq || level == motion.Off:
 		g.bar, g.band = motion.Spring{}, time.Time{}
 	case row != g.row && inPage(row) && inPage(g.row):
+		rapid := now.Sub(g.moved) < glideRapid
+		g.moved = now
+		if rapid {
+			g.bar, g.band = motion.Spring{}, time.Time{}
+			break
+		}
 		g.band, g.from = now, g.row
 		wait := bandFade
 		if steps := m.glideSteps(); level == motion.Full && steps > 1 {

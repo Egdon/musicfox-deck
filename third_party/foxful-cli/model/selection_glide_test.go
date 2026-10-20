@@ -146,3 +146,18 @@ func TestSelectionWithoutGlide(t *testing.T) {
 		}
 	}
 }
+
+// A held key moves the selection faster than a glide: it keeps up instead.
+func TestSelectionKeepsUpWithAHeldKey(t *testing.T) {
+	main, frame, x := newGlideMain(t, motion.Full, 4)
+	marker := string([]rune(style.CurrentStyleSet().MenuSelectedArrow)[0])
+	t0 := time.Now()
+	frame(t0)
+	main.selectedIndex = 1
+	frame(t0.Add(300 * time.Millisecond)) // the first press glides
+	main.selectedIndex = 2
+	got := markerColumn(frame(t0.Add(330*time.Millisecond)), x, main.menuListStartRow, 4)
+	if got[2] != marker || strings.Join(got[:2], "") != "" {
+		t.Fatalf("a repeated move shows the marker on the new row at once: %q", got)
+	}
+}
