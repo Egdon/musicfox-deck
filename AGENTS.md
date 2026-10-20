@@ -275,6 +275,10 @@ foxful-cli 是本项目的核心 UI 框架，源码在 `third_party/foxful-cli/`
   16. `model/statusbar.go`、`style/theme.go`：状态栏左侧标签可由主题配置（`statusBar.label`，Warm Night 用 `■`）。
   17. `model/main_loading.go`：实现了 `BackgroundLoader`（`LoadsInBackground() == true`）的菜单，其 `BeforeEnterMenuHook` 在 UI goroutine 之外运行，结束后以 `menuLoadedMsg` 回到 `App.Update`（Main 不在屏幕上时也会进入菜单，但不切换页面）；加载期间界面照常绘制，分节标题已显示新菜单名；`BackMenu`、`BackToMenu`、切标签、`EnterMenu` 会取消进行中的加载，迟到的结果被丢弃。这类钩子不得接触界面（写终端、改页面状态）。`EnterMenu`、`DeferWithLoading`、`RefreshMenuWithLoading` 与 `BottomOutHook` 仍同步执行。
 
+### 打包 RPM
+
+`hack/rpm.sh` 用系统 gcc 执行 `make build`（conda 等环境的编译器找不到系统的 FLAC、ALSA 头文件），再按 `deploy/rpm/musicfox-deck.spec` 把 `bin/musicfox` 打成 RPM，输出到 `dist/`。版本号取最近的 tag 加快照后缀（如 `5.1.0^20261020git11c1f7e`）。依赖由 rpmbuild 从二进制推导（`libFLAC.so.14`、`libasound.so.2`、glibc）；WebKitGTK 只在网页登录时动态加载，列为推荐依赖。该脚本只用于 Linux。
+
 ### 跨平台构建兼容性
 
 **修改 `Makefile` 或 `hack/` 目录下的构建脚本时，必须确保 Windows 系统兼容。**

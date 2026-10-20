@@ -46,6 +46,16 @@ $ make           # 编译到 bin 目录
 $ make install   # 安装到 $GOPATH/bin
 ```
 
+### Fedora 等 RPM 发行版
+
+在源码目录执行 `./hack/rpm.sh`（需要 `rpm-build`），安装包生成在 `dist/` 下，然后：
+
+```sh
+$ sudo dnf install ./dist/musicfox-deck-*.rpm
+```
+
+运行依赖只有 `flac-libs`、`alsa-lib` 和 glibc，由安装包自动声明。网页登录窗口需要 WebKitGTK（`webkitgtk6.0` 或 `webkit2gtk4.1`，作为推荐依赖），没有时仍可扫码登录。
+
 > Homebrew、AUR、Scoop、Flatpak 等渠道安装的是原版 go-musicfox，见[原版 README](https://github.com/go-musicfox/go-musicfox#安装)。
 
 ## 使用
