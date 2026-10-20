@@ -653,6 +653,8 @@ musicfox-deck 基于以下项目：
 - [NeteaseCloudMusicApiWithGo](https://github.com/sirodeneko/NeteaseCloudMusicApiWithGo)
 - [gcli](https://github.com/gookit/gcli)
 
+感谢 [LINUX DO](https://linux.do) 社区的支持。
+
 ## 免责声明
 
 - musicfox-deck 是 go-musicfox 的独立二次开发版本，并非官方版本。

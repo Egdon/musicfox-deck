@@ -653,6 +653,8 @@ And the projects go-musicfox thanks, with their contributors (among others):
 - [NeteaseCloudMusicApiWithGo](https://github.com/sirodeneko/NeteaseCloudMusicApiWithGo)
 - [gcli](https://github.com/gookit/gcli)
 
+Thanks to the [LINUX DO](https://linux.do) community for its support.
+
 ## Disclaimer
 
 - musicfox-deck is an independent fork of go-musicfox, not an official version.
