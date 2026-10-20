@@ -741,10 +741,9 @@ func (p *NowPlayingPage) snapshot(a *model.App, now time.Time, w, h int, withDec
 			pose, lift := p.motion.At(now)
 			sideB := p.motion.SideB(now)
 			v := deck.View{W: sw, H: sh, Tier: deckTier(a), Aspect: deckAspect(a)}
-			frame = p.cassette.frame(now, v, p.motion.Brisk(now), func() *deck.Frame {
-				return p.renderer.Render(v, deckPaletteOf(pal), pose,
-					deck.State{Radii: deck.PackRadii(p.reels.Progress(now, p.progress()), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift})
-			})
+			frame = p.cassette.frame(now, &p.renderer, v, deckPaletteOf(pal), pose,
+				deck.State{Radii: deck.PackRadii(p.reels.Progress(now, p.progress()), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift},
+				p.motion.Brisk(now) || p.reels.Winding(now))
 		}
 	}
 	lines, cur, sung := lyricsNow(p.netease.lyricService, player.PassedTime())

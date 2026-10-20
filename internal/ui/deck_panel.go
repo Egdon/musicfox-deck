@@ -243,7 +243,8 @@ func (t *panelText) add(s string, fg color.Color, bold bool) {
 		return
 	}
 	r, g, b, _ := fg.RGBA()
-	fmt.Fprintf(&t.b, "\x1b[38;2;%d;%d;%dm", r>>8, g>>8, b>>8)
+	var seq [24]byte
+	t.b.Write(appendSGR(seq[:0], "38", r>>8, g>>8, b>>8))
 	if bold {
 		t.b.WriteString("\x1b[1m")
 	}
@@ -255,7 +256,8 @@ func (t *panelText) add(s string, fg color.Color, bold bool) {
 
 func (t *panelText) String() string {
 	r, g, b, _ := t.bg.RGBA()
-	return fmt.Sprintf("\x1b[48;2;%d;%d;%dm", r>>8, g>>8, b>>8) + t.b.String() + "\x1b[m"
+	var seq [24]byte
+	return string(appendSGR(seq[:0], "48", r>>8, g>>8, b>>8)) + t.b.String() + "\x1b[m"
 }
 
 func (p *DeckPanel) View(a *model.App, _ *model.Main, w, h int) string {
@@ -279,10 +281,9 @@ func (p *DeckPanel) View(a *model.App, _ *model.Main, w, h int) string {
 		if docked {
 			pose, v.Fit = deckTurned(pose, deckDockTurn), deckGrow(deck.Rect{W: float64(cw), H: float64(ch)}, deckDockGrow)
 		}
-		s.Deck = p.cassette.frame(now, v, p.motion.Brisk(now), func() *deck.Frame {
-			return p.renderer.Render(v, deckPaletteOf(s.Pal), pose,
-				deck.State{Radii: deck.PackRadii(p.progress(), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift})
-		})
+		s.Deck = p.cassette.frame(now, &p.renderer, v, deckPaletteOf(s.Pal), pose,
+			deck.State{Radii: deck.PackRadii(p.progress(), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift},
+			p.motion.Brisk(now))
 	}
 	p.docked = docked
 	if !s.Idle {
@@ -373,7 +374,7 @@ func renderDeckPanel(s *deckPanelSnapshot, w, h int) ([]string, deckPanelLayout)
 	if s.Deck != nil {
 		out.deck = image.Rect(1, len(lines), 1+s.Deck.W, len(lines)+s.Deck.H)
 		for _, l := range deckLines(s.Deck, pal.Bg) {
-			lines = append(lines, ansix.Fit(bgSGR+" \x1b[m"+l, w, bgSGR))
+			lines = append(lines, fitRow(bgSGR+" \x1b[m"+l, 1+s.Deck.W, w, bgSGR))
 		}
 	}
 	blank()
@@ -525,12 +526,12 @@ func renderDeckDock(s *deckPanelSnapshot, w, h int) ([]string, deckPanelLayout) 
 		info = append([]row{{}}, info...)
 	}
 	for r := range h - 1 {
-		var b strings.Builder
-		b.WriteString(bgSGR + "  \x1b[m")
+		line := bgSGR + "  \x1b[m"
 		if r < len(deckRows) {
-			b.WriteString(deckRows[r])
+			line = fitRow(line+deckRows[r], 2+s.Deck.W, x0, bgSGR)
+		} else {
+			line = fitRow(line, 2, x0, bgSGR)
 		}
-		line := ansix.Fit(b.String(), x0, bgSGR)
 		if r < len(info) && info[r].left != nil {
 			right := &panelText{bg: pal.Bg}
 			rw := 0
