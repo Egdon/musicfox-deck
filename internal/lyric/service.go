@@ -77,6 +77,7 @@ type Service struct {
 	showYRC         bool // Enable word-by-word lyric mode
 	offset          time.Duration
 	skipParseErr    bool
+	loadSeq         uint64 // counts SetSong calls, so a slow fetch cannot overwrite a newer song
 
 	mu sync.RWMutex
 }
@@ -97,12 +98,21 @@ func NewService(fetcher Fetcher, showTranslation bool, initialOffset time.Durati
 
 // SetSong loads lyrics for a new song.
 func (s *Service) SetSong(ctx context.Context, song structs.Song) error {
+	// The fetch goes over the network, so it runs without the lock: the
+	// interface reads State on every frame and would freeze until it ends.
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	s.resetState(true) // Preserve configuration on reset
+	s.loadSeq++
+	seq := s.loadSeq
+	s.mu.Unlock()
 
 	lrcData, err := s.fetcher.GetLyric(ctx, song)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if seq != s.loadSeq {
+		return nil // a later song is loading; these lyrics are stale
+	}
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch lyric data")
 	}
