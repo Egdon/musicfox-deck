@@ -1,108 +1,114 @@
 # musicfox-deck
 
-**磁带卡座风格的命令行网易云音乐。** musicfox-deck 是 [go-musicfox](https://github.com/go-musicfox/go-musicfox) 的二次开发版本：主界面左边是曲目表，右边一盘随音乐转动的 3D 磁带；播放页把磁带放上舞台；页面切换、菜单、弹窗和选中项都有克制而顺滑的动效。其余功能与原版一致：各种音质级别、UnblockNeteaseMusic、Last.fm、MPRIS、DLNA 投送等。
+**简体中文** | [English](README.en.md)
 
-*A terminal client for Netease Cloud Music with a real-time 3D cassette deck, forked from go-musicfox. Prebuilt for macOS, Windows and Linux; see [安装](#安装) for the downloads and `brew install egdon/tap/musicfox-deck`.*
+磁带卡座风格的命令行网易云音乐客户端，基于 [go-musicfox](https://github.com/go-musicfox/go-musicfox) 二次开发。主界面由曲目表与实时渲染的 3D 磁带面板组成，播放页以磁带为视觉中心，页面切换、菜单、弹窗与选中项均配有过渡动效。其余功能与 go-musicfox 一致，包括多种音质、UnblockNeteaseMusic、Last.fm、MPRIS 与 DLNA 投送。
 
 <p><img src="docs/assets/deck-panel.gif" alt="主界面：曲目表与磁带面板" width="880"/></p>
 
-> 配置和数据目录与原版共用（`go-musicfox`），原版的登录状态、配置和缓存可以直接使用。
+> 与 go-musicfox 共用配置与数据目录（`go-musicfox`），可继续使用其登录状态、配置与缓存。
 
-------------------------------
-## 特色
+## 特性
 
-- **3D 磁带**：透视光线投射实时渲染。在 Ghostty、kitty、foot 等终端里用八分块字符绘制（每格 2×4 个子像素），其他终端自动改用六分块或四分块。播放时缓慢漂浮，鼠标移上去会跟着倾斜，切歌时立体翻面，暂停时落定；两个带盘的带层随播放进度此消彼长。
-- **主界面**：曲目表（序号、歌名、歌手、时长）占满高度，右侧磁带面板显示正在播放、逐字歌词和接下来播放。点磁带进入播放页，点接下来播放里的歌直接播放。窗口窄于 110 列时，面板收成曲目表下方的播放条。
-- **播放页**：磁带在左侧舞台上随窗口缩放，右侧是编号信息栏；窄窗口居中排成海报，矮窗口横排。进出播放页时，面板上的小磁带直接放大到舞台，或缩回面板。
-- **动效**：页面切换、菜单进出、弹窗、通知、选中项和启动页都有 150–250ms 的过渡，不回弹；可以调成只淡入淡出，或完全关闭。
-- **Warm Night 主题**：暖炭灰底配米灰文字，信号橙只标出正在发生的事，为夜间使用设计。
+- **3D 磁带**：基于透视光线投射实时渲染。在支持八分块字符的终端（Ghostty、kitty、foot 等）中以每格 2×4 子像素绘制，其他终端自动改用六分块或四分块。播放时缓慢漂浮，随鼠标倾斜，切歌时翻面，暂停时静止；两侧带盘的带层随播放进度变化。
+- **主界面**：曲目表（序号、歌名、歌手、时长）占满纵向空间，右侧磁带面板显示当前曲目、逐字歌词与播放队列。点击磁带进入播放页，点击队列中的曲目开始播放。窗口宽度小于 110 列时，面板收起为曲目表下方的播放条。
+- **播放页**：宽窗口采用舞台布局，磁带随窗口缩放，右侧为编号信息栏；窄窗口采用居中的海报布局，矮窗口采用横向布局。进出播放页时，面板中的磁带与舞台上的磁带以形变过渡衔接。
+- **动效**：页面切换、菜单进出、弹窗、通知、选中项与启动页均有 150–250 ms 的过渡，无回弹；可设为仅淡入淡出，或关闭。
+- **Warm Night 主题**：暖灰底色配米色文字，信号橙仅用于标示进行中的状态，适合夜间使用。
 
 ## 预览
 
-| 播放页：磁带漂浮与逐字歌词 | 进入播放页：磁带放大到舞台 |
+| 播放页：漂浮的磁带与逐字歌词 | 进入播放页：磁带放大至舞台 |
 |---|---|
 | <img src="docs/assets/now-playing.gif" alt="播放页" width="440"/> | <img src="docs/assets/morph.gif" alt="进入播放页" width="440"/> |
-| **切歌：磁带立体翻面** | **启动：磁带从景深处转入** |
+| **切歌：磁带翻面** | **启动：磁带从景深处转入** |
 | <img src="docs/assets/flip.gif" alt="切歌翻面" width="440"/> | <img src="docs/assets/startup.gif" alt="启动动画" width="440"/> |
-| **菜单进出：逐行滑入** | **窄窗口：底部播放条与海报式播放页** |
+| **菜单进出：逐行滑入** | **窄窗口：底部播放条与海报布局** |
 | <img src="docs/assets/menus.gif" alt="菜单过渡" width="440"/> | <img src="docs/assets/narrow.gif" alt="窄窗口" width="440"/> |
 
 ## 安装
 
-| 系统 | 推荐方式 |
+| 平台 | 安装方式 |
 |---|---|
 | macOS（Apple 芯片 / Intel） | `brew install egdon/tap/musicfox-deck` |
-| Windows 10 / 11 | 从 [Releases](https://github.com/Egdon/musicfox-deck/releases/latest) 下载 `windows_amd64.zip` 或 `windows_arm64.zip` |
-| Debian、Ubuntu | 下载 `.deb`，然后 `sudo apt install ./musicfox-deck_*_amd64.deb` |
-| Fedora、openSUSE | 下载 `.rpm`，然后 `sudo dnf install ./musicfox-deck-*.x86_64.rpm` |
-| Arch Linux | 下载 `.pkg.tar.zst`，然后 `sudo pacman -U musicfox-deck-*-x86_64.pkg.tar.zst` |
-| 其他 Linux | 下载 `linux_amd64.tar.gz`，把其中的 `musicfox` 放进 `PATH` |
+| Windows 10 / 11（x64 / ARM64） | 下载 `windows_amd64.zip` 或 `windows_arm64.zip` 并解压 |
+| Debian / Ubuntu | 下载 `.deb`，执行 `sudo apt install ./musicfox-deck_*_amd64.deb` |
+| Fedora / openSUSE | 下载 `.rpm`，执行 `sudo dnf install ./musicfox-deck-*.x86_64.rpm` |
+| Arch Linux | 下载 `.pkg.tar.zst`，执行 `sudo pacman -U musicfox-deck-*-x86_64.pkg.tar.zst` |
+| 其他 Linux 发行版 | 下载 `linux_amd64.tar.gz`，将其中的 `musicfox` 放入 `PATH` |
 
-每个平台都有 x86_64 和 ARM64 两种架构：文件名里的 `amd64`、`x86_64` 指前者，`arm64`、`aarch64` 指后者。装好后在终端里运行 `musicfox`。
+安装包与压缩包均发布在 [Releases](https://github.com/Egdon/musicfox-deck/releases/latest) 页面。每个平台提供 x86_64（文件名含 `amd64` 或 `x86_64`）与 ARM64（文件名含 `arm64` 或 `aarch64`）两种架构。安装后在终端中运行 `musicfox` 启动。
 
 ### macOS
 
-用 Homebrew 安装最省事，它下载的程序不会被系统的安全检查拦下：
+推荐使用 Homebrew 安装：
 
 ```sh
-$ brew install egdon/tap/musicfox-deck
+brew install egdon/tap/musicfox-deck
 ```
 
-也可以从 Releases 手动下载 `darwin_arm64.tar.gz`（Apple 芯片）或 `darwin_amd64.tar.gz`（Intel）。程序没有经过苹果公证，用浏览器下载的话，第一次运行会被拦下，解压后执行一次：
+手动安装时，下载 `darwin_arm64.tar.gz`（Apple 芯片）或 `darwin_amd64.tar.gz`（Intel）。程序未经 Apple 公证，经浏览器下载的文件在首次运行前需移除隔离属性，或在「系统设置 → 隐私与安全性」中允许运行：
 
 ```sh
-$ xattr -d com.apple.quarantine ./musicfox
+xattr -d com.apple.quarantine ./musicfox
 ```
 
-或者在「系统设置 → 隐私与安全性」里点「仍要打开」。`darwin_*_macapp.zip` 是 .app 版本，系统通知会带上应用图标。
+Homebrew 安装的程序不带隔离属性，无需此步骤。`darwin_*_macapp.zip` 为 .app 版本，系统通知中显示应用图标。
 
 ### Windows
 
-解压后在 [Windows Terminal](https://aka.ms/terminal) 里运行 `musicfox.exe`，或者把它所在的目录加进 `PATH`。程序没有签名：从资源管理器打开时如果出现 SmartScreen 提示，点「更多信息」→「仍要运行」。个别杀毒软件可能误报，可以对照 Releases 里的 `SHA256SUMS` 确认文件没被改动。
+解压后在 [Windows Terminal](https://aka.ms/terminal) 中运行 `musicfox.exe`，也可将其所在目录加入 `PATH`。程序未签名，从资源管理器启动时可能出现 SmartScreen 提示，选择「更多信息」→「仍要运行」。如安全软件报告异常，可使用 Releases 中的 `SHA256SUMS` 校验文件。
 
 ### Linux
 
-安装包和压缩包里是同一个程序，需要 glibc 2.34 以上（Ubuntu 22.04、Debian 12、Fedora 35、RHEL 9 及之后的版本）和 ALSA（`libasound.so.2`，桌面系统都带）。安装包会自动声明这些依赖。
+安装包与压缩包中的程序相同，运行时依赖：
 
-登录页的「网页登录」需要 WebKitGTK 4.1：Debian、Ubuntu 的 `libwebkit2gtk-4.1-0`，Fedora 的 `webkit2gtk4.1`，Arch 的 `webkit2gtk-4.1`。deb 和 rpm 包把它列为推荐依赖；没有装时，登录页只提供扫码登录。
+- glibc 2.34 及以上（Ubuntu 22.04、Debian 12、Fedora 35、RHEL 9 及更新的版本）
+- ALSA（`libasound.so.2`）
 
-### 终端与显示效果
+deb、rpm 与 Arch 安装包会自动声明以上依赖。
 
-磁带用 Unicode 块字符画出来，终端支持的字符越精细，磁带越清晰。`[main] blockGlyphs = "auto"`（默认）时按终端自动选择：
+网页登录依赖 WebKitGTK 4.1（Debian / Ubuntu：`libwebkit2gtk-4.1-0`；Fedora：`webkit2gtk4.1`；Arch Linux：`webkit2gtk-4.1`）。deb 与 rpm 安装包将其列为推荐依赖；未安装时，登录页仅提供扫码登录。
 
-| 终端 | 字符 | 每格的子像素 |
+在 WSL 中使用 beep 播放引擎需安装 `libasound2-plugins`（参见 [microsoft/wslg#864](https://github.com/microsoft/wslg/issues/864)）。
+
+### 终端与显示
+
+磁带由 Unicode 块字符绘制，显示精度取决于终端支持的字符集。`[main] blockGlyphs = "auto"`（默认）时按终端自动选择：
+
+| 终端 | 字符 | 每格子像素 |
 |---|---|---|
 | Ghostty、kitty、foot，以及较新的 GNOME Terminal 等 VTE 终端 | 八分块 | 2×4 |
 | WezTerm、iTerm2、Alacritty、Konsole、Windows Terminal | 六分块 | 2×3 |
-| 在 tmux 里，或其他终端 | 四分块 | 2×2 |
+| tmux 内及其他终端 | 四分块 | 2×2 |
 
-macOS 自带的「终端」和 Windows 的命令提示符（CMD）不在支持范围内。通过 SSH 使用时，建议把 `[main] motion` 设为 `subtle`。
+需使用等宽字体。不支持 macOS 自带的「终端」与 Windows 命令提示符（CMD）。通过 SSH 使用时，建议将 `[main] motion` 设为 `subtle`。
 
 ### 从 go-musicfox 迁移
 
-musicfox-deck 和原版共用配置与数据目录，登录状态、配置和缓存都能直接用。两者的命令都叫 `musicfox`，不能同时安装：先卸载原版（例如 `brew uninstall go-musicfox`），再安装本版。原版配置里没有的新配置项，可以用 `musicfox upgrade-config` 补上（见[配置升级](#配置升级)）。
+musicfox-deck 与 go-musicfox 共用配置与数据目录，登录状态、配置与缓存可继续使用。两者的可执行文件均名为 `musicfox`，不能同时安装，安装前需先卸载 go-musicfox（例如 `brew uninstall go-musicfox`）。go-musicfox 配置中缺少的新配置项可通过 `musicfox upgrade-config` 补全，参见[配置升级](#配置升级)。
 
-### 从源码编译
+### 从源码构建
 
-需要 Go 1.26 及以上版本。Linux 还需要 FLAC 和 ALSA 的开发包：
+需要 Go 1.26 及以上版本。Linux 还需要 FLAC 与 ALSA 的开发包：
 
-* APT（Debian、Ubuntu）：`sudo apt install build-essential libflac-dev libasound2-dev`
-* DNF（Fedora）：`sudo dnf install flac-devel alsa-lib-devel`
-* pacman（Arch）：`sudo pacman -S flac alsa-lib`
+- Debian / Ubuntu：`sudo apt install build-essential libflac-dev libasound2-dev`
+- Fedora：`sudo dnf install flac-devel alsa-lib-devel`
+- Arch Linux：`sudo pacman -S flac alsa-lib`
 
 ```sh
-$ git clone https://github.com/Egdon/musicfox-deck
-$ cd musicfox-deck
-$ make           # 编译到 bin 目录
-$ make install   # 安装到 $GOPATH/bin
+git clone https://github.com/Egdon/musicfox-deck
+cd musicfox-deck
+make           # 编译至 bin/musicfox
+make install   # 安装至 $GOPATH/bin
 ```
 
-在 Fedora 上还可以执行 `./hack/rpm.sh`（需要 `rpm-build`），打一个本机用的 RPM，输出在 `dist/` 下。
+在 Fedora 上可执行 `./hack/rpm.sh`（需要 `rpm-build`）生成本机使用的 RPM，输出位于 `dist/`。
 
 ## 使用
 
 ```sh
-$ musicfox
+musicfox
 ```
 
 <details>
@@ -111,17 +117,11 @@ $ musicfox
 ### 注意事项
 </summary>
 
-- **请务必使用等宽字体，或将配置项 `doubleColumn` 设为 `false`，否则双列显示排版可能会混乱**
-- **如果在使用时出现莫名奇妙的光标移动、切歌或暂停等现象，请将配置项 `enableMouseEvent` 设置为 `false`**
-- **本应用不对 macOS 原生终端和 Windows 的命令提示符（CMD）做兼容处理（[#99](https://github.com/go-musicfox/go-musicfox/issues/99)）**
-  > macOS 用户推荐使用 [iTerm2](https://iterm2.com/) 或 [Kitty](https://sw.kovidgoyal.net/kitty/)
-  >
-  > Linux 用户推荐使用 [Kitty](https://sw.kovidgoyal.net/kitty/)
-  >
-  > Windows 用户推荐使用 [Windows Terminal](https://apps.microsoft.com/store/detail/windows-terminal/9N0DX20HK701)，使用体验更佳
-- wsl 环境下使用 beep 须安装 `libasound2-plugins`，见 [issues](https://github.com/microsoft/wslg/issues/864)
-- XDG 支持：完整的 XDG 支持，部分文件路径变更，见 [XDG 支持说明](./docs/xdg_support.md)
-- 配置文件格式：使用 [TOML](https://toml.io/) 格式
+- 需使用等宽字体，否则双列布局可能错位；也可将 `doubleColumn` 设为 `false`。
+- 如出现异常的光标移动、切歌或暂停，可将 `enableMouseEvent` 设为 `false`。
+- 不支持 macOS 自带的「终端」与 Windows 命令提示符（CMD），参见 [go-musicfox#99](https://github.com/go-musicfox/go-musicfox/issues/99)。推荐的终端：macOS 使用 Ghostty、iTerm2 或 kitty，Linux 使用 Ghostty、kitty 或 foot，Windows 使用 Windows Terminal。
+- 遵循 XDG 目录规范，部分文件路径与旧版本不同，参见 [XDG 支持说明](./docs/xdg_support.md)。
+- 配置文件采用 [TOML](https://toml.io/) 格式。
 
 </details>
 <details>
@@ -130,66 +130,55 @@ $ musicfox
 ### DLNA 投送
 </summary>
 
-DLNA 引擎允许你将音乐投送到兼容 DLNA 的设备（如智能电视、音响、游戏机等）。
+DLNA 播放引擎可将音乐投送至支持 DLNA 的设备，如智能电视、音箱与游戏机。
 
-1. **获取设备 URL**
-   - 安装 `gupnp-tools`：`brew install gupnp-tools`（macOS）或 `sudo apt install gupnp-tools`（Linux）
-   - 运行 `gupnp-universal-cp`，扫描并复制设备的描述 URL（形如 `http://192.168.1.100:49152/description.xml`）
-
-2. **配置**
-   在 `config.toml` 中设置：
+1. **获取设备地址**：安装 `gupnp-tools`（macOS：`brew install gupnp-tools`；Debian / Ubuntu：`sudo apt install gupnp-tools`），运行 `gupnp-universal-cp` 扫描设备，复制设备的描述地址（形如 `http://192.168.1.100:49152/description.xml`）。
+2. **配置**：在 `config.toml` 中设置：
    ```toml
    [player]
    engine = "dlna"
 
    [player.dlna]
-   deviceUrl = "http://你的设备IP:端口/description.xml"
-   localIP = "本机局域网IP"  # 例如 192.168.1.50
+   deviceUrl = "http://<设备 IP>:<端口>/description.xml"
+   localIP = "<本机局域网 IP>"  # 例如 192.168.1.50
    ```
-
-3. **播放**
-   启动应用后，选择歌曲即可自动投送到 DLNA 设备。
-
+3. **播放**：启动后选择歌曲，音频即投送至该设备。
 
 </details>
 <details>
 <summary>
-引入完整的主题配置系统，支持运行时切换、自定义配色和多种内置主题。
+
 ### 主题系统
 </summary>
 
-完整的主题配置系统，支持运行时切换、自定义配色和多种内置主题。
+支持运行时切换主题与自定义配色，并内置多套主题。
 
 #### 内置主题
 
-- **Default** - 经典浅色主题
-- **Transparent** - 透明主题，适配终端背景
-- **Dark Transparent** - 深色透明主题
-- **Dracula** - 流行的 Dracula 配色
-- **Nord** - 北欧冷色调
-- **Gruvbox** - 复古暖色调
-- **Warm Night**（musicfox-deck 默认）- 暖夜：Braun 式暖炭灰底配米灰文字，信号橙只标出正在发生的事，灰绿表示已开启的开关；为夜间使用设计，与播放页共用一套色板
+| 主题 | 说明 |
+|---|---|
+| Warm Night（默认） | 暖灰底色配米色文字，信号橙标示进行中的状态，灰绿标示已开启的选项；与播放页共用色板，适合夜间使用 |
+| Default | 经典浅色主题 |
+| Transparent | 透明背景，沿用终端的背景色 |
+| Dark Transparent | 深色透明主题 |
+| Dracula | Dracula 配色 |
+| Nord | Nord 冷色调配色 |
+| Gruvbox | Gruvbox 复古暖色调配色 |
 
 #### 使用方式
 
-1. **配置文件设置**
+1. **启动时的主题**：
    ```toml
    [theme]
-   activeTheme = "Dracula"  # 启动时加载的主题
+   activeTheme = "Dracula"
    ```
+2. **运行时切换**：在右键菜单中选择「切换主题」，或在 `[keybindings.app]` 中为 `switchTheme` 绑定按键（例如 `switchTheme = "ctrl+t"`）。
+3. **自定义主题**：在用户配置目录下创建 `themes/` 子目录，每个主题对应一个 `.toml` 文件，例如：
+   - macOS：`~/Library/Application Support/go-musicfox/themes/mytheme.toml`
+   - Linux：`~/.config/go-musicfox/themes/mytheme.toml`
+   - Windows：`%AppData%\go-musicfox\themes\mytheme.toml`
 
-2. **运行时切换**
-   - 通过右键菜单选择"切换主题"
-   - 或在配置中绑定快捷键：`switchTheme = "t"`
-
-3. **自定义主题**
-   - 在用户配置目录下创建 `themes/` 子目录
-   - 每个主题一个独立的 `.toml` 文件（例如：
-     - macOS: `~/Library/Application Support/go-musicfox/themes/mytheme.toml`
-     - Linux: `~/.config/go-musicfox/themes/mytheme.toml`
-     - Windows: `%AppData%\go-musicfox\themes\mytheme.toml`）
-   - 主题文件必须包含 `name` 字段和 `[dark]` 或 `[light]` 配置表
-   - 详细配置参见 [内置主题示例](./utils/filex/embed/themes/)
+   主题文件须包含 `name` 字段以及 `[dark]` 或 `[light]` 表，格式参见[内置主题](./utils/filex/embed/themes/)。
 
 </details>
 <details>
@@ -198,28 +187,28 @@ DLNA 引擎允许你将音乐投送到兼容 DLNA 的设备（如智能电视、
 ### 磁带卡座界面
 </summary>
 
-`[theme] layout = "deck"`（默认）启用，改成 `"classic"` 恢复原版布局。
+由 `[theme] layout = "deck"`（默认）启用，设为 `"classic"` 则恢复 go-musicfox 原版布局。
 
-- **曲目表**：序号、歌名、歌手、时长四列，上方是分节标题，如 `07 ── 飙升榜  [更新27首] ……… 100 首`。在曲目间移动时，选中标记会滑过去。
-- **磁带面板**：窗口不小于 110 列 × 24 行时显示在右侧：迷你磁带、歌名、逐字歌词和接下来播放。点磁带进入播放页，点接下来播放里的歌直接播放，滚轮调音量。
-- **底部播放条**：更窄或更矮的窗口里，面板收成曲目表下方的一条：小磁带、歌名与歌手、正在唱的歌词，右侧是播放位置、播放模式和音量。
+- **曲目表**：包含序号、歌名、歌手、时长四列，上方为分节标题（如 `07 ── 飙升榜  [更新27首] ……… 100 首`）。移动选中项时，选中标记以滑动过渡。
+- **磁带面板**：窗口不小于 110 列 × 24 行时显示于右侧，包含迷你磁带、歌名、逐字歌词与播放队列。点击磁带进入播放页，点击队列中的曲目开始播放，滚动滚轮调节音量。
+- **底部播放条**：窗口较窄或较矮时，面板收起为曲目表下方的播放条，显示小磁带、歌名、歌手与当前歌词，右侧为播放位置、播放模式与音量。
 
 相关配置：
 
 ```toml
 [main]
-motion = "full"        # 动效：full（默认）/ subtle（只淡入淡出）/ off（关闭）
-blockGlyphs = "auto"   # 磁带用的块字符：auto / octant / sextant / quadrant / half
+motion = "full"        # 动效：full（默认）/ subtle（仅淡入淡出）/ off（关闭）
+blockGlyphs = "auto"   # 磁带使用的块字符：auto / octant / sextant / quadrant / half
 
 [theme]
 layout = "deck"        # deck / classic
 activeTheme = "Warm Night"
 
 [startup]
-animation = "deck"     # 磁带从景深处转入，字标逐字浮现
+animation = "deck"     # 磁带从景深处转入，字标逐字显现
 ```
 
-`blockGlyphs = "auto"` 时按终端自动选择：Ghostty、kitty、foot 和较新的 VTE 终端用八分块，WezTerm、iTerm2、Alacritty、Konsole、Windows Terminal 用六分块，tmux 和其他终端用四分块。通过 SSH 使用时，建议把 `motion` 设为 `subtle`。
+`blockGlyphs = "auto"` 的选择规则参见[终端与显示](#终端与显示)。
 
 </details>
 <details>
@@ -228,40 +217,38 @@ animation = "deck"     # 磁带从景深处转入，字标逐字浮现
 ### 播放页
 </summary>
 
-在主界面按 `i` 或点击磁带进入，`i` 或 `Esc` 返回。
+在主界面按 `i` 或点击磁带进入，按 `i` 或 `Esc` 返回。
 
-- **宽窗口**（不小于 100 列 × 28 行）：左侧舞台上是随窗口缩放的大磁带；右侧是编号信息栏，`02 TRACK` 列出歌名、歌手、专辑和音质，`03 LYRICS` 是逐字歌词；下方是七段数码管计数器和 `04 UP NEXT`。
-- **窄窗口**：磁带居中排成海报，下面是歌名、歌手和正在唱的几行歌词，再下面是时间和进度条。
-- **矮窗口**：磁带在左，右侧只放曲目、时间和歌词。
-- **磁带**：播放时缓慢漂浮，鼠标移上去会跟着倾斜，切歌时立体翻面，暂停时落定；标签上印着 A/B 面和书写横线。
-- **逐字歌词**：有逐字时间轴（YRC）时，已唱的部分逐字亮起；只有行时间时按行高亮。
-- **其他**：页头指示灯常驻显示随机、循环、单曲、红心、歌词、高音质等状态；录像机风格的 OSD 显示播放状态和音量；按 `L` 切换全屏歌词；停止且队列为空时显示 NO SIGNAL 蓝屏。
-- **页内按键**：`←` / `→` 快退 / 快进 5 秒，`↑` / `↓` 调音量；其余快捷键沿用你的绑定，作用于正在播放的歌曲。
-- **鼠标**：点进度条跳转，点底部按键栏控制播放，点接下来播放里的歌直接播放，滚轮调音量。
+- **宽窗口**（不小于 100 列 × 28 行）：左侧舞台显示随窗口缩放的磁带；右侧为编号信息栏，`02 TRACK` 显示歌名、歌手、专辑与音质，`03 LYRICS` 显示逐字歌词；下方为七段数码管计数器与 `04 UP NEXT`。
+- **窄窗口**：海报布局，磁带居中，下方依次为歌名、歌手、当前歌词、时间与进度条。
+- **矮窗口**：磁带位于左侧，右侧显示曲目、时间与歌词。
+- **磁带**：播放时缓慢漂浮，随鼠标倾斜，切歌时翻面，暂停时静止；标签印有 A/B 面标识与书写横线。
+- **逐字歌词**：歌词带逐字时间轴（YRC）时逐字高亮，仅有行时间轴时按行高亮。
+- **状态显示**：页头指示灯显示随机、循环、单曲、喜欢、歌词与高音质等状态；录像机风格的 OSD 显示播放状态与音量；按 `L` 切换全屏歌词；停止播放且队列为空时显示 NO SIGNAL 画面。
+- **页内按键**：`←` / `→` 快退 / 快进 5 秒，`↑` / `↓` 调节音量；其余快捷键沿用全局绑定，作用于当前播放的歌曲。
+- **鼠标**：点击进度条跳转，点击底部按键栏控制播放，点击队列中的曲目开始播放，滚动滚轮调节音量。
 
-主界面调音量、暂停、快进、切换模式时，右上角也会短暂显示同样风格的 OSD 提示（`[main.notification] inApp = false` 时关闭）。
+在主界面调节音量、暂停、快进或切换播放模式时，右上角显示相同风格的 OSD 提示（`[main.notification] inApp = false` 时关闭）。
 
 </details>
 <details>
 <summary>
 
-终端内实时显示音频频谱（仅 macOS `osx` 播放引擎支持）。
+### 实时频谱
 </summary>
 
-终端 TUI 中的实时音频频谱可视化（仅 macOS `osx` 播放引擎支持）。
-
-#### 配置
+在终端中实时显示音频频谱，仅 macOS 的 `osx` 播放引擎支持。
 
 ```toml
 [main.visualizer]
-enable = true              # 启用频谱显示
-maxHeight = 10             # 最大高度（行数），0 为自动填充
-fullCharHalfBlock = "▌"    # 半填充字符
-fullCharFullBlock = "█"    # 全填充字符
+enable = true              # 启用频谱
+maxHeight = 10             # 最大行数，0 表示占满可用空间
+fullCharHalfBlock = "▌"    # 半格字符
+fullCharFullBlock = "█"    # 整格字符
 emptyCharBlock = " "       # 空白字符
 ```
 
-频谱会显示在歌词和歌曲信息之间，低频在底部，高频在顶部，使用前景/背景双色渐变提供更高精度的幅度表现。
+频谱显示于 classic 布局的歌词与歌曲信息之间（deck 布局中由磁带面板取代），低频在下、高频在上，并以前景色与背景色的组合提高幅度精度。
 
 </details>
 <details>
@@ -269,17 +256,16 @@ emptyCharBlock = " "       # 空白字符
 
 ### macOS 桌面歌词
 </summary>
-macOS 原生桌面歌词窗口，支持 YRC 逐字高亮、频谱可视化和完整的视觉定制。
 
-#### 配置
+macOS 原生桌面歌词窗口，支持逐字高亮、频谱可视化与外观定制。
 
 ```toml
 [main.lyric.desktopLyrics]
 enable = true                    # 启用桌面歌词
 showSpectrum = true              # 显示频谱
-spectrumStyle = "capsule"        # 频谱样式：bar/mirror/capsule/flame/circle/wave/ring/pulse/helix/dna/dualwave
+spectrumStyle = "capsule"        # 频谱样式：bar / mirror / capsule / flame / circle / wave / ring / pulse / helix / dna / dualwave
 
-# 外观定制
+# 外观
 fontName = "PingFang SC"
 fontSize = 40.0
 textColor = "#FFFFFF"
@@ -289,14 +275,12 @@ backgroundColor = "#00000080"    # 支持透明度
 cornerRadius = 16.0
 ```
 
-#### 功能
+- **逐字高亮**：支持网易云音乐的 YRC 逐字歌词
+- **拖动定位**：拖动窗口即可移动，位置自动保存
+- **频谱样式**：共 11 种，从柱状到 DNA 螺旋
+- **外观定制**：字体、颜色、描边、阴影、圆角与透明度
 
-- **YRC 逐字高亮** - 支持网易云的逐字歌词格式
-- **拖拽定位** - 按住窗口可自由移动，位置自动保存
-- **11种频谱样式** - 从经典柱状到创意 DNA 螺旋
-- **完整视觉定制** - 字体、颜色、阴影、圆角、透明度
-
-详细配置选项参见 [changelog](./utils/filex/embed/changelog.md)。
+完整配置项参见[更新日志](./utils/filex/embed/changelog.md)。
 
 </details>
 <details>
@@ -305,14 +289,14 @@ cornerRadius = 16.0
 ### 启动动画
 </summary>
 
-- `deck`（默认）：磁带从景深处转入并落定，字标逐字浮现，下方细线随加载填满
-- `sequence`：原版的序列动画
-- 其他：`fade-in`、`rainbow-wave`、`typewriter`、`spinner`、`slide-in`、`glitch`、`matrix-rain`、`particle-burst`
-
 ```toml
 [startup]
 animation = "deck"
 ```
+
+- `deck`（默认）：磁带从景深处转入并静止，字标逐字显现，下方细线随加载进度延伸
+- `sequence`：go-musicfox 原版的序列动画
+- 其他：`fade-in`、`rainbow-wave`、`typewriter`、`spinner`、`slide-in`、`glitch`、`matrix-rain`、`particle-burst`
 
 </details>
 <details>
@@ -321,13 +305,13 @@ animation = "deck"
 ### 右键菜单
 </summary>
 
-完整的上下文菜单系统，右键点击不同元素可触发相应操作：
+右键单击不同元素时显示对应的操作菜单：
 
-- **菜单项右键** - 显示歌曲/专辑/歌单相关操作（喜欢、下载、收藏等）
-- **状态栏右键** - 快速切换主题、播放模式
-- **面包屑右键** - 菜单导航操作
+- **菜单项**：歌曲、专辑、歌单的相关操作（喜欢、下载、收藏等）
+- **状态栏**：切换主题与播放模式
+- **面包屑**：菜单导航
 
-可在配置中设置 `enableMouseEvent = true` 以启用完整鼠标支持。
+需启用鼠标支持（`enableMouseEvent = true`）。
 
 </details>
 <details>
@@ -336,18 +320,17 @@ animation = "deck"
 ### 配置升级
 </summary>
 
-`upgrade-config` 子命令用于同步新版本的配置项：
+`upgrade-config` 子命令将新版本新增的配置项同步到用户的配置文件：
 
 ```sh
 musicfox upgrade-config
 ```
 
-该命令会：
-- 将内嵌默认配置中用户文件缺失的叶子项追加到对应 table
-- 保留用户已有的值、注释、布局和未知键
-- 以原子操作写回，保持文件权限
+- 将内置默认配置中存在、用户配置中缺失的配置项追加到对应的表
+- 保留用户已有的值、注释、布局与未知键
+- 以原子替换方式写回，并保留原文件权限
 
-建议在升级到新版本后运行一次。
+建议在每次升级后执行一次。
 
 </details>
 <details>
@@ -358,158 +341,151 @@ musicfox upgrade-config
 
 #### 应用内快捷键
 
-##### 不可自定义操作 (内置)
+##### 内置操作（不可自定义）
 
-这些是程序核心框架提供的基础操作，其快捷键通常**无法**通过配置文件修改。
+以下操作由程序框架提供，快捷键不可通过配置文件修改。
 
-| 配置标识符        | 操作说明        | 默认按键                                      |
-| :---------------- | :-------------- | :-------------------------------------------- |
-| `rerender`        | 重新渲染UI      | `r`, `R`                                      |
-| `moveLeft`        | 左              | `h`, `H`, `Left`                              |
-| `moveRight`       | 右              | `l`, `L`, `Right`                             |
-| `moveUp`          | 上              | `k`, `K`, `Up`                                |
-| `moveDown`        | 下              | `j`, `J`, `Down`                              |
-| `moveToTop`       | 上移到顶部      | `g`                                           |
-| `moveToBottom`    | 下移到底部      | `G`                                           |
-| `enter`           | 进入            | `n`, `N`, `Enter`                             |
-| `goBack`          | 返回上一级      | `b`, `B`, `Esc`                               |
-| `search`          | 搜索当前列表    | `/`, `／`, `、`                             |
-| `quit`            | 退出            | `q`, `Q`                                      |
+| 配置标识符 | 操作 | 默认按键 |
+| :--- | :--- | :--- |
+| `rerender` | 重新渲染界面 | `r`, `R` |
+| `moveLeft` | 左移 | `h`, `H`, `Left` |
+| `moveRight` | 右移 | `l`, `L`, `Right` |
+| `moveUp` | 上移 | `k`, `K`, `Up` |
+| `moveDown` | 下移 | `j`, `J`, `Down` |
+| `moveToTop` | 移至顶部 | `g` |
+| `moveToBottom` | 移至底部 | `G` |
+| `enter` | 进入 | `n`, `N`, `Enter` |
+| `goBack` | 返回上一级 | `b`, `B`, `Esc` |
+| `search` | 搜索当前列表 | `/`, `／`, `、` |
+| `quit` | 退出 | `q`, `Q` |
 
 ##### 可自定义操作
 
-你可以在配置文件的 `[keybindings]` 部分修改这些操作的快捷键。
+以下操作的快捷键可在配置文件的 `[keybindings.app]` 表中修改。
 
-| 配置标识符                          | 操作说明                      | 默认按键                                        |
-| :---------------------------------- | :---------------------------- | :---------------------------------------------- |
-| `help`                              | 帮助信息                      | `?`, `？`                                     |
-| `pageUp`                            | 上一页                        | `Ctrl+u`, `PgUp`                                |
-| `pageDown`                          | 下一页                        | `Ctrl+d`, `PgDown`                              |
-| `playortoggle`                      | 播放/暂停                     | `Space`, ` `, `　`                           |
-| `toggle`                            | 切换播放状态                  | *(无)*                                          |
-| `previous`                          | 上一首                        | `[`, `【`                                     |
-| `next`                              | 下一首                        | `]`, `】`                                     |
-| `backwardOneSec`                    | 快退1秒                       | `x`                                             |
-| `backwardFiveSec`                   | 快退5秒                       | `X`                                             |
-| `forwardFiveSec`                    | 快进5秒                       | `v`                                             |
-| `forwardTenSec`                     | 快进10秒                      | `V`                                             |
-| `downVolume`                        | 减小音量                      | `-`, `−`, `ー`                                |
-| `upVolume`                          | 加大音量                      | `=`, `＝`                                     |
-| `switchPlayMode`                    | 切换播放模式                  | `p`                                             |
-| `intelligence`                      | 心动模式                      | `P`                                             |
-| `clearSongCache`                    | 清除音乐缓存                  | `u`, `U`                                        |
-| `logout`                            | 注销并退出                    | `w`, `W`                                        |
-| `curPlaylist`                       | 显示当前播放列表              | `c`, `C`                                        |
-| `appendSongsToNext`                 | 添加为下一曲播放              | `e`                                             |
-| `appendSongsAfterCurPlaylist`       | 添加到播放列表末尾            | `E`                                             |
-| `delSongFromCurPlaylist`            | 从播放列表删除选中歌曲        | `\`, `、`                                     |
-| `likePlayingSong`                   | 喜欢播放中歌曲                | `,`, `，`                                     |
-| `dislikePlayingSong`                | 取消喜欢播放中歌曲            | `.`, `。`                                     |
-| `trashPlayingSong`                  | 标记播放中歌曲为不喜欢        | `t`                                             |
-| `addPlayingSongToUserPlaylist`      | 将播放中歌曲加入歌单          | `` ` ``                                         |
-| `removePlayingSongFromUserPlaylist` | 将播放歌曲从歌单中删除        | `~`, `～`                                     |
-| `downloadPlayingSong`               | 下载播放中歌曲                | `d`                                             |
-| `downloadPlayingSongLrc`            | 下载当前播放音乐歌词          | `Ctrl+l`                                        |
-| `openAlbumOfPlayingSong`            | 播放中歌曲的所属专辑          | `a`                                             |
-| `openArtistOfPlayingSong`           | 播放中歌曲的所属歌手          | `s`                                             |
-| `openPlayingSongInWeb`              | 网页打开播放中歌曲            | `o`                                             |
-| `simiSongsOfPlayingSong`            | 与播放中歌曲相似的歌曲        | `f`                                             |
-| `likeSelectedSong`                  | 喜欢选中歌曲                  | `<`, `〈`, `＜`, `《`, `«`                 |
-| `dislikeSelectedSong`               | 取消喜欢选中歌曲              | `>`, `〉`, `＞`, `》`, `»`                 |
-| `trashSelectedSong`                 | 标记选中歌曲为不喜欢          | `T`                                             |
-| `addSelectedSongToUserPlaylist`     | 将选中歌曲加入歌单            | `Tab`                                           |
-| `removeSelectedSongFromUserPlaylist`  | 将选中歌曲从歌单中删除        | `Shift+Tab`                                     |
-| `downloadSelectedSong`              | 下载选中歌曲                  | `D`                                             |
-| `downloadSelectedSongLrc`           | 下载选中歌曲的歌词            |                                                 |
-| `openAlbumOfSelectedSong`           | 选中歌曲的所属专辑            | `A`                                             |
-| `openArtistOfSelectedSong`          | 选中歌曲的所属歌手            | `S`                                             |
-| `openSelectedItemInWeb`             | 网页打开选中歌曲/专辑...      | `O`                                             |
-| `collectSelectedPlaylist`           | 收藏选中歌单                  | `;`, `:`, `：`, `；`                        |
-| `discollectSelectedPlaylist`        | 取消收藏选中歌单              | `'`, `"`                                        |
-| `subscribeAlbumOfPlayingSong`       | 收藏播放中歌曲的专辑          | *(无)*                                          |
-| `unsubscribeAlbumOfPlayingSong`     | 取消收藏播放中歌曲的专辑      | *(无)*                                          |
-| `subscribeArtistOfPlayingSong`      | 收藏播放中歌曲的歌手          | *(无)*                                          |
-| `unsubscribeArtistOfPlayingSong`    | 取消收藏播放中歌曲的歌手      | *(无)*                                          |
-| `subscribeAlbumOfSelectedSong`      | 收藏选中歌曲的专辑            | *(无)*                                          |
-| `unsubscribeAlbumOfSelectedSong`    | 取消收藏选中歌曲的专辑        | *(无)*                                          |
-| `subscribeArtistOfSelectedSong`     | 收藏选中歌曲的歌手            | *(无)*                                          |
-| `unsubscribeArtistOfSelectedSong`   | 取消收藏选中歌曲的歌手        | *(无)*                                          |
-| `simiSongsOfSelectedSong`           | 与选中歌曲相似的歌曲          | `F`                                             |
-| `actionOfSelected`                  | 对于选中项或当前播放的操作    | `m`                                          |
-| `actionOfPlayingSong`               | 对于当前播放的操作            | `M`                                          |
-| `switchTheme`                       | 切换主题样式                  | *(无，可通过右键菜单触发)*                      |
-| `toggleSortOrder`                   | 切换排序顺序（电台/播客列表） | `|`                                          |
-| `nowPlaying`                        | 进入/退出播放页               | `i`                                             |
+| 配置标识符 | 操作 | 默认按键 |
+| :--- | :--- | :--- |
+| `help` | 显示帮助 | `?`, `？` |
+| `pageUp` | 上一页 | `Ctrl+u`, `PgUp` |
+| `pageDown` | 下一页 | `Ctrl+d`, `PgDown` |
+| `playortoggle` | 播放 / 暂停 | `Space`, ` `, `　` |
+| `toggle` | 切换播放状态 | *（无）* |
+| `previous` | 上一首 | `[`, `【` |
+| `next` | 下一首 | `]`, `】` |
+| `backwardOneSec` | 快退 1 秒 | `x` |
+| `backwardFiveSec` | 快退 5 秒 | `X` |
+| `forwardFiveSec` | 快进 5 秒 | `v` |
+| `forwardTenSec` | 快进 10 秒 | `V` |
+| `downVolume` | 减小音量 | `-`, `−`, `ー` |
+| `upVolume` | 增大音量 | `=`, `＝` |
+| `switchPlayMode` | 切换播放模式 | `p` |
+| `intelligence` | 心动模式 | `P` |
+| `clearSongCache` | 清除音乐缓存 | `u`, `U` |
+| `logout` | 注销并退出 | `w`, `W` |
+| `curPlaylist` | 显示当前播放列表 | `c`, `C` |
+| `appendSongsToNext` | 添加为下一首播放 | `e` |
+| `appendSongsAfterCurPlaylist` | 添加到播放列表末尾 | `E` |
+| `delSongFromCurPlaylist` | 从播放列表删除选中歌曲 | `\`, `、` |
+| `likePlayingSong` | 喜欢当前播放的歌曲 | `,`, `，` |
+| `dislikePlayingSong` | 取消喜欢当前播放的歌曲 | `.`, `。` |
+| `trashPlayingSong` | 将当前播放的歌曲标记为不喜欢 | `t` |
+| `addPlayingSongToUserPlaylist` | 将当前播放的歌曲加入歌单 | `` ` `` |
+| `removePlayingSongFromUserPlaylist` | 将当前播放的歌曲移出歌单 | `~`, `～` |
+| `downloadPlayingSong` | 下载当前播放的歌曲 | `d` |
+| `downloadPlayingSongLrc` | 下载当前播放歌曲的歌词 | `Ctrl+l` |
+| `openAlbumOfPlayingSong` | 打开当前播放歌曲的专辑 | `a` |
+| `openArtistOfPlayingSong` | 打开当前播放歌曲的歌手 | `s` |
+| `openPlayingSongInWeb` | 在网页中打开当前播放的歌曲 | `o` |
+| `simiSongsOfPlayingSong` | 与当前播放歌曲相似的歌曲 | `f` |
+| `likeSelectedSong` | 喜欢选中歌曲 | `<`, `〈`, `＜`, `《`, `«` |
+| `dislikeSelectedSong` | 取消喜欢选中歌曲 | `>`, `〉`, `＞`, `》`, `»` |
+| `trashSelectedSong` | 将选中歌曲标记为不喜欢 | `T` |
+| `addSelectedSongToUserPlaylist` | 将选中歌曲加入歌单 | `Tab` |
+| `removeSelectedSongFromUserPlaylist` | 将选中歌曲移出歌单 | `Shift+Tab` |
+| `downloadSelectedSong` | 下载选中歌曲 | `D` |
+| `downloadSelectedSongLrc` | 下载选中歌曲的歌词 | *（无）* |
+| `openAlbumOfSelectedSong` | 打开选中歌曲的专辑 | `A` |
+| `openArtistOfSelectedSong` | 打开选中歌曲的歌手 | `S` |
+| `openSelectedItemInWeb` | 在网页中打开选中的歌曲、专辑等 | `O` |
+| `collectSelectedPlaylist` | 收藏选中歌单 | `;`, `:`, `：`, `；` |
+| `discollectSelectedPlaylist` | 取消收藏选中歌单 | `'`, `"` |
+| `subscribeAlbumOfPlayingSong` | 收藏当前播放歌曲的专辑 | *（无）* |
+| `unsubscribeAlbumOfPlayingSong` | 取消收藏当前播放歌曲的专辑 | *（无）* |
+| `subscribeArtistOfPlayingSong` | 收藏当前播放歌曲的歌手 | *（无）* |
+| `unsubscribeArtistOfPlayingSong` | 取消收藏当前播放歌曲的歌手 | *（无）* |
+| `subscribeAlbumOfSelectedSong` | 收藏选中歌曲的专辑 | *（无）* |
+| `unsubscribeAlbumOfSelectedSong` | 取消收藏选中歌曲的专辑 | *（无）* |
+| `subscribeArtistOfSelectedSong` | 收藏选中歌曲的歌手 | *（无）* |
+| `unsubscribeArtistOfSelectedSong` | 取消收藏选中歌曲的歌手 | *（无）* |
+| `simiSongsOfSelectedSong` | 与选中歌曲相似的歌曲 | `F` |
+| `actionOfSelected` | 选中项或当前播放歌曲的操作菜单 | `m` |
+| `actionOfPlayingSong` | 当前播放歌曲的操作菜单 | `M` |
+| `switchTheme` | 切换主题 | *（无，可通过右键菜单触发）* |
+| `toggleSortOrder` | 切换排序（电台 / 播客列表） | `\|` |
+| `nowPlaying` | 进入 / 退出播放页 | `i` |
 
-注意：
-- 非字符快捷键大小写不敏感，如 `shift+tab` 等同 `Shift+Tab`，但 `a` 与 `A` 不同
-- 多次绑定同一个键的行为是未定义的，以程序最后读取的为准
-- [不可自定义操作](#不可自定义操作-内置) 不可自定义且其使用的键也不可用于自定义
-- 与歌曲、歌单等存在关联的操作现已默认添加至 `actionOfSelected` 及 `actionOfPlayingSong`
+说明：
 
+- 非字符按键不区分大小写，如 `shift+tab` 等同于 `Shift+Tab`；字符按键区分大小写，`a` 与 `A` 不同。
+- 同一按键绑定多个操作时，行为未定义，以最后读取的绑定为准。
+- 内置操作的快捷键不可修改，其占用的按键也不能用于自定义绑定。
+- 与歌曲、歌单等相关的操作也可通过 `actionOfSelected` 与 `actionOfPlayingSong` 菜单执行。
 
-示例配置：
+示例：
+
 ```toml
 [keybindings]
-# 取消所有默认键绑定（须自定义键以确保正常使用）
+# 取消全部默认绑定（需自行为各操作绑定按键）
 useDefaultKeyBindings = false
 
-# 应用内快捷键
 [keybindings.app]
-# 将“下一首”改为 Alt+N
+# 将「下一首」改为 Alt+N
 next = "alt+n"
-
-# 为“帮助”额外添加 Ctrl+H
-help = ["?","ctrl+h"]
-
-# 取消“心动模式”的默认 P 键
+# 为「显示帮助」额外绑定 Ctrl+H
+help = ["?", "ctrl+h"]
+# 取消「心动模式」的默认按键 P
 intelligence = ""
-
-# 将“显示当前播放列表”改为 Ctrl+P
+# 将「显示当前播放列表」改为 Ctrl+P
 curPlaylist = "ctrl+p"
 ```
 
 #### 全局快捷键
 
-默认不设置任何全局快捷键，如果需要请在配置文件中的`global_hotkey`下进行配置，例如：
+默认不设置全局快捷键，可在 `[keybindings.global]` 中配置：
 
 ```toml
 [keybindings.global]
-# 格式：键=功能
+# 格式：按键 = 操作
 "ctrl+shift+space" = "toggle"
 ```
 
-> 因为Linux下开启全局快捷键需要安装比较多的依赖，可能你并不需要这个功能，所以Releases中的Linux二进制文件是不支持全局快捷键的
->
-> 如果需要开启，请安装[依赖](https://github.com/go-vgo/robotgo#requirements)后手动进行编译:
->
-> ```shell
-> BUILD_TAGS=enable_global_hotkey make build
-> ```
+发布版本已启用全局快捷键：
+
+- **Linux**：通过 X11 的 RECORD 扩展监听按键，需要 X11 会话，Wayland 会话中通常不可用。
+- **macOS**：需在「系统设置 → 隐私与安全性 → 辅助功能」中为所用终端授权。
+- **Windows**：无需额外设置。
 
 </details>
 <details>
 <summary>
 
-
 ### 鼠标支持
 </summary>
 
-完整的鼠标交互支持：
+支持以下鼠标操作：
 
-- **点击** - 选择菜单项、点击按钮
-- **双击** - 快速进入子菜单或播放
-- **滚轮** - 上下滚动列表
-- **悬停** - 高亮显示可交互元素
-- **右键菜单** - 上下文相关的操作菜单
+- **单击**：选择菜单项、点击按钮
+- **双击**：进入子菜单或开始播放
+- **滚轮**：滚动列表
+- **悬停**：高亮可交互的元素
+- **右键**：显示上下文菜单
 
-**配置**：
 ```toml
 [main]
 enableMouseEvent = true  # 启用鼠标支持
 ```
 
-详见 [鼠标支持说明](./docs/mouse_support.md)
+详见[鼠标支持说明](./docs/mouse_support.md)。
 
 </details>
 <details>
@@ -518,36 +494,35 @@ enableMouseEvent = true  # 启用鼠标支持
 ### 自定义分享模板
 </summary>
 
-分享文本的内容是完全可定制的，它由一套模板系统驱动（使用 [text/template](https://pkg.go.dev/text/template) ，支持条件判断等高级用法）。
+分享文本由模板生成，模板语法为 Go 的 [text/template](https://pkg.go.dev/text/template)，支持条件判断等写法。
 
-#### 字段分组详解
+#### 字段
 
-| 字段分组   | 包含字段                                                                                                   |
-| :--------- | :--------------------------------------------------------------------------------------------------------- |
-| `Song`     | `SongId`: 歌曲ID <br> `SongName`: 歌曲名称 <br> `SongArtists`: 歌曲的艺术家名 <br> `SongUrl`: 歌曲链接     |
-| `Album`    | `AlbumId`: 专辑ID <br> `AlbumName`: 专辑名称 <br> `AlbumUrl`: 专辑链接 <br> `AlbumArtists`: 专辑的艺术家名 |
-| `Artist`   | `ArtistId`: 歌手ID <br> `ArtistName`: 歌手姓名 <br> `ArtistUrl`: 歌手链接                                  |
-| `Playlist` | `PlaylistId`: 歌单ID <br> `PlaylistName`: 歌单名称 <br> `PlaylistUrl`: 歌单链接                            |
-| `User`     | `UserID`: 用户ID <br> `UserName`: 用户昵称 <br> `UserUrl`: 用户链接                                        |
-| `DjRadio`  | `DjRadioId`: 播客电台ID <br> `DjRadioName`: 播客电台名称 <br> `DjRadioUrl`: 播客电台链接                   |
-| `Episode`  | `EpisodeId`: 播客节目ID <br> `EpisodeName`: 播客节目名称 <br> `EpisodeUrl`: 播客节目链接                   |
+| 字段组 | 字段 |
+| :--- | :--- |
+| `Song` | `SongId`：歌曲 ID <br> `SongName`：歌曲名称 <br> `SongArtists`：歌曲的歌手 <br> `SongUrl`：歌曲链接 |
+| `Album` | `AlbumId`：专辑 ID <br> `AlbumName`：专辑名称 <br> `AlbumUrl`：专辑链接 <br> `AlbumArtists`：专辑的歌手 |
+| `Artist` | `ArtistId`：歌手 ID <br> `ArtistName`：歌手名称 <br> `ArtistUrl`：歌手链接 |
+| `Playlist` | `PlaylistId`：歌单 ID <br> `PlaylistName`：歌单名称 <br> `PlaylistUrl`：歌单链接 |
+| `User` | `UserID`：用户 ID <br> `UserName`：用户昵称 <br> `UserUrl`：用户链接 |
+| `DjRadio` | `DjRadioId`：播客电台 ID <br> `DjRadioName`：播客电台名称 <br> `DjRadioUrl`：播客电台链接 |
+| `Episode` | `EpisodeId`：播客节目 ID <br> `EpisodeName`：播客节目名称 <br> `EpisodeUrl`：播客节目链接 |
 
-**注意：**
-*   对于 `episode`（播客节目）类型，由于其本质也是一首“歌曲”，因此它同时拥有 `Episode`、`Song` 和 `Album` 的所有字段。其中 `EpisodeName` 和 `SongName` 的值是相同的。
+播客节目（`episode`）同时具有 `Episode`、`Song` 与 `Album` 的全部字段，其中 `EpisodeName` 与 `SongName` 的值相同。
 
-#### 模板类型与可用字段
-不同类型的分享项目，其可用的信息字段也不同。例如，分享一首“歌曲”时，您可以同时获取到“歌曲信息”和它所属的“专辑信息”；而分享一个“歌手”时，则只有“歌手信息”。
-不支持自定义模板名
+#### 模板
 
-| 模板名称   | 说明                       | 可用字段分组                                  |
-| :--------- | :------------------------- | :-------------------------------------------- |
-| `song`     | 用于分享一首单曲。         | `Song`, `Album`                               |
-| `album`    | 用于分享一张专辑。         | `Album`                                       |
-| `artist`   | 用于分享一位歌手。         | `Artist`                                      |
-| `playlist` | 用于分享一个歌单。         | `Playlist`, `User`                            |
-| `user`     | 用于分享一位用户。         | `User`                                        |
-| `djRadio`  | 用于分享一个播客电台。     | `DjRadio`, `User`                             |
-| `episode`  | 用于分享播客中的一期节目。 | `Episode`, `DjRadio`, `User`, `Song`, `Album` |
+不同类型的分享内容可用的字段不同。模板名称固定，不支持自定义。
+
+| 模板 | 用途 | 可用字段组 |
+| :--- | :--- | :--- |
+| `song` | 分享单曲 | `Song`, `Album` |
+| `album` | 分享专辑 | `Album` |
+| `artist` | 分享歌手 | `Artist` |
+| `playlist` | 分享歌单 | `Playlist`, `User` |
+| `user` | 分享用户 | `User` |
+| `djRadio` | 分享播客电台 | `DjRadio`, `User` |
+| `episode` | 分享播客节目 | `Episode`, `DjRadio`, `User`, `Song`, `Album` |
 
 #### 示例
 
@@ -560,40 +535,37 @@ song = "分享{{if .SongArtists}}{{.SongArtists}}的{{end}}单曲《{{.SongName}
 
 ## 配置文件
 
-配置文件路径为用户配置目录下的 `config.toml` 文件，详细可参见[配置示例](./utils/filex/embed/config.toml)。
+配置文件为用户配置目录下的 `config.toml`，全部配置项参见[默认配置](./utils/filex/embed/config.toml)。
 
-> 用户配置目录路径：
->
-> macOS：`$HOME/Library/Application Support/go-musicfox`
->
-> Linux：`$XDG_CONFIG_HOME/go-musicfox` 或 `$HOME/.config/go-musicfox`
->
-> Windows：`%AppData%\go-musicfox`
->
-> 你可以通过设置 `MUSICFOX_ROOT` 环境变量来自定义用户配置的存储位置
+| 系统 | 用户配置目录 |
+|---|---|
+| macOS | `$HOME/Library/Application Support/go-musicfox` |
+| Linux | `$XDG_CONFIG_HOME/go-musicfox` 或 `$HOME/.config/go-musicfox` |
+| Windows | `%AppData%\go-musicfox` |
 
-## CHANGELOG
+可通过环境变量 `MUSICFOX_ROOT` 指定其他目录。
 
-See [CHANGELOG.md](./CHANGELOG.md)
+## 更新日志
+
+参见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## 相关项目
 
-1. [go-musicfox/bubbletea](https://github.com/go-musicfox/bubbletea)：基于 [bubbletea](https://github.com/charmbracelet/bubbletea) 进行部分定制
-2. [go-musicfox/netease-music](https://github.com/go-musicfox/netease-music)：fork 自 [NeteaseCloudMusicApiWithGo](https://github.com/sirodeneko/NeteaseCloudMusicApiWithGo) ，在原项目的基础上去除 API 功能，只保留 service 和 util 作为一个独立的包，方便在其他 Go 项目中调用
+- [go-musicfox/bubbletea](https://github.com/go-musicfox/bubbletea)：基于 [bubbletea](https://github.com/charmbracelet/bubbletea) 的定制版本
+- [go-musicfox/netease-music](https://github.com/go-musicfox/netease-music)：基于 [NeteaseCloudMusicApiWithGo](https://github.com/sirodeneko/NeteaseCloudMusicApiWithGo) 修改，移除 API 服务，仅保留 service 与 util，作为独立的 Go 包使用
 
 ## 致谢
 
-musicfox-deck 建立在以下项目之上：
+musicfox-deck 基于以下项目：
 
-* [go-musicfox](https://github.com/go-musicfox/go-musicfox)（GPL-3.0）：本项目 fork 自它，并会持续合并上游的更新。感谢 anhoder 和所有贡献者。
-* [foxful-cli](https://github.com/anhoder/foxful-cli)：go-musicfox 的 TUI 框架。本项目把它收进 `third_party/foxful-cli` 维护，来源与基线版本见其中的 `UPSTREAM.md`；它的上游仓库目前没有附带许可证文件。
+- [go-musicfox](https://github.com/go-musicfox/go-musicfox)（GPL-3.0）：本项目的上游，持续合并其更新。感谢 anhoder 与全体贡献者。
+- [foxful-cli](https://github.com/anhoder/foxful-cli)：go-musicfox 的 TUI 框架。本项目在 `third_party/foxful-cli` 中维护其修改版本，来源与基线版本记录于其中的 `UPSTREAM.md`；该仓库目前未附带许可证文件。
 
-以及原版致谢的项目及其贡献者们（但不限于）：
+以及 go-musicfox 致谢的项目及其贡献者（包括但不限于）：
 
-* [bubbletea](https://github.com/charmbracelet/bubbletea)
-* [beep](https://github.com/faiface/beep)
-* [musicbox](https://github.com/darknessomi/musicbox)
-* [NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi)
-* [NeteaseCloudMusicApiWithGo](https://github.com/sirodeneko/NeteaseCloudMusicApiWithGo)
-* [gcli](https://github.com/gookit/gcli)
-* ...
+- [bubbletea](https://github.com/charmbracelet/bubbletea)
+- [beep](https://github.com/faiface/beep)
+- [musicbox](https://github.com/darknessomi/musicbox)
+- [NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi)
+- [NeteaseCloudMusicApiWithGo](https://github.com/sirodeneko/NeteaseCloudMusicApiWithGo)
+- [gcli](https://github.com/gookit/gcli)

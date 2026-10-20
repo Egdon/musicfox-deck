@@ -281,9 +281,9 @@ foxful-cli 是本项目的核心 UI 框架，源码在 `third_party/foxful-cli/`
 
 发布步骤：
 
-1. 在 `CHANGELOG.md` 顶部写好本版一节（版本号、`=` 下划线、`YYYY-MM-DD` 日期，再是条目；与 go-musicfox 的记录之间以 `---` 隔开），同步程序内弹窗用的 `utils/filex/embed/changelog.md`。
+1. 在 `CHANGELOG.md` 顶部写好本版一节：版本号、`=` 下划线、`YYYY-MM-DD` 日期，然后是中文条目，`<!-- en -->` 一行之后是对应的英文条目；与 go-musicfox 的记录之间以 `---` 隔开。同步程序内弹窗用的 `utils/filex/embed/changelog.md`（仅中文）。
 2. 打 tag `vX.Y.Z` 并推送，`.github/workflows/release.yaml` 依次：
-   - `draft`：以 `hack/release_notes.sh`（截取 CHANGELOG 一节，附下载表）创建草稿 Release；
+   - `draft`：以 `hack/release_notes.sh` 生成的说明创建草稿 Release（CHANGELOG 中文部分与中文下载表在前，英文部分与英文下载表在后）；
    - `linux-windows`：在 Ubuntu 22.04 容器里运行 `hack/release_container.sh`（Go、GoReleaser、llvm-mingw 都固定版本并校验 SHA-256），按 `.goreleaser.yaml` 编 Linux amd64/arm64 与 Windows amd64/arm64，打 tar.gz、zip、deb、rpm、Arch 包；`macos`：在 macOS runner 上按 `.goreleaser.darwin.yaml` 编两个架构的命令行版与 .app 版。两者都上传到同一个草稿（`use_existing_draft`）；
    - `try-*`：在 Ubuntu 22.04/24.04、Debian 12（另有 arm64，经 QEMU）、Fedora、openSUSE Tumbleweed、Arch 的容器里安装包并运行 `musicfox --version`；在 macOS 上运行两个架构的二进制与 .app 版，并用生成的 formula 安装测试；在 Windows 上运行 x64 版；
    - `checksums`：全部通过后上传 `SHA256SUMS`。
@@ -349,7 +349,8 @@ endif
 - 更改 API 接口或配置格式
 - 添加新的播放器引擎、菜单类型、渲染模式
 - 修改关键路径或重要流程
-- **快捷键变更**：新增、删除或修改快捷键后，必须同步更新 README 中的快捷键说明部分（help 菜单是动态从 keybindings 配置生成的，无需手动修改）
+- **快捷键变更**：新增、删除或修改快捷键后，必须同步更新 README.md 与 README.en.md 中的快捷键说明部分（help 菜单是动态从 keybindings 配置生成的，无需手动修改）
+- **README 双语**：README.md（简体中文，主版本）与 README.en.md（英文）逐节对应，修改其一时必须同步另一份。文档使用书面说明文的写法，避免口语化表述
 
 #### 更新检查清单
 - [ ] 目录结构是否准确反映当前项目结构
