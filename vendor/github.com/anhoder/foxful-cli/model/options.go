@@ -99,6 +99,12 @@ type StartupOptions struct {
 	// ReducedMotion renders a static, readable final frame. It is useful for
 	// accessibility, automated environments, and slow remote terminals.
 	ReducedMotion bool
+
+	// View, when set, draws the startup page in place of Animation. It gets
+	// how long the page has shown and how long loading takes, and returns h
+	// lines of w cells with their own background. It runs every frame; to
+	// animate it asks for frames with App.Animate.
+	View func(a *App, w, h int, elapsed, total time.Duration) string
 }
 
 // NotificationOptions configures the global notification system behavior.

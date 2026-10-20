@@ -15,6 +15,12 @@ import (
 type MotionOptions struct {
 	Level         motion.Level  // Full unless set
 	FrameInterval time.Duration // 16 ms when zero
+
+	// GlideSteps returns how many steps of a row the selection marker of a
+	// tracklist can glide by: 4 where the terminal draws octants, 3 with
+	// sextants, 2 with quadrants. Nil, or under 2, keeps the marker still
+	// while the selection band fades across.
+	GlideSteps func() int
 }
 
 // appMotion is the App's animation state.

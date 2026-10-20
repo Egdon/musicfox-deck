@@ -104,6 +104,9 @@ func (s *StartupPage) View(a *App) string {
 	if windowWidth <= 0 || windowHeight <= 0 {
 		return ""
 	}
+	if view := s.options.View; view != nil { // it paints its own background
+		return view(a, windowWidth, windowHeight, max(a.FrameTime().Sub(s.startedAt), 0), s.options.LoadingDuration)
+	}
 	var content string
 	if special, ok := s.startupSpecialView(a); ok {
 		content = special

@@ -225,7 +225,7 @@ func (m *Main) tracklistView(lines int) []string {
 	for i := range min(lines, len(menus)) {
 		rows = append(rows, m.trackRow(start+i, cols))
 	}
-	return rows
+	return m.glideRows(rows, cols, start)
 }
 
 // tracklistBounds is the clickable span of a tracklist row: all of it.

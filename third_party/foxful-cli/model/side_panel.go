@@ -193,7 +193,7 @@ func (m *Main) panelView(a *App, w, h int, g panelGeometry) string {
 	} else if m.options.WhetherDisplayTitle {
 		lines = append(lines, m.TitleView(a))
 	}
-	left := layout.JoinVertical(lipgloss.Left, m.menuSections(a)...)
+	left := layout.JoinVertical(lipgloss.Left, m.animateMenu(a, m.menuSections(a))...)
 	lines = append(lines, strings.Split(left, "\n")...)
 	if g.docked {
 		lines = fitRows(lines, g.y)

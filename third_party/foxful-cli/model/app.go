@@ -37,6 +37,9 @@ type App struct {
 
 	page       Page    // current page
 	modalStack []Modal // stack of active modals (popups, context menus); topmost is last
+	overlay    overlayMotion
+
+	snapshotting bool // a page renders off-screen for another
 
 	notifications      []*Notification // active notifications (newest at end)
 	nextNotificationID NotificationID
@@ -276,6 +279,9 @@ func (a *App) Update(msg tea.Msg) (model tea.Model, returnCmd tea.Cmd) {
 		a.removeNotification(msgWithType.id)
 		return a, a.RerenderCmd(true)
 	case clearAllNotificationsMsg:
+		for _, n := range a.notifications {
+			a.toastGone(n.id)
+		}
 		a.notifications = nil
 		return a, a.RerenderCmd(true)
 	}
@@ -483,12 +489,12 @@ func (a *App) View() tea.View {
 	baseContent := a.pageLayer()
 
 	// Composite modals on top of the page content (if any).
-	if len(a.modalStack) > 0 {
+	if len(a.modalStack) > 0 || a.hasGhosts(false) {
 		baseContent = a.compositeModals(baseContent)
 	}
 
 	// Composite notifications on top of everything (page + modals).
-	if len(a.notifications) > 0 {
+	if len(a.notifications) > 0 || a.hasGhosts(true) {
 		baseContent = a.compositeNotifications(baseContent)
 	}
 
@@ -716,6 +722,7 @@ func (a *App) pushModal(m Modal) {
 		return
 	}
 	a.modalStack = append(a.modalStack, m)
+	a.modalShown(m)
 }
 
 // ShowPopup pushes a validated popup onto the modal stack.
@@ -732,7 +739,9 @@ func (a *App) ShowPopup(p *Popup) {
 // Does nothing if the stack is empty.
 func (a *App) DismissPopup() {
 	if len(a.modalStack) > 0 {
+		top := a.modalStack[len(a.modalStack)-1]
 		a.modalStack = a.modalStack[:len(a.modalStack)-1]
+		a.modalGone(top)
 	}
 }
 
@@ -745,6 +754,7 @@ func (a *App) completeTopModal() (Page, tea.Cmd) {
 	topIndex := len(a.modalStack) - 1
 	top := a.modalStack[topIndex]
 	a.modalStack = a.modalStack[:topIndex]
+	a.modalGone(top)
 	return top.complete(a)
 }
 
@@ -779,8 +789,9 @@ func (a *App) TopModalBounds() (x, y, w, h int, ok bool) {
 func (a *App) compositeModals(baseContent string) string {
 	w, h := a.WindowWidth(), a.WindowHeight()
 	ss := style.CurrentStyleSet()
+	now := a.FrameTime()
 
-	layers := []*layout.Layer{layout.NewLayer(baseContent)}
+	layers := a.ghostLayers(false, now)
 	for _, modal := range a.modalStack {
 		// Type-switch to render Popup vs ContextMenu
 		switch m := modal.(type) {
@@ -791,17 +802,17 @@ func (a *App) compositeModals(baseContent string) string {
 			x, y := m.computePosition(w, h, popupW, popupH)
 			m.setBounds(x, y, popupW, popupH, rendered.actionBounds)
 			m.SetTermSize(w, h)
-			layers = append(layers, layout.NewLayer(rendered.content).X(x).Y(y))
+			layers = append(layers, a.modalLayer(m, rendered.content, x, y, now))
 		case *ContextMenu:
 			rendered := m.renderModal(ss, w, h)
 			menuH := lipgloss.Height(rendered.content)
 			menuW := layout.Width(rendered.content)
 			x, y := m.computePosition(w, h, menuW, menuH)
 			m.setModalBounds(x, y, menuW, menuH, rendered.itemBounds)
-			layers = append(layers, layout.NewLayer(rendered.content).X(x).Y(y))
+			layers = append(layers, a.modalLayer(m, rendered.content, x, y, now))
 		}
 	}
-	return layout.NewCompositor(layers...).Render()
+	return composeOverlays(baseContent, layers)
 }
 
 // ---- Notification API ----
@@ -872,6 +883,7 @@ func (a *App) handleShowNotification(spec NotificationSpec) tea.Cmd {
 		hoveredAction: -1,
 	}
 	a.notifications = append(a.notifications, notif)
+	a.Animate(toastIn[a.overlayLevel()])
 
 	cmds := []tea.Cmd{a.RerenderCmd(true)}
 
@@ -901,6 +913,7 @@ func (a *App) handleShowNotification(spec NotificationSpec) tea.Cmd {
 func (a *App) removeNotification(id NotificationID) {
 	for i, n := range a.notifications {
 		if n.id == id {
+			a.toastGone(id)
 			a.notifications = append(a.notifications[:i], a.notifications[i+1:]...)
 			return
 		}
@@ -972,7 +985,8 @@ func (a *App) compositeNotifications(baseContent string) string {
 	maxTotalHeight := h / 2
 	gap := opts.Gap
 
-	layers := []*layout.Layer{layout.NewLayer(baseContent)}
+	now := a.FrameTime()
+	layers := a.ghostLayers(true, now)
 	currentHeight := 0
 	for _, n := range a.notifications {
 		n.clearBounds()
@@ -996,11 +1010,11 @@ func (a *App) compositeNotifications(baseContent string) string {
 		x, y := a.computeNotificationPosition(opts.Anchor, w, h, notifW, notifH, currentHeight, gap)
 		n.setBounds(x, y, notifW, notifH, rendered.actionBounds, rendered.actionArea)
 
-		layers = append(layers, layout.NewLayer(rendered.content).X(x).Y(y))
+		layers = append(layers, a.toastLayer(n, rendered.content, x, y, now))
 		currentHeight += notifH
 	}
 
-	return layout.NewCompositor(layers...).Render()
+	return composeOverlays(baseContent, layers)
 }
 
 type notificationRender struct {

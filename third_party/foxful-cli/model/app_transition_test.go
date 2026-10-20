@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -68,5 +69,44 @@ func TestPageTransitionHandledOrOff(t *testing.T) {
 	off.page = &framePage{text: "TO"}
 	if got := ansi.Strip(off.View().Content); !strings.Contains(got, "TO") {
 		t.Fatalf("with motion off the switch is instant: %q", got)
+	}
+}
+
+// After the startup page the first page comes in row by row: the top rows
+// settle while the lower ones still slide in.
+func TestStartupHandoffStaggersRows(t *testing.T) {
+	a := newTransitionApp(motion.Full)
+	a.windowWidth, a.windowHeight = 16, 21
+	a.transition = pageTransition{active: true, rows: true, from: "startup"}
+	rows := make([]string, a.windowHeight)
+	for i := range rows {
+		rows[i] = fmt.Sprintf("row%-13d", i)
+	}
+	frame := strings.Join(rows, "\n")
+	bg, fg := a.SurfaceColors()
+	if got := ansi.Strip(a.rowsIn(frame, handoffOut/2, bg, fg)); got != "startup" {
+		t.Fatalf("first the startup frame fades out: %q", got)
+	}
+	mid := strings.Split(ansi.Strip(a.rowsIn(frame, handoffOut+handoffSpread, bg, fg)), "\n")
+	if !strings.HasPrefix(mid[0], "row0") || !strings.HasPrefix(mid[20], strings.Repeat(" ", handoffShift)+"row20") {
+		t.Fatalf("the top row is in place while the last still slides: %q / %q", mid[0], mid[20])
+	}
+	end := a.rowsIn(frame, handoffOut+handoffSpread+handoffIn, bg, fg)
+	if ansi.Strip(end) != frame {
+		t.Fatal("after the entrance the page shows as it is")
+	}
+}
+
+func TestStartupViewHook(t *testing.T) {
+	a := newTransitionApp(motion.Full)
+	a.windowWidth, a.windowHeight = 10, 2
+	var got time.Duration
+	s := NewStartup(&StartupOptions{LoadingDuration: time.Second, View: func(_ *App, w, h int, elapsed, total time.Duration) string {
+		got = total
+		return strings.Repeat("x", w) + "\n" + strings.Repeat("y", w)
+	}}, nil)
+	s.startedAt = time.Now()
+	if v := ansi.Strip(s.View(a)); !strings.Contains(v, "xxxxxxxxxx") || got != time.Second {
+		t.Fatalf("the hook draws the startup page: %q", v)
 	}
 }

@@ -108,6 +108,8 @@ type Main struct {
 	panelPointer string
 	// Lines fitted for the panel layout in this and the last frame.
 	fitCur, fitPrev map[fitKey]string
+	menuTr          menuTransition
+	glide           selectionGlide
 
 	// hoverPointerActive tracks whether the mouse is currently over a clickable
 	// element. When true, the terminal mouse pointer is set to "pointer" (hand
@@ -553,7 +555,7 @@ func (m *Main) View(a *App) string {
 	}
 
 	// ── 3. Menu sections ──
-	sections = append(sections, m.menuSections(a)...)
+	sections = append(sections, m.animateMenu(a, m.menuSections(a))...)
 
 	// ── 3. Components (natural flow) ──
 	for _, component := range m.components {
