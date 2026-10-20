@@ -14,16 +14,24 @@ import (
 
 // SidePanelLayout is how a side panel wants to be laid out in a window.
 type SidePanelLayout struct {
-	// Width is the number of columns the panel takes at the right edge;
-	// zero or less hides it and Main lays out as usual.
+	// Width is the number of columns the panel takes at the right edge,
+	// next to the menu.
 	Width int
+	// Height, when Width is zero, is the number of rows the panel takes
+	// under the menu, across the full width: a dock for narrow windows.
+	// With neither, the panel is hidden and Main lays out as usual.
+	Height int
 	// FooterRows is the number of rows at the bottom where the components
 	// render across the full width, below the menu and the panel.
 	FooterRows int
 }
 
-// SidePanel draws a column at the right of Main, next to the menu. While it
-// shows, the menu starts near the top and the components form a footer.
+func (l SidePanelLayout) shown() bool  { return l.Width > 0 || l.Height > 0 }
+func (l SidePanelLayout) docked() bool { return l.Width <= 0 && l.Height > 0 }
+
+// SidePanel draws a column at the right of Main, next to the menu, or a dock
+// under it. While it shows, the menu starts near the top and the components
+// form a footer.
 type SidePanel interface {
 	// Layout is asked every frame; it must be cheap.
 	Layout(a *App, w, h int) SidePanelLayout
@@ -54,6 +62,7 @@ type SidePanelMouseResult struct {
 type panelGeometry struct {
 	x, y, w, h int
 	footerRows int
+	docked     bool // under the menu rather than beside it
 }
 
 func (m *Main) sidePanelLayout(w, h int) SidePanelLayout {
@@ -62,16 +71,22 @@ func (m *Main) sidePanelLayout(w, h int) SidePanelLayout {
 		return SidePanelLayout{}
 	}
 	l := m.options.SidePanel.Layout(m.app, w, h)
-	if l.Width <= 0 || l.Width >= w {
-		return SidePanelLayout{}
-	}
 	l.FooterRows = max(l.FooterRows, 0)
-	return l
+	switch {
+	case l.Width > 0 && l.Width < w:
+		l.Height = 0
+		return l
+	case l.docked() && l.Height+l.FooterRows < h:
+		l.Width = 0
+		return l
+	}
+	return SidePanelLayout{}
 }
 
-// PanelVisible reports whether the side panel shows.
+// PanelVisible reports whether the side panel shows, beside the menu or
+// under it.
 func (m *Main) PanelVisible() bool {
-	return m.sidePanelLayout(m.app.WindowWidth(), m.app.WindowHeight()).Width > 0
+	return m.sidePanelLayout(m.app.WindowWidth(), m.app.WindowHeight()).shown()
 }
 
 // PanelRect returns the cells the side panel occupies.
@@ -82,13 +97,17 @@ func (m *Main) PanelRect() (x, y, w, h int, ok bool) {
 
 func (m *Main) panelGeometry(w, h int) (panelGeometry, bool) {
 	l := m.sidePanelLayout(w, h)
-	if l.Width <= 0 {
+	if !l.shown() {
 		return panelGeometry{}, false
 	}
 	top := m.topBarRows() + m.leftLeadRows()
 	bottom := l.FooterRows
 	if m.statusBar != nil && m.options.StatusBarPosition == StatusBarBottom {
 		bottom++
+	}
+	if l.docked() {
+		g := panelGeometry{x: 0, y: h - bottom - l.Height, w: w, h: l.Height, footerRows: l.FooterRows, docked: true}
+		return g, g.y > top
 	}
 	g := panelGeometry{x: w - l.Width, y: top, w: l.Width, h: h - top - bottom, footerRows: l.FooterRows}
 	return g, g.h > 0
@@ -176,8 +195,17 @@ func (m *Main) panelView(a *App, w, h int, g panelGeometry) string {
 	}
 	left := layout.JoinVertical(lipgloss.Left, m.menuSections(a)...)
 	lines = append(lines, strings.Split(left, "\n")...)
-	lines = fitRows(lines, g.y+g.h)
-	lines = m.joinPanel(lines, m.options.SidePanel.View(a, m, g.w, g.h), g, bgSGR)
+	if g.docked {
+		lines = fitRows(lines, g.y)
+		dock := fitRows(strings.Split(m.options.SidePanel.View(a, m, g.w, g.h), "\n"), g.h)
+		for _, line := range dock {
+			lines = append(lines, m.fitCached(line, g.w, bgSGR))
+		}
+		m.fitPrev, m.fitCur = m.fitCur, map[fitKey]string{}
+	} else {
+		lines = fitRows(lines, g.y+g.h)
+		lines = m.joinPanel(lines, m.options.SidePanel.View(a, m, g.w, g.h), g, bgSGR)
+	}
 
 	var footer []string
 	for _, c := range m.components {

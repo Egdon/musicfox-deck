@@ -12,6 +12,7 @@ import (
 
 type testPanel struct {
 	minWidth int
+	dock     int // rows of the dock below minWidth; 0 hides the panel there
 	lastX    int
 	lastY    int
 	left     bool
@@ -19,7 +20,7 @@ type testPanel struct {
 
 func (p *testPanel) Layout(_ *App, w, _ int) SidePanelLayout {
 	if w < p.minWidth {
-		return SidePanelLayout{}
+		return SidePanelLayout{Height: p.dock, FooterRows: 2}
 	}
 	return SidePanelLayout{Width: 30, FooterRows: 2}
 }
@@ -114,5 +115,36 @@ func TestSidePanelHiddenWhenNarrow(t *testing.T) {
 	_, main := newPanelTestMain(t, 90, 30, &testPanel{minWidth: 100})
 	if main.PanelVisible() || main.ContentWidth() != 90 {
 		t.Fatalf("panel visible %v, content width %d", main.PanelVisible(), main.ContentWidth())
+	}
+}
+
+func TestSidePanelDocksUnderTheMenu(t *testing.T) {
+	panel := &testPanel{minWidth: 100, dock: 8}
+	app, main := newPanelTestMain(t, 80, 30, panel)
+	if !main.PanelVisible() || main.ContentWidth() != 80 {
+		t.Fatalf("panel visible %v, content width %d", main.PanelVisible(), main.ContentWidth())
+	}
+	x, y, w, h, ok := main.PanelRect()
+	if !ok || x != 0 || w != 80 || h != 8 || y != 30-2-8 {
+		t.Fatalf("dock rect %d,%d %dx%d", x, y, w, h)
+	}
+	lines := strings.Split(main.View(app), "\n")
+	if len(lines) != 30 {
+		t.Fatalf("%d lines", len(lines))
+	}
+	for i, line := range lines {
+		if got := ansix.Width(line); got != 80 {
+			t.Fatalf("line %d is %d cells: %q", i, got, ansi.Strip(line))
+		}
+		if inDock := i >= y && i < y+h; inDock != strings.Contains(ansi.Strip(line), "PANEL 王") {
+			t.Fatalf("line %d: dock content %v: %q", i, !inDock, ansi.Strip(line))
+		}
+	}
+	if rows := main.menuBottomRow - main.menuListStartRow; main.menuListStartRow+rows >= y {
+		t.Fatalf("the list (rows %d..%d) runs into the dock at %d", main.menuListStartRow, main.menuBottomRow, y)
+	}
+	main.Update(tea.MouseMotionMsg{X: 7, Y: y + 2}, app)
+	if panel.lastX != 7 || panel.lastY != 2 {
+		t.Fatalf("dock got (%d,%d)", panel.lastX, panel.lastY)
 	}
 }

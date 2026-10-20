@@ -404,7 +404,7 @@ func (m *Main) Update(msg tea.Msg, a *App) (Page, tea.Cmd) {
 		// Next to a side panel, and as a tracklist, the menu starts near the
 		// top.
 		panel := m.sidePanelLayout(msg.Width, msg.Height)
-		if panel.Width > 0 || m.useTracklist() {
+		if panel.shown() || m.useTracklist() {
 			m.menuStartRow = 5
 		}
 		if m.isDualColumn {
@@ -476,9 +476,10 @@ func (m *Main) Update(msg tea.Msg, a *App) (Page, tea.Cmd) {
 
 		m.menuListStartRow = leadingRows
 
-		// Next to a side panel the list fills the rows above the footer.
-		if panel.Width > 0 {
-			rows := msg.Height - leadingRows - panel.FooterRows - 1
+		// With a side panel the list fills the rows above the dock or the
+		// footer.
+		if panel.shown() {
+			rows := msg.Height - leadingRows - panel.Height - panel.FooterRows - 1
 			if m.statusBar != nil && m.options.StatusBarPosition == StatusBarBottom {
 				rows--
 			}
