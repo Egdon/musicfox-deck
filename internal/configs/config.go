@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/anhoder/foxful-cli/model"
+	"github.com/anhoder/foxful-cli/motion"
 	"github.com/anhoder/foxful-cli/style"
 	"github.com/anhoder/foxful-cli/util"
 	"github.com/go-musicfox/go-musicfox/internal/types"
@@ -28,6 +29,10 @@ type Config struct {
 func (cfg *Config) FillToModelOpts(opts *model.Options) {
 	opts.StartupOptions = cfg.Startup.ToModel()
 	opts.ProgressOptions = cfg.Theme.Progress.ToModel()
+	opts.Motion.Level = motion.ParseLevel(cfg.Main.Motion)
+	if opts.Motion.Level == motion.Off {
+		opts.StartupOptions.ReducedMotion = true
+	}
 
 	util.PrimaryColor = cfg.Theme.PrimaryColor
 	opts.AppName = types.AppName

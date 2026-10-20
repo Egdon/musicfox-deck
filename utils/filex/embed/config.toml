@@ -34,6 +34,11 @@ enableMouseEvent = true
 debug = false
 # 播放时 UI 刷新帧率（更高帧率可使动画更平滑，但消耗更多cpu）
 frameRate = 5
+# 全局动效级别：
+#   full：页面和菜单切换、弹窗、通知的过渡，磁带悬浮与翻面
+#   subtle：只淡入淡出，不位移，磁带不悬浮
+#   off：没有动画（同时关闭启动页动画）
+motion = "full"
 # 界面语言（影响 foxful-cli 内置文案，如帮助提示、弹窗按钮）
 # 可选："zh"（中文，默认）、"en"（英文）等；留空跟随中文
 locale = "zh"

@@ -48,6 +48,8 @@ type App struct {
 
 	appBackgroundExclusion backgroundRect
 
+	motion appMotion
+
 	listeningKBEventL    sync.Mutex
 	listeningMouseEventL sync.Mutex
 
@@ -158,6 +160,10 @@ func (a *App) Init() tea.Cmd {
 	cmds = append(cmds, func() tea.Msg {
 		return tea.RequestBackgroundColor()
 	})
+	// The foreground seeds fades of text in the terminal's default color.
+	cmds = append(cmds, func() tea.Msg {
+		return tea.RequestForegroundColor()
+	})
 	// Enable DEC 2031 mode so the terminal proactively reports system
 	// light/dark scheme changes. When enabled, the terminal sends a
 	// ModeReportMsg with Mode=DECMode(2031) on every color scheme switch.
@@ -183,6 +189,7 @@ func (a *App) Close() {
 	if a.options.Ticker != nil {
 		_ = a.options.Ticker.Close()
 	}
+	a.stopMotion()
 }
 
 // SetMousePointer returns a tea.Cmd that sends an OSC 22 escape sequence to
@@ -213,6 +220,17 @@ func (a *App) Update(msg tea.Msg) (model tea.Model, returnCmd tea.Cmd) {
 			returnCmd = tea.Batch(notificationHoverCmd, returnCmd)
 		}
 	}()
+	// Animation frames re-render the current page, which also sees them.
+	if a.handleMotionMsg(msg) {
+		if a.page == nil {
+			return a, nil
+		}
+		page, cmd := a.page.Update(msg, a)
+		if page != nil {
+			a.setPage(page)
+		}
+		return a, cmd
+	}
 	if _, ok := msg.(tea.KeyMsg); ok {
 		if !a.listeningKBEventL.TryLock() {
 			return a, nil
@@ -446,6 +464,8 @@ func (a *App) View() tea.View {
 	if a.quiting || a.WindowHeight() <= 0 || a.WindowWidth() <= 0 || a.page == nil {
 		return v
 	}
+	a.motion.frameNow = time.Now()
+	a.motion.frameSeq++
 
 	baseContent := a.page.View(a)
 
@@ -551,6 +571,7 @@ func (a *App) Run() error {
 
 	a.options.TeaOptions = append(a.options.TeaOptions, tea.WithHardTabs(false), tea.WithFoxfulRenderer())
 	a.program = tea.NewProgram(a, a.options.TeaOptions...)
+	a.startMotion()
 	_, err := a.program.Run()
 	return err
 }

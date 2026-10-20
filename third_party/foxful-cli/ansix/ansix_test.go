@@ -1,8 +1,11 @@
 package ansix
 
 import (
+	"image/color"
+	"strings"
 	"testing"
 
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -96,4 +99,53 @@ func TestNormalizeAgreesOnWidth(t *testing.T) {
 	if got := Normalize("a\tb"); got != "a b" {
 		t.Errorf("tab: got %q", got)
 	}
+}
+
+func TestFadeKeepsTextAndWidth(t *testing.T) {
+	target, fg := color.RGBA{21, 20, 18, 255}, color.RGBA{203, 196, 182, 255}
+	for _, s := range corpus {
+		if Fade(s, 0, target, fg) != s {
+			t.Errorf("Fade(%q, 0) changed the string", s)
+		}
+		for _, k := range []float64{0.1, 0.5, 1} {
+			f := Fade(s, k, target, fg)
+			if ansi.Strip(f) != ansi.Strip(s) || Width(f) != Width(s) {
+				t.Errorf("Fade(%q, %v) = %q changed text or width", s, k, f)
+			}
+		}
+	}
+}
+
+func TestFadeToTargetPaintsTarget(t *testing.T) {
+	target, fg := color.RGBA{21, 20, 18, 255}, color.RGBA{203, 196, 182, 255}
+	s := "plain \x1b[38;2;210;113;79;48;2;36;34;31mstyled\x1b[0m \x1b[31mred\x1b[m"
+	f := Fade(s, 1, target, fg)
+	var state byte
+	p := ansi.NewParser()
+	var pen uv.Style
+	for rest := f; len(rest) > 0; {
+		seq, w, n, next := ansi.DecodeSequenceWc(rest, state, p)
+		state, rest = next, rest[n:]
+		if w == 0 {
+			if strings.HasPrefix(seq, "\x1b[") && strings.HasSuffix(seq, "m") {
+				uv.ReadStyle(p.Params(), &pen)
+			}
+			continue
+		}
+		if seq == " " && pen.Bg == nil {
+			continue
+		}
+		if !sameRGB(pen.Fg, target) || (pen.Bg != nil && !sameRGB(pen.Bg, target)) {
+			t.Fatalf("%q drawn in fg %v bg %v, want the target", seq, pen.Fg, pen.Bg)
+		}
+	}
+}
+
+func sameRGB(a, b color.Color) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	r1, g1, b1, _ := a.RGBA()
+	r2, g2, b2, _ := b.RGBA()
+	return r1>>8 == r2>>8 && g1>>8 == g2>>8 && b1>>8 == b2>>8
 }

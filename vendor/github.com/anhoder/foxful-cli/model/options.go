@@ -30,6 +30,7 @@ type Options struct {
 	NotificationOptions
 
 	ContextMenuOptions  ContextMenuOptions
+	Motion              MotionOptions
 	AppName             string
 	WhetherDisplayTitle bool
 	LoadingText         string
