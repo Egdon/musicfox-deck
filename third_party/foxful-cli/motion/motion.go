@@ -134,6 +134,10 @@ func StaggerDelay(i int, step, spread time.Duration) time.Duration {
 // FrameMsg asks for a new frame.
 type FrameMsg struct{ gen uint64 }
 
+// SlowInterval paces slow continuous animations, such as something floating,
+// when nothing faster runs.
+const SlowInterval = 40 * time.Millisecond
+
 // Scheduler keeps a single frame timer in flight while animations run and
 // stops when they end. Animations started anywhere, even while rendering,
 // extend its deadline.
@@ -142,8 +146,10 @@ type Scheduler struct {
 	interval time.Duration
 	send     func(any)
 	level    Level
-	deadline time.Time
+	deadline time.Time // fast frames until then
+	slow     time.Time // slow frames until then
 	inFlight bool
+	slowTick bool // the pending frame is on the slow interval
 	gen      uint64
 	timer    *time.Timer
 	now      func() time.Time
@@ -172,7 +178,7 @@ func (s *Scheduler) SetLevel(l Level) {
 	defer s.mu.Unlock()
 	s.level = l
 	if l == Off {
-		s.deadline = time.Time{}
+		s.deadline, s.slow = time.Time{}, time.Time{}
 	}
 }
 
@@ -196,6 +202,28 @@ func (s *Scheduler) AnimateUntil(t time.Time) {
 	}
 	if t.After(s.deadline) {
 		s.deadline = t
+	}
+	// A pending slow frame would hold up the first fast one.
+	if s.inFlight && s.slowTick && s.timer != nil {
+		s.timer.Stop()
+		s.gen++
+		s.inFlight = false
+	}
+	s.arm()
+}
+
+// AnimateSlow keeps frames coming at SlowInterval for d from now.
+func (s *Scheduler) AnimateSlow(d time.Duration) {
+	if s == nil || d <= 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.level == Off {
+		return
+	}
+	if t := s.now().Add(d); t.After(s.slow) {
+		s.slow = t
 	}
 	s.arm()
 }
@@ -230,7 +258,7 @@ func (s *Scheduler) Stop() {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.deadline = time.Time{}
+	s.deadline, s.slow = time.Time{}, time.Time{}
 	s.gen++
 	s.inFlight = false
 	if s.timer != nil {
@@ -242,15 +270,25 @@ func (s *Scheduler) Stop() {
 // arm schedules the next frame unless one is pending or the deadline passed.
 // The frame after the deadline still comes, to draw the final state.
 func (s *Scheduler) arm() {
-	if s.inFlight || s.send == nil || s.deadline.IsZero() {
+	if s.inFlight || s.send == nil {
 		return
 	}
 	now := s.now()
-	if now.After(s.deadline.Add(s.interval)) {
+	if !s.deadline.IsZero() && now.After(s.deadline.Add(s.interval)) {
 		s.deadline = time.Time{}
+	}
+	if !s.slow.IsZero() && now.After(s.slow.Add(SlowInterval)) {
+		s.slow = time.Time{}
+	}
+	interval := s.interval
+	switch {
+	case !s.deadline.IsZero():
+	case !s.slow.IsZero():
+		interval = max(SlowInterval, s.interval)
+	default:
 		return
 	}
-	s.inFlight = true
+	s.inFlight, s.slowTick = true, interval != s.interval
 	gen, send := s.gen, s.send
-	s.timer = s.after(s.interval, func() { send(FrameMsg{gen: gen}) })
+	s.timer = s.after(interval, func() { send(FrameMsg{gen: gen}) })
 }

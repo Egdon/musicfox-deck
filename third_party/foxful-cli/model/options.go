@@ -76,6 +76,13 @@ type Options struct {
 
 	AltScreen bool
 	MouseMode tea.MouseMode
+
+	// SidePanel is an optional column at the right of the menu.
+	SidePanel SidePanel
+	// ListStyle is how the menu list is laid out.
+	ListStyle ListStyle
+	// MenuHeader adjusts the tracklist's section header for a menu.
+	MenuHeader func(a *App, menu Menu, def MenuHeader) MenuHeader
 }
 
 type StartupOptions struct {

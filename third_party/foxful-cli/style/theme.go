@@ -216,6 +216,10 @@ type Theme struct {
 	// empty string removes it.
 	StatusBarTimeIcon *string
 
+	// StatusBarLabel is the one-cell glyph at the left of the status bar.
+	// Default: "»".
+	StatusBarLabel string
+
 	// TabBorder colors the borders of unfocused tabs; nil leaves them in the
 	// terminal's default color.
 	TabBorder color.Color
@@ -577,6 +581,9 @@ type StyleSet struct {
 
 	// StatusBarTimeIcon precedes the clock in the status bar.
 	StatusBarTimeIcon string
+
+	// StatusBarLabel is the padded glyph at the left of the status bar.
+	StatusBarLabel string
 
 	// BackButton is the style for the back/return icon button shown before the
 	// menu title when inside a submenu. Uses primary color to indicate clickability.
@@ -1140,6 +1147,10 @@ func NewStyleSet(theme Theme) StyleSet {
 	base.StatusBarTimeIcon = "\ue384 "
 	if theme.StatusBarTimeIcon != nil {
 		base.StatusBarTimeIcon = *theme.StatusBarTimeIcon
+	}
+	base.StatusBarLabel = " » "
+	if lipgloss.Width(theme.StatusBarLabel) == 1 {
+		base.StatusBarLabel = " " + theme.StatusBarLabel + " "
 	}
 
 	// App background

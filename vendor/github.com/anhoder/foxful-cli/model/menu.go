@@ -12,6 +12,8 @@ type Hook func(main *Main) (bool, Page)
 type MenuItem struct {
 	Title    string
 	Subtitle string
+	// Meta is right-aligned in the tracklist, such as a duration.
+	Meta string
 }
 
 func (item *MenuItem) OriginString() string {

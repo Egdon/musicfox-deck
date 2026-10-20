@@ -14,5 +14,5 @@ func (m *Main) contentWidthFor(w, h int) int {
 // panelWidthFor returns the side panel's width in a w×h window; 0 means no
 // panel.
 func (m *Main) panelWidthFor(w, h int) int {
-	return 0
+	return m.sidePanelLayout(w, h).Width
 }

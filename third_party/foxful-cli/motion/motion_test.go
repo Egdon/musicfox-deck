@@ -135,3 +135,33 @@ func TestSchedulerOffAndStale(t *testing.T) {
 		t.Fatal("a frame from before Stop must be stale")
 	}
 }
+
+func TestSchedulerSlowFrames(t *testing.T) {
+	s, f, sent := newTestScheduler(Full)
+	var intervals []time.Duration
+	s.after = func(d time.Duration, fn func()) *time.Timer {
+		intervals = append(intervals, d)
+		f.armed = append(f.armed, fn)
+		return time.NewTimer(time.Hour)
+	}
+	s.AnimateSlow(time.Second)
+	s.Animate(50 * time.Millisecond)
+	for len(f.armed) > 0 && len(intervals) < 200 {
+		fire := f.armed[0]
+		f.armed = f.armed[1:]
+		fire()
+		f.now = f.now.Add(intervals[len(intervals)-1])
+		s.HandleFrame((*sent)[len(*sent)-1])
+	}
+	fast, slow := 0, 0
+	for _, d := range intervals {
+		if d == SlowInterval {
+			slow++
+		} else {
+			fast++
+		}
+	}
+	if fast < 3 || slow < 20 || slow > 27 {
+		t.Fatalf("%d fast and %d slow frames", fast, slow)
+	}
+}

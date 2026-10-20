@@ -117,7 +117,7 @@ func (d *DefaultStatusBar) View(a *App, m *Main) string {
 	ss := style.CurrentStyleSet()
 
 	// Left: "PATH" label nugget
-	pathLabel := ss.StatusBarNuggetLabel.Render(" » ")
+	pathLabel := ss.StatusBarNuggetLabel.Render(ss.StatusBarLabel)
 	labelW := lipgloss.Width(pathLabel)
 
 	// Breadcrumb right-end separator

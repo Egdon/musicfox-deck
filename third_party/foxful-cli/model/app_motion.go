@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/anhoder/foxful-cli/motion"
 	"github.com/anhoder/foxful-cli/style"
+	uv "github.com/charmbracelet/ultraviolet"
 )
 
 // MotionOptions set how much the interface animates.
@@ -23,6 +24,9 @@ type appMotion struct {
 	frameSeq  uint64
 	termBg    color.Color // reported by the terminal
 	termFg    color.Color
+
+	termVersion  string // XTVERSION reply
+	cellW, cellH int    // cell size in pixels, when reported
 }
 
 func (a *App) startMotion() {
@@ -48,6 +52,10 @@ func (a *App) MotionLevel() motion.Level {
 // Animate keeps frames coming for d. Frames re-render the current page,
 // which also receives them as motion.FrameMsg.
 func (a *App) Animate(d time.Duration) { a.motion.scheduler.Animate(d) }
+
+// AnimateSlow keeps frames coming for d at the slow rate, for continuous
+// motion that does not need every frame.
+func (a *App) AnimateSlow(d time.Duration) { a.motion.scheduler.AnimateSlow(d) }
 
 // AnimateUntil keeps frames coming until t.
 func (a *App) AnimateUntil(t time.Time) { a.motion.scheduler.AnimateUntil(t) }
@@ -105,8 +113,25 @@ func (a *App) handleMotionMsg(msg tea.Msg) bool {
 		a.motion.termBg = m.Color
 	case tea.ForegroundColorMsg:
 		a.motion.termFg = m.Color
+	case tea.TerminalVersionMsg:
+		a.motion.termVersion = m.Name
+	case uv.CellSizeEvent:
+		a.motion.cellW, a.motion.cellH = m.Width, m.Height
 	}
 	return false
+}
+
+// TerminalVersion returns the terminal's XTVERSION reply, such as
+// "ghostty 1.3.1", or "" until it answers.
+func (a *App) TerminalVersion() string { return a.motion.termVersion }
+
+// CellAspect returns the height of a terminal cell over its width, or 0 when
+// the terminal has not reported its cell size.
+func (a *App) CellAspect() float64 {
+	if a.motion.cellW <= 0 || a.motion.cellH <= 0 {
+		return 0
+	}
+	return float64(a.motion.cellH) / float64(a.motion.cellW)
 }
 
 func (a *App) stopMotion() {

@@ -83,6 +83,9 @@ type Main struct {
 	// 重渲染所有菜单行，CPU 被鼠标事件驱动到接近单核满载。
 	menuItemCache map[int]menuItemViewCacheEntry
 
+	// trackCache holds rendered tracklist rows.
+	trackCache map[int]trackRowEntry
+
 	// menuLineCache 缓存整行（含双列间隙与左侧填充）的组装结果，避免每帧
 	// 对 29 行未变化的行重复 lipgloss 组装。
 	menuLineCache map[int]menuLineViewCacheEntry
@@ -97,6 +100,12 @@ type Main struct {
 	// hoveredBackButton tracks whether the mouse is hovering over the back
 	// button shown before the menu title when inside a submenu.
 	hoveredBackButton bool
+
+	// Side panel mouse state: whether the pointer is over it, whether it
+	// captured the mouse, and the pointer shape it asked for.
+	panelHover   bool
+	panelCapture bool
+	panelPointer string
 
 	// hoverPointerActive tracks whether the mouse is currently over a clickable
 	// element. When true, the terminal mouse pointer is set to "pointer" (hand
@@ -390,6 +399,11 @@ func (m *Main) Update(msg tea.Msg, a *App) (Page, tea.Cmd) {
 		if m.statusBar != nil && m.options.StatusBarPosition == StatusBarTop {
 			m.options.WhetherDisplayTitle = false
 		}
+		// Next to a side panel the menu starts near the top.
+		panel := m.sidePanelLayout(msg.Width, msg.Height)
+		if panel.Width > 0 {
+			m.menuStartRow = 5
+		}
 		if m.isDualColumn {
 			switch {
 			case cw < 100:
@@ -408,6 +422,11 @@ func (m *Main) Update(msg tea.Msg, a *App) (Page, tea.Cmd) {
 		}
 		if m.menuStartColumn < 5 {
 			m.menuStartColumn = 5
+		}
+		// The tracklist is a single table along the left margin.
+		if m.useTracklist() {
+			m.isDualColumn = false
+			m.menuStartColumn = trackMarginLeft + 4
 		}
 
 		bottomHeight := 13
@@ -454,6 +473,15 @@ func (m *Main) Update(msg tea.Msg, a *App) (Page, tea.Cmd) {
 
 		m.menuListStartRow = leadingRows
 
+		// Next to a side panel the list fills the rows above the footer.
+		if panel.Width > 0 {
+			rows := msg.Height - leadingRows - panel.FooterRows - 1
+			if m.statusBar != nil && m.options.StatusBarPosition == StatusBarBottom {
+				rows--
+			}
+			m.menuPageSize = max(rows, 1) * m.getNumColumns()
+		}
+
 		menuDisplayLines := m.menuPageSize
 		if m.isDualColumn {
 			menuDisplayLines = int(math.Ceil(float64(m.menuPageSize) / 2))
@@ -482,6 +510,9 @@ func (m *Main) updateComponents(msg tea.Msg, a *App) {
 		}
 		component.Update(msg, a)
 	}
+	if m.options.SidePanel != nil {
+		m.options.SidePanel.Update(msg, a)
+	}
 }
 
 func (m *Main) View(a *App) string {
@@ -494,6 +525,10 @@ func (m *Main) View(a *App) string {
 	m.lastViewAt = time.Now()
 
 	a.ClearAppBackgroundExclusion()
+
+	if g, ok := m.panelGeometry(w, h); ok {
+		return m.panelView(a, w, h, g)
+	}
 
 	var sections []string
 
@@ -514,55 +549,7 @@ func (m *Main) View(a *App) string {
 	}
 
 	// ── 3. Menu sections ──
-	if !m.options.HideMenu {
-		titleStartRow := m.computeTitleStartRow()
-
-		// Inject loading tips into a copy of the menu title
-		mt := m.menuTitle
-		if m.loadingTips != "" {
-			tmp := *mt
-			if tmp.Subtitle != "" {
-				tmp.Subtitle = tmp.Subtitle + " " + m.loadingTips
-			} else {
-				tmp.Subtitle = m.loadingTips
-			}
-			mt = &tmp
-		}
-
-		// When tabs are enabled and in a submenu, show breadcrumb trail
-		if m.options.EnableTabs && m.menuStack.Len() > 0 {
-			mt = m.buildBreadcrumb()
-			// Preserve loading tips if present
-			if m.loadingTips != "" {
-				tmp := *mt
-				if tmp.Subtitle != "" {
-					tmp.Subtitle = tmp.Subtitle + " " + m.loadingTips
-				} else {
-					tmp.Subtitle = m.loadingTips
-				}
-				mt = &tmp
-			}
-		}
-
-		// Vertical gap to menu title row.
-		if titleStartRow > 1 {
-			sections = append(sections, strings.Repeat("\n", max(0, titleStartRow-1)))
-		}
-		sections = append(sections, m.menuTitleViewContent(a, mt))
-
-		// Vertical gap: title row → menu start row (empty string = 1 visual row in JoinVertical)
-		sections = append(sections, "")
-		sections = append(sections, m.menuListView(a))
-
-		// Only append searchInput if non-empty (matches component loop pattern at line 442).
-		// When not searching and menu has no HelpHints, searchInputView returns "" which
-		// JoinVertical counts as 1 phantom row, causing +1 overflow and title truncation.
-		if searchView := m.searchInputView(a); searchView != "" {
-			sections = append(sections, searchView)
-		}
-	} else {
-		sections = append(sections, "\n\n\n")
-	}
+	sections = append(sections, m.menuSections(a)...)
 
 	// ── 3. Components (natural flow) ──
 	for _, component := range m.components {
@@ -611,6 +598,66 @@ func (m *Main) View(a *App) string {
 		content = body
 	}
 	return renderAppBackground(content, w, ss.AppBackground, a.appBackgroundExclusion)
+}
+
+// menuSections returns the rows of the menu block: the gap above the title,
+// the title, a spacer, the list and the search bar.
+func (m *Main) menuSections(a *App) []string {
+	var sections []string
+	if !m.options.HideMenu {
+		titleStartRow := m.computeTitleStartRow()
+
+		// Inject loading tips into a copy of the menu title
+		mt := m.menuTitle
+		if m.loadingTips != "" {
+			tmp := *mt
+			if tmp.Subtitle != "" {
+				tmp.Subtitle = tmp.Subtitle + " " + m.loadingTips
+			} else {
+				tmp.Subtitle = m.loadingTips
+			}
+			mt = &tmp
+		}
+
+		// When tabs are enabled and in a submenu, show breadcrumb trail
+		if m.options.EnableTabs && m.menuStack.Len() > 0 {
+			mt = m.buildBreadcrumb()
+			// Preserve loading tips if present
+			if m.loadingTips != "" {
+				tmp := *mt
+				if tmp.Subtitle != "" {
+					tmp.Subtitle = tmp.Subtitle + " " + m.loadingTips
+				} else {
+					tmp.Subtitle = m.loadingTips
+				}
+				mt = &tmp
+			}
+		}
+
+		// Vertical gap to menu title row.
+		if titleStartRow > 1 {
+			sections = append(sections, strings.Repeat("\n", max(0, titleStartRow-1)))
+		}
+		if m.useTracklist() {
+			sections = append(sections, m.tracklistHeader(a, mt), m.tracklistRule())
+		} else {
+			sections = append(sections, m.menuTitleViewContent(a, mt))
+
+			// Vertical gap: title row → menu start row (empty string = 1 visual row in JoinVertical)
+			sections = append(sections, "")
+		}
+		sections = append(sections, m.menuListView(a))
+
+		// Only append searchInput if non-empty (matches component loop pattern at line 442).
+		// When not searching and menu has no HelpHints, searchInputView returns "" which
+		// JoinVertical counts as 1 phantom row, causing +1 overflow and title truncation.
+		if searchView := m.searchInputView(a); searchView != "" {
+			sections = append(sections, searchView)
+		}
+	} else {
+		sections = append(sections, "\n\n\n")
+	}
+	return sections
 }
 
 // renderAppBackground fills the frame with the app background. Rewritten to
@@ -1396,7 +1443,9 @@ func (m *Main) menuListView(a *App) string {
 		maxLines = m.menuPageSize
 	}
 
-	if m.options.CenterEverything {
+	if m.useTracklist() {
+		menuListBuilder.WriteString(strings.Join(m.tracklistView(lines), "\n"))
+	} else if m.options.CenterEverything {
 		menuListBuilder.WriteString(m.centeredMenuView(a, lines))
 	} else {
 		// Each row is already fully rendered (styles baked in), so joining
@@ -1883,6 +1932,9 @@ func (m *Main) menuItemTextBounds(index int) (start, end int, ok bool) {
 	if m.options.CenterEverything {
 		return m.centeredMenuItemTextBounds(index)
 	}
+	if m.useTracklist() {
+		return m.tracklistBounds(index)
+	}
 
 	item, _ := m.menuItemView(m.app, index)
 	start, end, ok = visibleTextBounds(item)
@@ -2110,6 +2162,23 @@ func (m *Main) keyMsgHandle(msg tea.KeyMsg, a *App) (Page, tea.Cmd) {
 
 // mouse handle
 func (m *Main) mouseMsgHandle(msg tea.MouseMsg, a *App) (Page, tea.Cmd) {
+	// The side panel sees its events before anyone else.
+	handled, panelPage, panelCmd := m.routePanelMouse(msg, a)
+	if handled {
+		if panelPage != nil {
+			return panelPage, tea.Batch(panelCmd, func() tea.Msg { return panelPage.Msg() })
+		}
+		return m, panelCmd
+	}
+	if panelCmd != nil {
+		page, cmd := m.mouseMsgHandleMenu(msg, a)
+		return page, tea.Batch(panelCmd, cmd)
+	}
+	return m.mouseMsgHandleMenu(msg, a)
+}
+
+// mouseMsgHandleMenu handles mouse events outside the side panel.
+func (m *Main) mouseMsgHandleMenu(msg tea.MouseMsg, a *App) (Page, tea.Cmd) {
 	mouse := msg.Mouse()
 
 	// External controllers — run first, they have priority
@@ -2856,7 +2925,7 @@ func (m *Main) breadcrumbSegmentAt(x, y int, a *App) (segIdx int, depthIdx int, 
 	}
 
 	ss := style.CurrentStyleSet()
-	pathLabel := ss.StatusBarNuggetLabel.Render(" » ")
+	pathLabel := ss.StatusBarNuggetLabel.Render(ss.StatusBarLabel)
 	labelW := lipgloss.Width(pathLabel)
 	segStartX := labelW + 1
 

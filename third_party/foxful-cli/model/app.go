@@ -164,6 +164,12 @@ func (a *App) Init() tea.Cmd {
 	cmds = append(cmds, func() tea.Msg {
 		return tea.RequestForegroundColor()
 	})
+	// The terminal's name and cell size tell pages which block glyphs it
+	// draws itself and how square a cell is.
+	cmds = append(cmds, func() tea.Msg {
+		return tea.RequestTerminalVersion()
+	})
+	cmds = append(cmds, tea.Raw(ansi.WindowOp(16)))
 	// Enable DEC 2031 mode so the terminal proactively reports system
 	// light/dark scheme changes. When enabled, the terminal sends a
 	// ModeReportMsg with Mode=DECMode(2031) on every color scheme switch.
