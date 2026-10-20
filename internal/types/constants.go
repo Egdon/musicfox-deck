@@ -6,13 +6,18 @@ import (
 
 var (
 	// AppVersion Inject by -ldflags
-	AppVersion   = "v5.0.0"
+	AppVersion   = "v1.0.0"
 	BuildTags    = ""
 	LastfmKey    = ""
 	LastfmSecret = ""
 )
 
 const AppName = "musicfox"
+
+// UpstreamVersion is the go-musicfox release musicfox-deck is based on;
+// update it when merging upstream.
+const UpstreamVersion = "v5.1.0"
+
 const GroupID = "com.anhoder.musicfox"
 const AppDescription = "<cyan>musicfox-deck - 磁带卡座风格的命令行网易云音乐</>"
 

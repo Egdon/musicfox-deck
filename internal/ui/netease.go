@@ -348,7 +348,8 @@ func (n *Netease) InitHook(_ *model.App) {
 			)
 			jsonStr, _ := table.GetByKVModel(extInfo)
 			if len(jsonStr) != 0 {
-				if err := json.Unmarshal(jsonStr, &extInfo); err == nil && version.CompareVersion(extInfo.StorageVersion, types.AppVersion, true) {
+				// 版本不同（无论新旧）都刷新：与 go-musicfox 共用数据目录，版本号各自独立
+				if err := json.Unmarshal(jsonStr, &extInfo); err == nil && extInfo.StorageVersion == types.AppVersion {
 					needUpdate = false
 				}
 			}

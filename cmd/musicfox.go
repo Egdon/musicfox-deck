@@ -36,6 +36,7 @@ func musicfox() {
 	if types.BuildTags != "" {
 		app.Version += " [" + types.BuildTags + "]"
 	}
+	app.Version += "（基于 go-musicfox " + types.UpstreamVersion + "）"
 	app.Description = types.AppDescription
 	app.GOptsBinder = func(gf *gcli.Flags) {
 		gf.BoolOpt(&commands.GlobalOptions.PProfMode, "pprof", "p", false, "enable PProf mode")
