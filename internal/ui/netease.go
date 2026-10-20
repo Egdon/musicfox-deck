@@ -157,10 +157,11 @@ func (n *Netease) EffectiveWindowHeight() int {
 }
 
 // ToLoginPage 需要登录的处理
+// ToLoginPage may run off the UI goroutine, in a menu loading in the
+// background: the login page sets itself up when it first updates.
 func (n *Netease) ToLoginPage(callback func() model.Page) (model.Page, tea.Cmd) {
 	n.login.AfterLogin = callback
-	n.login.applyFocus() // the page was built before the theme took effect
-	n.coverRenderer.ClearDisplayed()
+	n.login.showing = true
 	return n.login, tickLogin(time.Nanosecond)
 }
 

@@ -63,6 +63,11 @@ func (e *baseMenu) HelpHints() []model.HelpHint {
 	return nil
 }
 
+// LoadsInBackground lets Main run a menu's BeforeEnterMenuHook off the UI
+// goroutine: most only fetch their own data. A hook that touches the
+// interface overrides it with false.
+func (e *baseMenu) LoadsInBackground() bool { return true }
+
 func (e *baseMenu) Action(a *model.App, index int) (model.Page, tea.Cmd) {
 	menu := a.MustMain().CurMenu()
 	songsMenu, ok := menu.(SongsMenu)

@@ -60,6 +60,7 @@ type LoginPage struct {
 	qrLoginStep        int
 	tips               string
 	AfterLogin         LoginCallback
+	showing            bool // just shown: set up focus and clear the cover on the next update
 
 	// 以下字段用于鼠标点击区域的计算与命中
 	accountRowY   int // 账号输入框所在的行号（1-based）
@@ -142,6 +143,11 @@ func (l *LoginPage) Type() model.PageType {
 }
 
 func (l *LoginPage) Update(msg tea.Msg, a *model.App) (model.Page, tea.Cmd) {
+	if l.showing {
+		l.showing = false
+		l.applyFocus() // the page was built before the theme took effect
+		l.netease.coverRenderer.ClearDisplayed()
+	}
 	if _, ok := msg.(tickLoginMsg); ok {
 		return l, nil
 	}

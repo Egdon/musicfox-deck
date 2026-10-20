@@ -198,6 +198,8 @@ type Player interface {
   - **接下来播放**：`PlaylistManager.Upcoming(n)` 只读预览自动播放顺序（无限随机返回 nil）。列表随机照搬 `NextSong` 读取 `randomOrder[currentPos+1:]`：洗牌顺序走到末尾即停，排在当前歌曲之前的歌不会自动播放，当前歌曲排在末位时预览为空。
 - **启动动画**：`[startup] animation = "deck"`（默认）时设置 `options.StartupOptions.View = ui.NewDeckStartup().View`（`internal/ui/deck_startup.go`）：磁带从景深处转入（B 面先朝前）并落定，字标逐字浮现，细线随加载填满；时间轴按 2 秒设计，加载更短时等比加快，`motion = off` 时直接画最后一帧。
 - **动效**：`[main] motion = full | subtle | off` 设置 `model.Options.Motion.Level`；`off` 同时打开 `[startup].reducedMotion`。框架负责页面交叉淡化、菜单进出、弹窗与通知、选中项滑动（见「foxful-cli（内置源码）」）；页面内的动画都经 `App.Animate` 请求帧，不要用 `RerenderCmd(true)` 驱动动画。
+- **菜单加载**：`baseMenu.LoadsInBackground()` 返回 true，菜单的进入钩子默认在后台拉取数据（见框架改动 17）；钩子要碰界面时覆写为 false（`MenuToPage` 会清封面、`SearchResultMenu` 读搜索页）。`Netease.ToLoginPage` 可在后台调用：只记下回调，焦点与清封面在登录页第一次 `Update` 时完成。
+- **界面线程不得等网络**：每帧都会读的状态不能和网络 I/O 共用一把锁。`lyric.Service.SetSong` 在锁外拉歌词（`loadSeq` 丢弃过期结果）；beep 播放器加载新歌时持锁连流，故 `PassedTime`、`PlayedTime`、`Volume`、`CurMusic` 读原子缓存或 `TryLock`，不等锁。
 - **切歌**：`Player.PlaySong` 会同步请求网络。上一首/下一首、开始播放和跳到接下来播放都经 `player.async` 在 UI goroutine 之外执行，完成后 `Rerender(false)`；`playSeq` 保证并发切歌时只有最后一次生效。
 - **OSD**：`internal/ui/osd.go` 提供录像机风格文案，播放页与主界面共用。主界面 OSD 在 `EventHandler.KeyMsgHandle` 与滚轮调音量后以单个 toast 显示，`[main.notification] inApp = false` 时关闭。`App.Notify` 返回的 ID 只是预测值：新增任何非 OSD 的 `App.Notify` 调用点前必须先调用 `markForeignNotify()`，OSD 只在与其他通知相隔 500ms 以上时原地更新。
 - **Warm Night 主题**：`utils/filex/embed/themes/warm_night.toml`，只做深色，`[light]` 镜像 `[dark]`。角色：bg `#151412`、surface `#1D1C19`、text `#CBC4B6`、hero `#DDD6C9`、secondary `#9E978A`、rule `#544F47`、accent `#D2714F`（信号橙）、accent2 `#93AC82`（灰绿）。为夜间使用而设计：不用纯白，彩色格子控制在约 5% 以内，不要把 accent 用于普通文字。markdown 样式为 `builtin:warm_night`。依赖内置 foxful-cli 的改动（见「foxful-cli（内置源码）」）。
@@ -271,6 +273,7 @@ foxful-cli 是本项目的核心 UI 框架，源码在 `third_party/foxful-cli/`
   14. `model/selection_glide.go`：曲目表选中项移动时色带交叉淡化 150ms，full 时一条左半格竖条按 `GlideSteps`（八分块 4 级、六分块 3 级、四分块 2 级）滑过去，停下后恢复主题的选中标记。
   15. `model/startup.go`：`StartupOptions.View` 钩子由宿主绘制启动页（自带背景，不再经过背景归一化）。
   16. `model/statusbar.go`、`style/theme.go`：状态栏左侧标签可由主题配置（`statusBar.label`，Warm Night 用 `■`）。
+  17. `model/main_loading.go`：实现了 `BackgroundLoader`（`LoadsInBackground() == true`）的菜单，其 `BeforeEnterMenuHook` 在 UI goroutine 之外运行，结束后以 `menuLoadedMsg` 回到 `App.Update`（Main 不在屏幕上时也会进入菜单，但不切换页面）；加载期间界面照常绘制，分节标题已显示新菜单名；`BackMenu`、`BackToMenu`、切标签、`EnterMenu` 会取消进行中的加载，迟到的结果被丢弃。这类钩子不得接触界面（写终端、改页面状态）。`EnterMenu`、`DeferWithLoading`、`RefreshMenuWithLoading` 与 `BottomOutHook` 仍同步执行。
 
 ### 跨平台构建兼容性
 

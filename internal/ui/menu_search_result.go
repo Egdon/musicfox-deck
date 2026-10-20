@@ -127,6 +127,10 @@ func (m *SearchResultMenu) BottomOutHook() model.Hook {
 	}
 }
 
+// LoadsInBackground is false: the hook reads the search page, and may
+// show it.
+func (m *SearchResultMenu) LoadsInBackground() bool { return false }
+
 func (m *SearchResultMenu) BeforeEnterMenuHook() model.Hook {
 	return func(main *model.Main) (bool, model.Page) {
 		if m.netease.search.wordsInput.Value() == "" {

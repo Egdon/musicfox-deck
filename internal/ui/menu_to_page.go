@@ -30,6 +30,10 @@ func (m *MenuToPage) SubMenu(app *model.App, index int) model.Menu {
 	return nil
 }
 
+// LoadsInBackground is false: the hook clears the cover image, which
+// writes to the terminal.
+func (m *MenuToPage) LoadsInBackground() bool { return false }
+
 func (m *MenuToPage) BeforeEnterMenuHook() model.Hook {
 	return func(main *model.Main) (bool, model.Page) {
 		if m.beforeEnter != nil {
