@@ -139,7 +139,7 @@ type Motion struct {
 	pointerAt time.Time
 	base      float64 // rest yaw; the B side faces the viewer after an odd number of flips
 	flipAt    time.Time
-	flipDir   float64
+	flipBy    float64 // yaw the flip under way turns by: ±π, or less to turn back halfway
 	last      time.Time
 }
 
@@ -168,7 +168,7 @@ func (m *Motion) Step(now time.Time, playing bool) {
 		}
 	}
 	if !m.flipAt.IsZero() && now.Sub(m.flipAt) >= FlipDuration {
-		m.base = normAngle(m.base + math.Pi*m.flipDir)
+		m.base = normAngle(m.base + m.flipBy)
 		m.flipAt = time.Time{}
 	}
 }
@@ -184,12 +184,22 @@ func (m *Motion) Point(nx, ny float64, now time.Time) {
 // Leave lets the cassette straighten up.
 func (m *Motion) Leave() { m.leanTo = [2]float64{} }
 
-// Flip starts turning the cassette over, to the right for dir > 0.
+// Flip starts turning the cassette over, to the right for dir > 0. A flip
+// already under way the same way carries on, and one the other way turns
+// back from where it is: starting over would make the cassette jump.
 func (m *Motion) Flip(dir int, now time.Time) {
-	if !m.flipAt.IsZero() {
-		m.base = normAngle(m.base + math.Pi*m.flipDir)
+	by := math.Copysign(math.Pi, float64(dir))
+	if m.Flipping(now) {
+		if math.Signbit(by) == math.Signbit(m.flipBy) {
+			return
+		}
+		turned := m.flipBy * m.flipProgress(now)
+		m.base += turned
+		by = -turned
+	} else if !m.flipAt.IsZero() {
+		m.base = normAngle(m.base + m.flipBy)
 	}
-	m.flipAt, m.flipDir = now, math.Copysign(1, float64(dir))
+	m.flipAt, m.flipBy = now, by
 }
 
 // FlipNow turns the cassette over without animation.
@@ -207,23 +217,38 @@ func (m *Motion) flipProgress(now time.Time) float64 {
 	if m.flipAt.IsZero() {
 		return 0
 	}
-	t := min(float64(now.Sub(m.flipAt))/float64(FlipDuration), 1)
-	if t < 0.5 {
-		return 4 * t * t * t
+	return flipEase(min(float64(now.Sub(m.flipAt))/float64(FlipDuration), 1))
+}
+
+// flipEase speeds the flip up over its first fifth, turns at an even pace,
+// and brakes over its last fifth. An ease-in-out would sit nearly still at
+// first and then whip through the middle, which reads as a twitch.
+func flipEase(t float64) float64 {
+	const a = 0.2
+	v := 1 / (1 - a) // the even pace
+	switch {
+	case t <= 0:
+		return 0
+	case t < a:
+		return v * t * t / (2 * a)
+	case t <= 1-a:
+		return v * (t - a/2)
+	case t < 1:
+		return 1 - v*(1-t)*(1-t)/(2*a)
 	}
-	return 1 - math.Pow(-2*t+2, 3)/2
+	return 1
 }
 
 // At returns the pose at now and how high the cassette floats above the
 // backdrop.
 func (m *Motion) At(now time.Time) (Pose, float64) {
-	e := m.flipProgress(now)
-	arc := math.Sin(math.Pi * e)
+	turn := m.base + m.flipBy*m.flipProgress(now)
+	arc := math.Abs(math.Sin(turn)) // how far from lying flat; base rests on a multiple of π
 	t := float64(now.UnixNano()) / 1e9
 	wave := func(period, phase float64) float64 { return math.Sin(2*math.Pi*t/period + phase) }
 	bob := m.amp * floatBob * wave(7.3, 0)
 	p := Pose{
-		Yaw:   restYaw + m.base + math.Pi*m.flipDir*e + m.amp*floatYaw*wave(9, 0) + m.lean[0],
+		Yaw:   restYaw + turn + m.amp*floatYaw*wave(9, 0) + m.lean[0],
 		Pitch: restPitch + m.amp*floatPitch*wave(12.7, 1.3) + m.lean[1] + deg(5)*arc,
 		Roll:  m.amp * floatRoll * wave(15.1, 0.4),
 		Y:     bob - flipLift*arc,

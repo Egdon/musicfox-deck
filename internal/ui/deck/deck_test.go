@@ -319,6 +319,51 @@ func TestMotionFlipTurnsOver(t *testing.T) {
 	}
 }
 
+func TestFlipEaseTurnsEvenly(t *testing.T) {
+	prev, peak := 0.0, 0.0
+	const n = 1000
+	for i := 1; i <= n; i++ {
+		x := flipEase(float64(i) / n)
+		if x < prev {
+			t.Fatalf("the flip turns back at %v", float64(i)/n)
+		}
+		peak = max(peak, (x-prev)*n)
+		prev = x
+	}
+	if prev != 1 || peak > 1.3 {
+		t.Fatalf("ends at %v, peak pace %v", prev, peak)
+	}
+	if flipEase(0.2) < 0.1 {
+		t.Fatalf("a fifth in, the flip has turned only %v", flipEase(0.2))
+	}
+}
+
+// A second flip during one under way neither jumps nor stacks up: the same
+// way it carries on, the other way it turns back from where it is.
+func TestFlipDuringFlipIsContinuous(t *testing.T) {
+	now := time.Unix(0, 0)
+	for _, dir := range []int{1, -1} {
+		var m Motion
+		m.Step(now, false)
+		m.Flip(1, now)
+		mid := now.Add(FlipDuration * 2 / 5)
+		before, liftBefore := m.At(mid)
+		m.Flip(dir, mid)
+		after, liftAfter := m.At(mid)
+		if math.Abs(after.Yaw-before.Yaw) > 1e-9 || math.Abs(liftAfter-liftBefore) > 1e-9 || math.Abs(after.Scale-before.Scale) > 1e-9 {
+			t.Fatalf("dir %d: the pose jumps from %+v to %+v", dir, before, after)
+		}
+		end := mid.Add(2 * FlipDuration)
+		m.Step(end, false)
+		if want := dir == 1; m.SideB(end) != want || m.Busy(end) {
+			t.Fatalf("dir %d: ends on side B %v, want %v", dir, m.SideB(end), want)
+		}
+		if p, lift := m.At(end); math.Abs(p.Scale-1) > 1e-9 || math.Abs(lift-restLift) > 1e-9 {
+			t.Fatalf("dir %d: does not settle flat: scale %v lift %v", dir, p.Scale, lift)
+		}
+	}
+}
+
 func TestDetectTier(t *testing.T) {
 	env := func(kv ...string) func(string) string {
 		m := map[string]string{}
