@@ -57,6 +57,14 @@ type beepPlayer struct {
 
 	spectrum         *PCMAnalyzer
 	spectrumConsumer func(sampleRate float64, samplesL, samplesR []float32)
+
+	// What the interface reads on every frame, kept outside l: loading a
+	// song holds l while it waits for the network, and the interface would
+	// freeze until it is done.
+	passed  atomic.Int64 // position at the last reading
+	played  atomic.Int64
+	level   atomic.Int32 // volume from 0 to 100
+	current atomic.Pointer[URLMusic]
 }
 
 func NewBeepPlayer() *beepPlayer {
@@ -80,6 +88,7 @@ func NewBeepPlayer() *beepPlayer {
 	}
 
 	p.state.Store(uint32(types.Stopped))
+	p.storeLevel()
 
 	errorx.WaitGoStart(p.listen)
 
@@ -123,6 +132,9 @@ func (p *beepPlayer) listen() {
 			// curMusic is read by CurMusic() (UI thread) under p.l, so assign
 			// it while holding the lock too.
 			p.curMusic = music
+			p.current.Store(&music)
+			p.passed.Store(0)
+			p.played.Store(0)
 			p.pausedNoLock()
 			if p.timer != nil {
 				p.timer.SetPassed(0)
@@ -264,9 +276,10 @@ func (p *beepPlayer) Play(music URLMusic) {
 }
 
 func (p *beepPlayer) CurMusic() URLMusic {
-	p.l.Lock()
-	defer p.l.Unlock()
-	return p.curMusic
+	if m := p.current.Load(); m != nil {
+		return *m
+	}
+	return URLMusic{}
 }
 
 func (p *beepPlayer) setState(state types.State) {
@@ -288,21 +301,29 @@ func (p *beepPlayer) StateChan() <-chan types.State {
 }
 
 func (p *beepPlayer) PassedTime() time.Duration {
-	p.l.Lock()
-	defer p.l.Unlock()
-	if p.curStreamer == nil {
-		return 0
+	if !p.l.TryLock() { // a song is loading: the last reading will do
+		return time.Duration(p.passed.Load())
 	}
-	return time.Duration(p.curStreamer.Position()) * time.Second / time.Duration(p.curFormat.SampleRate)
+	defer p.l.Unlock()
+	var d time.Duration
+	if p.curStreamer != nil {
+		d = time.Duration(p.curStreamer.Position()) * time.Second / time.Duration(p.curFormat.SampleRate)
+	}
+	p.passed.Store(int64(d))
+	return d
 }
 
 func (p *beepPlayer) PlayedTime() time.Duration {
-	p.l.Lock()
-	defer p.l.Unlock()
-	if p.timer == nil {
-		return 0
+	if !p.l.TryLock() {
+		return time.Duration(p.played.Load())
 	}
-	return p.timer.ActualRuntime()
+	defer p.l.Unlock()
+	var d time.Duration
+	if p.timer != nil {
+		d = p.timer.ActualRuntime()
+	}
+	p.played.Store(int64(d))
+	return d
 }
 
 // TimeChan 获取定时器
@@ -354,6 +375,7 @@ func (p *beepPlayer) UpVolume() {
 
 	p.volume.Silent = false
 	p.volume.Volume += 0.25
+	p.storeLevel()
 }
 
 // DownVolume 调小音量
@@ -369,13 +391,17 @@ func (p *beepPlayer) DownVolume() {
 	if p.volume.Volume <= -5 {
 		p.volume.Silent = true
 	}
+	p.storeLevel()
 }
 
 func (p *beepPlayer) Volume() int {
-	p.l.Lock()
-	defer p.l.Unlock()
+	return int(p.level.Load())
+}
+
+// storeLevel publishes the volume for Volume; call it after every change.
+func (p *beepPlayer) storeLevel() {
 	floatVolume := (p.volume.Volume + 5) * 100 / 5
-	return int(math.Floor(floatVolume + 0.5 + 1e-9)) // 转为0~100存储
+	p.level.Store(int32(math.Floor(floatVolume + 0.5 + 1e-9))) // 转为0~100存储
 }
 
 func (p *beepPlayer) SetVolume(volume int) {
@@ -389,6 +415,7 @@ func (p *beepPlayer) SetVolume(volume int) {
 	p.l.Lock()
 	defer p.l.Unlock()
 	p.volume.Volume = float64(volume)*5/100 - 5
+	p.storeLevel()
 }
 
 func (p *beepPlayer) pausedNoLock() {
