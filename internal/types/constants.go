@@ -14,10 +14,15 @@ var (
 
 const AppName = "musicfox"
 const GroupID = "com.anhoder.musicfox"
-const AppDescription = "<cyan>Musicfox - 命令行版网易云音乐</>"
-const AppGithubUrl = "https://github.com/go-musicfox/go-musicfox"
-const AppLatestReleases = "https://github.com/go-musicfox/go-musicfox/releases/latest"
-const AppCheckUpdateUrl = "https://api.github.com/repos/go-musicfox/go-musicfox/releases/latest"
+const AppDescription = "<cyan>musicfox-deck - 磁带卡座风格的命令行网易云音乐</>"
+
+// AppRepo is the GitHub repository of musicfox-deck, a fork of
+// go-musicfox/go-musicfox: releases, update checks and bug reports go there.
+const AppRepo = "Egdon/musicfox-deck"
+const AppGithubUrl = "https://github.com/" + AppRepo
+const AppLatestReleases = AppGithubUrl + "/releases/latest"
+const AppCheckUpdateUrl = "https://api.github.com/repos/" + AppRepo + "/releases/latest"
+const AppIssueUrl = AppGithubUrl + "/issues/new?template=1_bug_report.yml"
 const LastfmAuthUrl = "https://www.last.fm/api/auth/?api_key=%s&token=%s"
 const ProgressFullChar = "#"
 const ProgressEmptyChar = "."

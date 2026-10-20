@@ -48,11 +48,11 @@ musicfox 发生未预期的错误，已退出。
 错误详情与堆栈已写入日志: %s
 
 请前往 GitHub 创建 Issue 反馈此问题，并附上上述日志文件:
-https://github.com/go-musicfox/go-musicfox/issues/new?template=1_bug_report.yml
+%s
 
 版本: %s
 平台: %s/%s
-`, err, slogx.LogFilePath(), version, runtime.GOOS, runtime.GOARCH)
+`, err, slogx.LogFilePath(), types.AppIssueUrl, version, runtime.GOOS, runtime.GOARCH)
 }
 
 func PanicRecoverWrapper(ignorePanic bool, f func()) {

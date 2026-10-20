@@ -76,7 +76,7 @@ func printWrapperCrashHint(code int) {
 		}
 	}
 	b.WriteString("\n请前往 GitHub 创建 Issue 反馈此问题，并附上上述日志文件:\n")
-	b.WriteString("https://github.com/go-musicfox/go-musicfox/issues/new?template=1_bug_report.yml\n")
+	b.WriteString(types.AppIssueUrl + "\n")
 	fmt.Fprintf(&b, "\n版本: %s\n平台: %s/%s\n", appVersion(), runtime.GOOS, runtime.GOARCH)
 
 	_, _ = os.Stdout.WriteString(b.String())
