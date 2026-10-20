@@ -41,6 +41,8 @@ type App struct {
 
 	snapshotting bool // a page renders off-screen for another
 
+	postHook func(tea.Msg) // delivers messages from other goroutines in tests
+
 	notifications      []*Notification // active notifications (newest at end)
 	nextNotificationID NotificationID
 
@@ -235,6 +237,18 @@ func (a *App) Update(msg tea.Msg) (model tea.Model, returnCmd tea.Cmd) {
 			returnCmd = tea.Batch(notificationHoverCmd, returnCmd)
 		}
 	}()
+	// A menu that loaded in the background enters even while Main is not
+	// shown; only then may it switch pages.
+	if loaded, ok := msg.(menuLoadedMsg); ok {
+		if a.main == nil {
+			return a, nil
+		}
+		page, cmd := a.main.menuLoaded(a, loaded)
+		if page != nil && a.page == Page(a.main) {
+			a.setPage(page)
+		}
+		return a, cmd
+	}
 	// Animation frames re-render the current page, which also sees them.
 	if a.handleMotionMsg(msg) {
 		if a.page == nil {

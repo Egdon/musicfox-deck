@@ -144,6 +144,7 @@ type enterMenuDeferred struct {
 	newTitle  *MenuItem
 	loading   *Loading
 	stackItem *menuStackItem
+	running   bool // its hook runs in the background, see main_loading.go
 }
 
 // refreshMenuDeferred 保存延迟刷新当前菜单所需的状态。
@@ -353,38 +354,7 @@ func (m *Main) Update(msg tea.Msg, a *App) (Page, tea.Cmd) {
 			return m, a.RerenderCmd(true)
 		}
 		if m.pendingEnterMenu != nil {
-			p := m.pendingEnterMenu
-			m.pendingEnterMenu = nil
-
-			var res bool
-			var newPage Page
-			if hook := p.newMenu.BeforeEnterMenuHook(); hook != nil {
-				if res, newPage = hook(m); !res {
-					p.loading.Complete()
-					m.menuStack.Pop()
-					if newPage != nil {
-						return newPage, func() tea.Msg { return newPage.Msg() }
-					}
-					return m, nil
-				}
-			}
-			p.loading.Complete()
-
-			if p.newMenu != nil {
-				p.newMenu.FormatMenuItem(p.newTitle)
-			}
-			m.hoveredMenuItemIdx = -1
-			menuList := p.newMenu.MenuViews()
-			m.menu = p.newMenu
-			m.menuList = menuList
-			m.menuTitle = p.newTitle
-			m.selectedIndex = 0
-			m.menuCurPage = 1
-
-			if newPage != nil {
-				return newPage, func() tea.Msg { return newPage.Msg() }
-			}
-			return m, a.RerenderCmd(true)
+			return m.runPendingEnterMenu(a)
 		}
 		return m, nil
 	case tea.WindowSizeMsg:
@@ -922,6 +892,7 @@ func (m *Main) switchTab(newIndex int) {
 	if newIndex == m.activeTab || newIndex < 0 || newIndex >= len(m.tabStates) {
 		return
 	}
+	m.cancelMenuLoad()
 
 	prevIndex := m.activeTab
 
@@ -2755,6 +2726,7 @@ func (m *Main) EnterMenu(newMenu Menu, newTitle *MenuItem) Page {
 	if (newMenu == nil || newTitle == nil) && m.selectedIndex >= len(m.menuList) {
 		return nil
 	}
+	m.cancelMenuLoad()
 
 	if newMenu == nil {
 		newMenu = m.menu.SubMenu(m.app, m.selectedIndex)
@@ -2813,6 +2785,9 @@ func (m *Main) EnterMenu(newMenu Menu, newTitle *MenuItem) Page {
 }
 
 func (m *Main) BackMenu() Page {
+	if m.cancelMenuLoad() { // going back from a menu still loading stays here
+		return nil
+	}
 	if m.menuStack.Len() <= 0 {
 		return nil
 	}
@@ -2860,6 +2835,12 @@ func (m *Main) BackMenu() Page {
 func (m *Main) BackToMenu(count int) Page {
 	if count <= 0 {
 		return nil
+	}
+	if m.cancelMenuLoad() {
+		count--
+		if count <= 0 {
+			return nil
+		}
 	}
 	if m.menuStack.Len() <= 0 {
 		return nil
