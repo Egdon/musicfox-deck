@@ -88,37 +88,41 @@ func (m *UserPlaylistMenu) BeforeEnterMenuHook() model.Hook {
 	}
 }
 
-func (m *UserPlaylistMenu) BottomOutHook() model.Hook {
+func (m *UserPlaylistMenu) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
+
+func (m *UserPlaylistMenu) BottomOutFetch() model.Fetch {
 	if !m.hasMore {
 		return nil
 	}
-	return func(main *model.Main) (bool, model.Page) {
-		userId := m.userId
-		if m.userId == CurUser {
-			// 等于0，获取当前用户歌单
-			userId = m.netease.user.UserId
-		}
+	userId := m.userId
+	if m.userId == CurUser {
+		// 等于0，获取当前用户歌单
+		userId = m.netease.user.UserId
+	}
+	offset, limit := m.offset+len(m.menus), m.limit
+	return func() model.Hook {
+		codeType, playlists, hasMore := netease.FetchUserPlaylists(userId, limit, offset)
+		return func(main *model.Main) (bool, model.Page) {
+			m.offset = offset
+			if codeType == _struct.NeedLogin {
+				page, _ := m.netease.ToLoginPage(func() model.Page {
+					main.RefreshMenuList()
+					return nil
+				})
+				return false, page
+			} else if codeType != _struct.Success {
+				return false, nil
+			}
 
-		m.offset = m.offset + len(m.menus)
-		codeType, playlists, hasMore := netease.FetchUserPlaylists(userId, m.limit, m.offset)
-		if codeType == _struct.NeedLogin {
-			page, _ := m.netease.ToLoginPage(func() model.Page {
-				main.RefreshMenuList()
-				return nil
-			})
-			return false, page
-		} else if codeType != _struct.Success {
-			return false, nil
-		}
+			m.playlists = append(m.playlists, playlists...)
+			var menus []model.MenuItem
+			for _, playlist := range m.playlists {
+				menus = append(menus, model.MenuItem{Title: _struct.ReplaceSpecialStr(playlist.Name)})
+			}
+			m.menus = menus
+			m.hasMore = hasMore
 
-		m.playlists = append(m.playlists, playlists...)
-		var menus []model.MenuItem
-		for _, playlist := range m.playlists {
-			menus = append(menus, model.MenuItem{Title: _struct.ReplaceSpecialStr(playlist.Name)})
+			return true, nil
 		}
-		m.menus = menus
-		m.hasMore = hasMore
-
-		return true, nil
 	}
 }

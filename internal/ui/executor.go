@@ -8,10 +8,17 @@ import (
 // CoreFunc 是操作的核心逻辑函数，它接收 Netease 实例作为参数。
 type CoreFunc func(m *Netease) model.Page
 
+// PrepareFunc reads what an operation needs on the UI goroutine and returns
+// its work, which runs off it: network calls and notifications, then the
+// Hook that applies the result on the UI goroutine. A nil Fetch ends the
+// operation there.
+type PrepareFunc func(n *Netease) model.Fetch
+
 // Operation 代表一个可执行的操作单元。
 type Operation struct {
 	n           *Netease
 	coreFunc    CoreFunc
+	prepare     PrepareFunc
 	needsAuth   bool
 	showLoading bool
 }
@@ -23,6 +30,13 @@ func NewOperation(n *Netease, coreFunc CoreFunc) *Operation {
 		n:        n,
 		coreFunc: coreFunc,
 	}
+}
+
+// NewBackgroundOperation creates an operation whose work runs in the
+// background while the menu shows the loading state, so the interface keeps
+// drawing and taking keys while it waits on the network.
+func NewBackgroundOperation(n *Netease, prepare PrepareFunc) *Operation {
+	return &Operation{n: n, prepare: prepare}
 }
 
 // NeedsAuth 将操作标记为需要用户登录。
@@ -61,6 +75,10 @@ func (op *Operation) Execute() model.Page {
 		}
 	}
 
+	if op.prepare != nil {
+		return op.runInBackground()
+	}
+
 	// 若需要显示加载状态，委托给 DeferWithLoading 异步执行，
 	// 使加载提示在核心逻辑运行前得以渲染。
 	if op.showLoading {
@@ -90,4 +108,21 @@ func (op *Operation) Execute() model.Page {
 
 	// 不需要加载状态，直接同步执行
 	return op.coreFunc(op.n)
+}
+
+// runInBackground prepares a background operation and runs its work off the
+// UI goroutine, or at once when the App cannot deliver messages.
+func (op *Operation) runInBackground() model.Page {
+	fetch := op.prepare(op.n)
+	if fetch == nil {
+		return nil
+	}
+	main := op.n.MustMain()
+	if main.LoadInBackground(fetch) {
+		return nil
+	}
+	if ok, page := model.HookOf(fetch)(main); !ok {
+		return page
+	}
+	return nil
 }

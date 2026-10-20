@@ -100,30 +100,29 @@ func (m *SearchResultMenu) SubMenu(_ *model.App, index int) model.Menu {
 	return nil
 }
 
-func (m *SearchResultMenu) BottomOutHook() model.Hook {
-	return func(main *model.Main) (bool, model.Page) {
-		var (
-			code     float64
-			response []byte
-		)
-		m.offset += types.SearchPageSize
-		searchService := service.SearchService{
-			S:      m.keyword,
-			Type:   strconv.Itoa(int(m.searchType)),
-			Limit:  strconv.Itoa(types.SearchPageSize),
-			Offset: strconv.Itoa(m.offset),
-		}
-		code, response = searchService.Search()
+func (m *SearchResultMenu) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
 
-		codeType := _struct.CheckCode(code)
-		if codeType != _struct.Success {
-			m.offset -= types.SearchPageSize
-			return false, nil
-		}
+func (m *SearchResultMenu) BottomOutFetch() model.Fetch {
+	offset := m.offset + types.SearchPageSize
+	searchService := service.SearchService{
+		S:      m.keyword,
+		Type:   strconv.Itoa(int(m.searchType)),
+		Limit:  strconv.Itoa(types.SearchPageSize),
+		Offset: strconv.Itoa(offset),
+	}
+	return func() model.Hook {
+		code, response := searchService.Search()
+		return func(main *model.Main) (bool, model.Page) {
+			codeType := _struct.CheckCode(code)
+			if codeType != _struct.Success {
+				return false, nil
+			}
 
-		m.appendResult(response)
-		m.convertMenus()
-		return true, nil
+			m.offset = offset
+			m.appendResult(response)
+			m.convertMenus()
+			return true, nil
+		}
 	}
 }
 

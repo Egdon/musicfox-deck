@@ -75,21 +75,25 @@ func (m *DjTodayRecommendMenu) BeforeEnterMenuHook() model.Hook {
 	}
 }
 
-func (m *DjTodayRecommendMenu) BottomOutHook() model.Hook {
-	return func(main *model.Main) (bool, model.Page) {
+func (m *DjTodayRecommendMenu) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
+
+func (m *DjTodayRecommendMenu) BottomOutFetch() model.Fetch {
+	return func() model.Hook {
 		djTodayService := service.DjTodayPerferedService{}
 		code, response := djTodayService.DjTodayPerfered()
-		codeType := _struct.CheckCode(code)
-		if codeType != _struct.Success {
-			return false, nil
+		return func(main *model.Main) (bool, model.Page) {
+			codeType := _struct.CheckCode(code)
+			if codeType != _struct.Success {
+				return false, nil
+			}
+
+			radios := _struct.GetDjRadiosOfToday(response)
+			menus := menux.GetViewFromDjRadios(radios)
+
+			m.radios = append(m.radios, radios...)
+			m.menus = append(m.menus, menus...)
+
+			return true, nil
 		}
-
-		radios := _struct.GetDjRadiosOfToday(response)
-		menus := menux.GetViewFromDjRadios(radios)
-
-		m.radios = append(m.radios, radios...)
-		m.menus = append(m.menus, menus...)
-
-		return true, nil
 	}
 }

@@ -43,18 +43,34 @@ func (m *CurPlaylist) Songs() []structs.Song {
 	return m.songs
 }
 
-func (m *CurPlaylist) BottomOutHook() model.Hook {
-	return func(main *model.Main) (bool, model.Page) {
-		if m.netease.player.playingMenu == nil || m.netease.player.playingMenu.GetMenuKey() == CurPlaylistKey {
-			return true, nil
+func (m *CurPlaylist) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
+
+// BottomOutFetch loads more of the menu the playlist came from, then shows
+// the playlist again.
+func (m *CurPlaylist) BottomOutFetch() model.Fetch {
+	playing := m.netease.player.playingMenu
+	if playing == nil || playing.GetMenuKey() == CurPlaylistKey {
+		return nil
+	}
+	var fetch model.Fetch
+	if pager, ok := playing.(model.BackgroundPager); ok {
+		fetch = pager.BottomOutFetch()
+	} else if hook := playing.BottomOutHook(); hook != nil {
+		fetch = func() model.Hook { return hook } // it loads on the UI goroutine
+	}
+	if fetch == nil {
+		return nil
+	}
+	return func() model.Hook {
+		apply := fetch()
+		return func(main *model.Main) (bool, model.Page) {
+			res, page := true, model.Page(nil)
+			if apply != nil {
+				res, page = apply(main)
+			}
+			m.songs = m.netease.player.Playlist()
+			m.menus = menux.GetViewFromSongs(m.songs)
+			return res, page
 		}
-		hook := m.netease.player.playingMenu.BottomOutHook()
-		if hook == nil {
-			return true, nil
-		}
-		res, page := hook(main)
-		m.songs = m.netease.player.Playlist()
-		m.menus = menux.GetViewFromSongs(m.songs)
-		return res, page
 	}
 }

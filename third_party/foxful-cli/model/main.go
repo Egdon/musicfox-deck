@@ -55,6 +55,7 @@ type Main struct {
 	// loading text before the hook executes.
 	pendingEnterMenu   *enterMenuDeferred
 	pendingRefreshMenu *refreshMenuDeferred
+	pendingPage        *pageLoad // more items loading for a move past the bottom
 	pendingMenuAction  *menuActionDeferred
 	pendingAction      *actionDeferred // 通用延迟动作
 
@@ -333,8 +334,10 @@ func (m *Main) Update(msg tea.Msg, a *App) (Page, tea.Cmd) {
 			p := m.pendingAction
 			m.pendingAction = nil
 
-			shouldContinue, newPage := p.action(m)
+			// Its loading state has rendered; clear it first, so that a
+			// load the action starts in the background keeps its own.
 			p.loading.Complete()
+			shouldContinue, newPage := p.action(m)
 
 			if !shouldContinue && newPage != nil {
 				return newPage, func() tea.Msg { return newPage.Msg() }
@@ -2109,13 +2112,13 @@ func (m *Main) keyMsgHandle(msg tea.KeyMsg, a *App) (Page, tea.Cmd) {
 
 	switch key {
 	case "j", "J", "down":
-		newPage = m.MoveDown()
+		newPage = m.moveDown(a)
 	case "k", "K", "up":
 		newPage = m.MoveUp()
 	case "h", "H", "left":
 		newPage = m.MoveLeft()
 	case "l", "L", "right":
-		newPage = m.MoveRight()
+		newPage = m.moveRight(a)
 	case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
 		num, _ := strconv.Atoi(key)
 		start := m.getPageStartIndex()
@@ -2388,7 +2391,7 @@ func (m *Main) mouseWheelHandle(mouse tea.Mouse, a *App) (Page, tea.Cmd) {
 		if !m.mouseInMenuArea(mouse.Y) {
 			break
 		}
-		newPage := m.MoveDown()
+		newPage := m.moveDown(a)
 		if newPage != nil {
 			return newPage, a.RerenderCmd(true)
 		}
@@ -2485,37 +2488,35 @@ func (m *Main) MoveDown() Page {
 		m.selectedIndex = 0
 		return nil
 	}
+	step := 1
 	if m.isDualColumn {
-		if m.selectedIndex+2 > len(m.menuList)-1 && bottomHook != nil {
-			loading := NewLoading(m)
-			loading.Start()
-			if res, newPage = bottomHook(m); !res {
-				loading.Complete()
-				return newPage
-			}
-			m.menuList = m.menu.MenuViews()
-			loading.Complete()
-		}
-		if m.selectedIndex+2 > len(m.menuList)-1 {
-			return nil
-		}
-		m.selectedIndex += 2
-	} else {
-		if m.selectedIndex+1 > len(m.menuList)-1 && bottomHook != nil {
-			loading := NewLoading(m)
-			loading.Start()
-			if res, newPage = bottomHook(m); !res {
-				loading.Complete()
-				return newPage
-			}
-			m.menuList = m.menu.MenuViews()
-			loading.Complete()
-		}
-		if m.selectedIndex+1 > len(m.menuList)-1 {
-			return nil
-		}
-		m.selectedIndex++
+		step = 2
 	}
+	if m.selectedIndex+step > len(m.menuList)-1 && bottomHook != nil {
+		loading := NewLoading(m)
+		loading.Start()
+		if res, newPage = bottomHook(m); !res {
+			loading.Complete()
+			return newPage
+		}
+		m.menuList = m.menu.MenuViews()
+		loading.Complete()
+	}
+	return m.stepDown(newPage)
+}
+
+// stepDown moves the selection down a row, two in two columns, unless the
+// list ends there, and turns the page when it leaves it. newPage is what a
+// bottom-out hook asked for.
+func (m *Main) stepDown(newPage Page) Page {
+	step := 1
+	if m.isDualColumn {
+		step = 2
+	}
+	if m.selectedIndex+step > len(m.menuList)-1 {
+		return nil
+	}
+	m.selectedIndex += step
 	if m.selectedIndex >= m.menuCurPage*m.menuPageSize {
 		newPage = m.NextPage()
 	}
@@ -2548,6 +2549,11 @@ func (m *Main) MoveRight() Page {
 		m.menuList = m.menu.MenuViews()
 		loading.Complete()
 	}
+	return m.stepRight(newPage)
+}
+
+// stepRight moves the selection to the right column unless the list ends.
+func (m *Main) stepRight(newPage Page) Page {
 	if m.selectedIndex >= len(m.menuList)-1 {
 		return nil
 	}
@@ -2637,6 +2643,7 @@ func (m *Main) enterMenuWithLoading(newMenu Menu, newTitle *MenuItem) Page {
 	if m.pendingEnterMenu != nil {
 		return nil // already pending, wait for completion
 	}
+	m.cancelPageLoad()
 
 	if newMenu == nil {
 		newMenu = m.menu.SubMenu(m.app, m.selectedIndex)
@@ -2720,8 +2727,12 @@ func (m *Main) DeferWithLoading(action func(*Main) (bool, Page)) bool {
 }
 
 // RefreshMenuWithLoading 在下一次 tick 刷新当前菜单，并先显示加载提示。
-// 所有状态写入均在 Update 内完成，避免与 View 并发访问。
+// 所有状态写入均在 Update 内完成，避免与 View 并发访问。能在后台加载的菜单
+// 改由父菜单重新生成一份，在后台加载，见 refreshInBackground。
 func (m *Main) RefreshMenuWithLoading() {
+	if m.pendingMenuAction == nil && m.pendingEnterMenu == nil && m.pendingAction == nil && m.refreshInBackground() {
+		return
+	}
 	m.DeferWithLoading(func(m *Main) (bool, Page) {
 		if hook := m.menu.BeforeEnterMenuHook(); hook != nil {
 			if res, newPage := hook(m); !res {
@@ -2766,11 +2777,23 @@ func (m *Main) EnterMenu(newMenu Menu, newTitle *MenuItem) Page {
 		return nil
 	}
 
+	// A menu that loads in the background enters as one chosen from the list
+	// does: its hook runs off the UI goroutine and the page it returns, if
+	// any, is shown when it is done.
+	enterMenuHook := newMenu.BeforeEnterMenuHook()
+	if enterMenuHook != nil && loadsInBackground(newMenu) && m.app != nil && m.app.canPost() {
+		loading := NewLoading(m)
+		loading.Start()
+		m.pendingEnterMenu = &enterMenuDeferred{newMenu: newMenu, newTitle: newTitle, loading: loading, stackItem: stackItem}
+		m.runPendingEnterMenu(m.app)
+		return nil
+	}
+
 	var (
 		res     bool
 		newPage Page
 	)
-	if enterMenuHook := newMenu.BeforeEnterMenuHook(); enterMenuHook != nil {
+	if enterMenuHook != nil {
 		loading := NewLoading(m)
 		loading.Start()
 		if res, newPage = enterMenuHook(m); !res {

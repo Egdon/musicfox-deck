@@ -237,13 +237,25 @@ func (a *App) Update(msg tea.Msg) (model tea.Model, returnCmd tea.Cmd) {
 			returnCmd = tea.Batch(notificationHoverCmd, returnCmd)
 		}
 	}()
-	// A menu that loaded in the background enters even while Main is not
-	// shown; only then may it switch pages.
-	if loaded, ok := msg.(menuLoadedMsg); ok {
+	// What loaded in the background lands even while Main is not shown;
+	// only then may it switch pages.
+	switch msg.(type) {
+	case menuLoadedMsg, pageLoadedMsg, backgroundLoadedMsg:
 		if a.main == nil {
 			return a, nil
 		}
-		page, cmd := a.main.menuLoaded(a, loaded)
+		var (
+			page Page
+			cmd  tea.Cmd
+		)
+		switch msg := msg.(type) {
+		case menuLoadedMsg:
+			page, cmd = a.main.menuLoaded(a, msg)
+		case pageLoadedMsg:
+			page, cmd = a.main.pageLoaded(a, msg)
+		case backgroundLoadedMsg:
+			page, cmd = a.main.backgroundLoaded(a, msg)
+		}
 		if page != nil && a.page == Page(a.main) {
 			a.setPage(page)
 		}

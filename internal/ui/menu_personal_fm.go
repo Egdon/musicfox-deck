@@ -61,23 +61,27 @@ func (m *PersonalFmMenu) BeforeEnterMenuHook() model.Hook {
 	}
 }
 
-func (m *PersonalFmMenu) BottomOutHook() model.Hook {
-	return func(main *model.Main) (bool, model.Page) {
+func (m *PersonalFmMenu) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
+
+func (m *PersonalFmMenu) BottomOutFetch() model.Fetch {
+	return func() model.Hook {
 		personalFm := service.PersonalFmService{}
 		code, response := personalFm.PersonalFm()
-		codeType := _struct.CheckCode(code)
-		if codeType != _struct.Success {
-			return false, nil
+		return func(main *model.Main) (bool, model.Page) {
+			codeType := _struct.CheckCode(code)
+			if codeType != _struct.Success {
+				return false, nil
+			}
+			songs := _struct.GetFmSongs(response)
+			menus := menux.GetViewFromSongs(songs)
+
+			m.menus = append(m.menus, menus...)
+			m.songs = append(m.songs, songs...)
+			_ = m.netease.player.playlistManager.Initialize(m.netease.player.CurSongIndex(), m.songs)
+			m.netease.player.playlistUpdateAt = time.Now()
+
+			return true, nil
 		}
-		songs := _struct.GetFmSongs(response)
-		menus := menux.GetViewFromSongs(songs)
-
-		m.menus = append(m.menus, menus...)
-		m.songs = append(m.songs, songs...)
-		_ = m.netease.player.playlistManager.Initialize(m.netease.player.CurSongIndex(), m.songs)
-		m.netease.player.playlistUpdateAt = time.Now()
-
-		return true, nil
 	}
 }
 

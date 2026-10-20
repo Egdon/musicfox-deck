@@ -89,44 +89,49 @@ func (m *AlbumSubscribeListMenu) BeforeEnterMenuHook() model.Hook {
 	}
 }
 
-func (m *AlbumSubscribeListMenu) BottomOutHook() model.Hook {
+func (m *AlbumSubscribeListMenu) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
+
+func (m *AlbumSubscribeListMenu) BottomOutFetch() model.Fetch {
 	if !m.hasMore {
 		return nil
 	}
-	return func(main *model.Main) (bool, model.Page) {
-		m.offset = m.offset + len(m.menus)
-		newAlbumService := service.AlbumSublistService{
-			Limit:  strconv.Itoa(m.limit),
-			Offset: strconv.Itoa(m.offset),
-		}
+	offset := m.offset + len(m.menus)
+	newAlbumService := service.AlbumSublistService{
+		Limit:  strconv.Itoa(m.limit),
+		Offset: strconv.Itoa(offset),
+	}
+	return func() model.Hook {
 		code, response := newAlbumService.AlbumSublist()
-		codeType := _struct.CheckCode(code)
-		if codeType == _struct.NeedLogin {
-			page, _ := m.netease.ToLoginPage(EnterMenuCallback(main))
-			return false, page
-		} else if codeType != _struct.Success {
-			return false, nil
-		}
-
-		// 是否有更多数据
-		if hasMore, err := jsonparser.GetBoolean(response, "hasMore"); err == nil {
-			m.hasMore = hasMore
-		}
-
-		albums := _struct.GetAlbumsSublist(response)
-
-		for _, album := range albums {
-			var artists []string
-			for _, artist := range album.Artists {
-				artists = append(artists, artist.Name)
+		return func(main *model.Main) (bool, model.Page) {
+			m.offset = offset
+			codeType := _struct.CheckCode(code)
+			if codeType == _struct.NeedLogin {
+				page, _ := m.netease.ToLoginPage(EnterMenuCallback(main))
+				return false, page
+			} else if codeType != _struct.Success {
+				return false, nil
 			}
-			artistsStr := fmt.Sprintf("[%s]", strings.Join(artists, ","))
-			m.menus = append(m.menus, model.MenuItem{Title: _struct.ReplaceSpecialStr(album.Name), Subtitle: _struct.ReplaceSpecialStr(artistsStr)})
+
+			// 是否有更多数据
+			if hasMore, err := jsonparser.GetBoolean(response, "hasMore"); err == nil {
+				m.hasMore = hasMore
+			}
+
+			albums := _struct.GetAlbumsSublist(response)
+
+			for _, album := range albums {
+				var artists []string
+				for _, artist := range album.Artists {
+					artists = append(artists, artist.Name)
+				}
+				artistsStr := fmt.Sprintf("[%s]", strings.Join(artists, ","))
+				m.menus = append(m.menus, model.MenuItem{Title: _struct.ReplaceSpecialStr(album.Name), Subtitle: _struct.ReplaceSpecialStr(artistsStr)})
+			}
+
+			m.albums = append(m.albums, albums...)
+
+			return true, nil
 		}
-
-		m.albums = append(m.albums, albums...)
-
-		return true, nil
 	}
 }
 

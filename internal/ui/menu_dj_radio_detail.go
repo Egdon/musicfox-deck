@@ -80,29 +80,33 @@ func (m *DjRadioDetailMenu) BeforeEnterMenuHook() model.Hook {
 	}
 }
 
-func (m *DjRadioDetailMenu) BottomOutHook() model.Hook {
-	return func(main *model.Main) (bool, model.Page) {
-		if len(m.songs) >= m.total {
+func (m *DjRadioDetailMenu) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
+
+func (m *DjRadioDetailMenu) BottomOutFetch() model.Fetch {
+	if len(m.songs) >= m.total {
+		return nil
+	}
+	offset := m.offset + m.limit
+	djProgramService := service.DjProgramService{
+		RID:    strconv.FormatInt(m.djRadioId, 10),
+		Limit:  strconv.Itoa(m.limit),
+		Offset: strconv.Itoa(offset),
+		Asc:    m.sortOrder,
+	}
+	return func() model.Hook {
+		code, response := djProgramService.DjProgram()
+		return func(main *model.Main) (bool, model.Page) {
+			codeType := _struct.CheckCode(code)
+			if codeType != _struct.Success {
+				return false, nil
+			}
+			songs := _struct.GetSongsOfDjRadio(response)
+			m.songs = append(m.songs, songs...)
+			m.menus = append(m.menus, menux.GetViewFromSongs(songs)...)
+			m.offset = offset
+
 			return true, nil
 		}
-		offset := m.offset + m.limit
-		djProgramService := service.DjProgramService{
-			RID:    strconv.FormatInt(m.djRadioId, 10),
-			Limit:  strconv.Itoa(m.limit),
-			Offset: strconv.Itoa(offset),
-			Asc:    m.sortOrder,
-		}
-		code, response := djProgramService.DjProgram()
-		codeType := _struct.CheckCode(code)
-		if codeType != _struct.Success {
-			return false, nil
-		}
-		songs := _struct.GetSongsOfDjRadio(response)
-		m.songs = append(m.songs, songs...)
-		m.menus = append(m.menus, menux.GetViewFromSongs(songs)...)
-		m.offset = offset
-
-		return true, nil
 	}
 }
 

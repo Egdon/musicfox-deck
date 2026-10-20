@@ -91,42 +91,47 @@ func (m *AlbumNewMenu) BeforeEnterMenuHook() model.Hook {
 	}
 }
 
-func (m *AlbumNewMenu) BottomOutHook() model.Hook {
+func (m *AlbumNewMenu) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
+
+func (m *AlbumNewMenu) BottomOutFetch() model.Fetch {
 	if m.total != -1 && m.offset < m.total {
 		return nil
 	}
-	return func(main *model.Main) (bool, model.Page) {
-		m.offset = m.offset + len(m.menus)
-		newAlbumService := service.AlbumNewService{
-			Area:   m.area,
-			Limit:  strconv.Itoa(m.limit),
-			Offset: strconv.Itoa(m.offset),
-		}
+	offset := m.offset + len(m.menus)
+	newAlbumService := service.AlbumNewService{
+		Area:   m.area,
+		Limit:  strconv.Itoa(m.limit),
+		Offset: strconv.Itoa(offset),
+	}
+	return func() model.Hook {
 		code, response := newAlbumService.AlbumNew()
-		codeType := _struct.CheckCode(code)
-		if codeType != _struct.Success {
-			return false, nil
-		}
-
-		// 总数量
-		if total, err := jsonparser.GetInt(response, "total"); err == nil {
-			m.total = int(total)
-		}
-
-		albums := _struct.GetNewAlbums(response)
-
-		for _, album := range albums {
-			var artists []string
-			for _, artist := range album.Artists {
-				artists = append(artists, artist.Name)
+		return func(main *model.Main) (bool, model.Page) {
+			m.offset = offset
+			codeType := _struct.CheckCode(code)
+			if codeType != _struct.Success {
+				return false, nil
 			}
-			artistsStr := fmt.Sprintf("[%s]", strings.Join(artists, ","))
-			m.menus = append(m.menus, model.MenuItem{Title: _struct.ReplaceSpecialStr(album.Name), Subtitle: _struct.ReplaceSpecialStr(artistsStr)})
+
+			// 总数量
+			if total, err := jsonparser.GetInt(response, "total"); err == nil {
+				m.total = int(total)
+			}
+
+			albums := _struct.GetNewAlbums(response)
+
+			for _, album := range albums {
+				var artists []string
+				for _, artist := range album.Artists {
+					artists = append(artists, artist.Name)
+				}
+				artistsStr := fmt.Sprintf("[%s]", strings.Join(artists, ","))
+				m.menus = append(m.menus, model.MenuItem{Title: _struct.ReplaceSpecialStr(album.Name), Subtitle: _struct.ReplaceSpecialStr(artistsStr)})
+			}
+
+			m.albums = append(m.albums, albums...)
+
+			return true, nil
 		}
-
-		m.albums = append(m.albums, albums...)
-
-		return true, nil
 	}
 }
 

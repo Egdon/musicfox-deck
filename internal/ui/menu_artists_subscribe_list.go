@@ -81,36 +81,41 @@ func (m *ArtistsSubscribeListMenu) BeforeEnterMenuHook() model.Hook {
 	}
 }
 
-func (m *ArtistsSubscribeListMenu) BottomOutHook() model.Hook {
+func (m *ArtistsSubscribeListMenu) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
+
+func (m *ArtistsSubscribeListMenu) BottomOutFetch() model.Fetch {
 	if !m.hasMore {
 		return nil
 	}
-	return func(main *model.Main) (bool, model.Page) {
-		m.offset = m.offset + len(m.menus)
-		artistService := service.ArtistSublistService{
-			Limit:  strconv.Itoa(m.limit),
-			Offset: strconv.Itoa(m.offset),
-		}
+	offset := m.offset + len(m.menus)
+	artistService := service.ArtistSublistService{
+		Limit:  strconv.Itoa(m.limit),
+		Offset: strconv.Itoa(offset),
+	}
+	return func() model.Hook {
 		code, response := artistService.ArtistSublist()
-		codeType := _struct.CheckCode(code)
-		if codeType == _struct.NeedLogin {
-			page, _ := m.netease.ToLoginPage(EnterMenuCallback(main))
-			return false, page
-		} else if codeType != _struct.Success {
-			return false, nil
-		}
+		return func(main *model.Main) (bool, model.Page) {
+			m.offset = offset
+			codeType := _struct.CheckCode(code)
+			if codeType == _struct.NeedLogin {
+				page, _ := m.netease.ToLoginPage(EnterMenuCallback(main))
+				return false, page
+			} else if codeType != _struct.Success {
+				return false, nil
+			}
 
-		// 是否有更多数据
-		if hasMore, err := jsonparser.GetBoolean(response, "hasMore"); err == nil {
-			m.hasMore = hasMore
-		}
+			// 是否有更多数据
+			if hasMore, err := jsonparser.GetBoolean(response, "hasMore"); err == nil {
+				m.hasMore = hasMore
+			}
 
-		m.artists = _struct.GetArtistsSublist(response)
-		for _, artist := range m.artists {
-			m.menus = append(m.menus, model.MenuItem{Title: _struct.ReplaceSpecialStr(artist.Name)})
-		}
+			m.artists = _struct.GetArtistsSublist(response)
+			for _, artist := range m.artists {
+				m.menus = append(m.menus, model.MenuItem{Title: _struct.ReplaceSpecialStr(artist.Name)})
+			}
 
-		return true, nil
+			return true, nil
+		}
 	}
 }
 

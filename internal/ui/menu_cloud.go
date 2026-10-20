@@ -81,40 +81,45 @@ func (m *CloudMenu) BeforeEnterMenuHook() model.Hook {
 	}
 }
 
-func (m *CloudMenu) BottomOutHook() model.Hook {
+func (m *CloudMenu) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
+
+func (m *CloudMenu) BottomOutFetch() model.Fetch {
 	if !m.hasMore {
 		return nil
 	}
-	return func(main *model.Main) (bool, model.Page) {
-		m.offset += m.limit
+	offset := m.offset + m.limit
 
-		cloudService := service.UserCloudService{
-			Offset: strconv.Itoa(m.offset),
-			Limit:  strconv.Itoa(m.limit),
-		}
+	cloudService := service.UserCloudService{
+		Offset: strconv.Itoa(offset),
+		Limit:  strconv.Itoa(m.limit),
+	}
+	return func() model.Hook {
 		code, response := cloudService.UserCloud()
-		codeType := _struct.CheckCode(code)
-		if codeType == _struct.NeedLogin {
-			page, _ := m.netease.ToLoginPage(func() model.Page {
-				main.RefreshMenuList()
-				return nil
-			})
-			return false, page
-		} else if codeType != _struct.Success {
-			return false, nil
+		return func(main *model.Main) (bool, model.Page) {
+			m.offset = offset
+			codeType := _struct.CheckCode(code)
+			if codeType == _struct.NeedLogin {
+				page, _ := m.netease.ToLoginPage(func() model.Page {
+					main.RefreshMenuList()
+					return nil
+				})
+				return false, page
+			} else if codeType != _struct.Success {
+				return false, nil
+			}
+
+			if hasMore, err := jsonparser.GetBoolean(response, "hasMore"); err == nil {
+				m.hasMore = hasMore
+			}
+
+			songs := _struct.GetSongsOfCloud(response)
+			menus := menux.GetViewFromSongs(songs)
+
+			m.songs = append(m.songs, songs...)
+			m.menus = append(m.menus, menus...)
+
+			return true, nil
 		}
-
-		if hasMore, err := jsonparser.GetBoolean(response, "hasMore"); err == nil {
-			m.hasMore = hasMore
-		}
-
-		songs := _struct.GetSongsOfCloud(response)
-		menus := menux.GetViewFromSongs(songs)
-
-		m.songs = append(m.songs, songs...)
-		m.menus = append(m.menus, menus...)
-
-		return true, nil
 	}
 }
 

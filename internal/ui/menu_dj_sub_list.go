@@ -94,42 +94,54 @@ func (m *DjSubListMenu) BeforeEnterMenuHook() model.Hook {
 	}
 }
 
-func (m *DjSubListMenu) BottomOutHook() model.Hook {
+func (m *DjSubListMenu) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
+
+func (m *DjSubListMenu) BottomOutFetch() model.Fetch {
 	if len(m.radios) >= m.total {
 		return nil
 	}
 
-	return func(main *model.Main) (bool, model.Page) {
-		m.offset += m.limit
-
-		if _struct.CheckUserInfo(m.netease.user) == _struct.NeedLogin {
-			page, _ := m.netease.ToLoginPage(EnterMenuCallback(main))
-			return false, page
+	offset := m.offset + m.limit
+	needLogin := _struct.CheckUserInfo(m.netease.user) == _struct.NeedLogin
+	djSublistService := service.DjSublistService{
+		Limit:  strconv.Itoa(m.limit),
+		Offset: strconv.Itoa(offset),
+	}
+	return func() model.Hook {
+		var (
+			code     float64
+			response []byte
+		)
+		if !needLogin {
+			code, response = djSublistService.DjSublist()
 		}
+		return func(main *model.Main) (bool, model.Page) {
+			m.offset = offset
 
-		djSublistService := service.DjSublistService{
-			Limit:  strconv.Itoa(m.limit),
-			Offset: strconv.Itoa(m.offset),
+			if needLogin {
+				page, _ := m.netease.ToLoginPage(EnterMenuCallback(main))
+				return false, page
+			}
+
+			codeType := _struct.CheckCode(code)
+			if codeType == _struct.NeedLogin {
+				page, _ := m.netease.ToLoginPage(EnterMenuCallback(main))
+				return false, page
+			} else if codeType != _struct.Success {
+				return false, nil
+			}
+
+			if total, err := jsonparser.GetInt(response, "count"); err != nil {
+				m.total = int(total)
+			}
+
+			radios := _struct.GetDjRadios(response)
+			menus := menux.GetViewFromDjRadios(radios)
+
+			m.radios = append(m.radios, radios...)
+			m.menus = append(m.menus, menus...)
+
+			return true, nil
 		}
-		code, response := djSublistService.DjSublist()
-		codeType := _struct.CheckCode(code)
-		if codeType == _struct.NeedLogin {
-			page, _ := m.netease.ToLoginPage(EnterMenuCallback(main))
-			return false, page
-		} else if codeType != _struct.Success {
-			return false, nil
-		}
-
-		if total, err := jsonparser.GetInt(response, "count"); err != nil {
-			m.total = int(total)
-		}
-
-		radios := _struct.GetDjRadios(response)
-		menus := menux.GetViewFromDjRadios(radios)
-
-		m.radios = append(m.radios, radios...)
-		m.menus = append(m.menus, menus...)
-
-		return true, nil
 	}
 }

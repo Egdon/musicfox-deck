@@ -118,105 +118,118 @@ func getSelectedPlaylist(n *Netease) (structs.Playlist, bool) {
 // isLike: true 为喜欢, false 为取消喜欢。
 // isSelected: true 操作选中的歌曲, false 操作正在播放的歌曲。
 func likeSong(n *Netease, isLike bool, isSelected bool) model.Page {
-	coreLogic := func(n *Netease) model.Page {
+	prepare := func(n *Netease) model.Fetch {
 		song, ok := getTargetSong(n, isSelected)
 		if !ok {
 			return nil
 		}
-
-		// TODO: 提取为函数
-		if n.user.MyLikePlaylistID == 0 {
-			userPlaylists := service.UserPlaylistService{
-				Uid:    strconv.FormatInt(n.user.UserId, 10),
-				Limit:  "1",
-				Offset: "0",
+		userId, likePlaylistId, playing := n.user.UserId, n.user.MyLikePlaylistID, n.player.CurSong().Name
+		return func() model.Hook {
+			// TODO: 提取为函数
+			found := likePlaylistId == 0
+			if found {
+				userPlaylists := service.UserPlaylistService{
+					Uid:    strconv.FormatInt(userId, 10),
+					Limit:  "1",
+					Offset: "0",
+				}
+				code, response := userPlaylists.UserPlaylist()
+				if _struct.CheckCode(code) != _struct.Success {
+					return nil
+				}
+				var err error
+				likePlaylistId, err = jsonparser.GetInt(response, "playlist", "[0]", "id")
+				if err != nil {
+					slog.Error("获取歌单ID失败", "error", err)
+					return nil
+				}
 			}
-			code, response := userPlaylists.UserPlaylist()
-			if _struct.CheckCode(code) != _struct.Success {
-				return nil
-			}
-			var err error
-			n.user.MyLikePlaylistID, err = jsonparser.GetInt(response, "playlist", "[0]", "id")
-			if err != nil {
-				slog.Error("获取歌单ID失败", "error", err)
-				return nil
+			// The playlist found is kept even when liking fails.
+			keep := func(*model.Main) (bool, model.Page) {
+				if found {
+					n.user.MyLikePlaylistID = likePlaylistId
+					// 写入本地数据库
+					table := storage.NewTable()
+					_ = table.SetByKVModel(storage.User{}, n.user)
+				}
+				return true, nil
 			}
 
-			// 写入本地数据库
-			table := storage.NewTable()
-			_ = table.SetByKVModel(storage.User{}, n.user)
-		}
-
-		op := "add"
-		if !isLike {
-			op = "del"
-		}
-		likeService := service.PlaylistTracksService{
-			TrackIds: []string{strconv.FormatInt(song.Id, 10)},
-			Op:       op,
-			Pid:      strconv.FormatInt(n.user.MyLikePlaylistID, 10),
-		}
-
-		if code, resp := likeService.PlaylistTracks(); code != 200 {
-			var msg string
-			if msg, _ = jsonparser.GetString(resp, "message"); msg == "" {
-				msg, _ = jsonparser.GetString(resp, "data", "message")
+			op := "add"
+			if !isLike {
+				op = "del"
 			}
-			if msg == "" {
-				msg = model.T(MsgOperationLikeFailed)
+			likeService := service.PlaylistTracksService{
+				TrackIds: []string{strconv.FormatInt(song.Id, 10)},
+				Op:       op,
+				Pid:      strconv.FormatInt(likePlaylistId, 10),
+			}
+
+			if code, resp := likeService.PlaylistTracks(); code != 200 {
+				var msg string
+				if msg, _ = jsonparser.GetString(resp, "message"); msg == "" {
+					msg, _ = jsonparser.GetString(resp, "data", "message")
+				}
+				if msg == "" {
+					msg = model.T(MsgOperationLikeFailed)
+				}
+				notify.Notify(notify.NotifyContent{
+					Title:   msg,
+					Text:    playing,
+					Url:     types.AppGithubUrl,
+					GroupId: types.GroupID,
+				})
+				return keep
+			}
+
+			title := model.T(MsgOperationLikeAdded)
+			if !isLike {
+				title = model.T(MsgOperationLikeRemoved)
 			}
 			notify.Notify(notify.NotifyContent{
-				Title:   msg,
-				Text:    n.player.CurSong().Name,
+				Title:   title,
+				Text:    song.Name,
+				Url:     netease.WebUrlOfPlaylist(likePlaylistId),
+				GroupId: types.GroupID,
+			})
+			return func(main *model.Main) (bool, model.Page) {
+				keep(main)
+				go func() {
+					likelist.RefreshLikeList(userId)
+					n.Rerender(false)
+				}()
+				return true, nil
+			}
+		}
+	}
+
+	return NewBackgroundOperation(n, prepare).NeedsAuth().Execute()
+}
+
+// trashSong 将歌曲标记为不喜欢
+func trashSong(n *Netease, isSelected bool) model.Page {
+	prepare := func(n *Netease) model.Fetch {
+		song, ok := getTargetSong(n, isSelected)
+		if !ok {
+			return nil
+		}
+		return func() model.Hook {
+			trashService := service.FmTrashService{
+				SongID: strconv.FormatInt(song.Id, 10),
+			}
+			trashService.FmTrash()
+
+			notify.Notify(notify.NotifyContent{
+				Title:   model.T(MsgOperationFMDisliked),
+				Text:    song.Name,
 				Url:     types.AppGithubUrl,
 				GroupId: types.GroupID,
 			})
 			return nil
 		}
-
-		go func() {
-			likelist.RefreshLikeList(n.user.UserId)
-			n.Rerender(false)
-		}()
-
-		title := model.T(MsgOperationLikeAdded)
-		if !isLike {
-			title = model.T(MsgOperationLikeRemoved)
-		}
-		notify.Notify(notify.NotifyContent{
-			Title:   title,
-			Text:    song.Name,
-			Url:     netease.WebUrlOfPlaylist(n.user.MyLikePlaylistID),
-			GroupId: types.GroupID,
-		})
-		return nil
 	}
 
-	return NewOperation(n, coreLogic).ShowLoading().NeedsAuth().Execute()
-}
-
-// trashSong 将歌曲标记为不喜欢
-func trashSong(n *Netease, isSelected bool) model.Page {
-	coreLogic := func(n *Netease) model.Page {
-		song, ok := getTargetSong(n, isSelected)
-		if !ok {
-			return nil
-		}
-		trashService := service.FmTrashService{
-			SongID: strconv.FormatInt(song.Id, 10),
-		}
-		trashService.FmTrash()
-
-		notify.Notify(notify.NotifyContent{
-			Title:   model.T(MsgOperationFMDisliked),
-			Text:    song.Name,
-			Url:     types.AppGithubUrl,
-			GroupId: types.GroupID,
-		})
-		return nil
-	}
-
-	return NewOperation(n, coreLogic).ShowLoading().NeedsAuth().Execute()
+	return NewBackgroundOperation(n, prepare).NeedsAuth().Execute()
 }
 
 // confirmTrashSong shows a confirmation popup before marking a song as
@@ -475,172 +488,179 @@ func openInWeb(n *Netease, isSelected bool, selectedIndex int) {
 
 // collectSelectedPlaylist 收藏或取消收藏选中歌单
 func collectSelectedPlaylist(n *Netease, isCollect bool) model.Page {
-	coreLogic := func(n *Netease) model.Page {
+	prepare := func(n *Netease) model.Fetch {
 		playlist, ok := getSelectedPlaylist(n)
 		if !ok {
 			return nil
 		}
-		t := "1"
-		if !isCollect {
-			t = "0" // API中 '1' 为收藏, '0' 为取消收藏
-		}
-		s := service.PlaylistSubscribeService{ID: strconv.FormatInt(playlist.Id, 10), T: t}
-		if code, resp := s.PlaylistSubscribe(); code != 200 {
-			var msg string
-			if msg, _ = jsonparser.GetString(resp, "message"); msg == "" {
-				msg, _ = jsonparser.GetString(resp, "data", "message")
+		return func() model.Hook {
+			t := "1"
+			if !isCollect {
+				t = "0" // API中 '1' 为收藏, '0' 为取消收藏
 			}
-			if msg == "" {
-				msg = model.T(MsgOperationFailed)
+			s := service.PlaylistSubscribeService{ID: strconv.FormatInt(playlist.Id, 10), T: t}
+			if code, resp := s.PlaylistSubscribe(); code != 200 {
+				var msg string
+				if msg, _ = jsonparser.GetString(resp, "message"); msg == "" {
+					msg, _ = jsonparser.GetString(resp, "data", "message")
+				}
+				if msg == "" {
+					msg = model.T(MsgOperationFailed)
+				}
+				notify.Notify(notify.NotifyContent{
+					Title:   msg,
+					Text:    playlist.Name,
+					Url:     types.AppGithubUrl,
+					GroupId: types.GroupID,
+				})
+				return nil
+			}
+			title := "已收藏歌单"
+			if !isCollect {
+				title = "已取消收藏歌单"
 			}
 			notify.Notify(notify.NotifyContent{
-				Title:   msg,
+				Title:   title,
 				Text:    playlist.Name,
 				Url:     types.AppGithubUrl,
 				GroupId: types.GroupID,
+				Icon:    "",
 			})
 			return nil
 		}
-		title := "已收藏歌单"
-		if !isCollect {
-			title = "已取消收藏歌单"
-		}
-		notify.Notify(notify.NotifyContent{
-			Title:   title,
-			Text:    playlist.Name,
-			Url:     types.AppGithubUrl,
-			GroupId: types.GroupID,
-			Icon:    "",
-		})
-		return nil
 	}
-	return NewOperation(n, coreLogic).ShowLoading().NeedsAuth().Execute()
+	return NewBackgroundOperation(n, prepare).NeedsAuth().Execute()
 }
 
 // subscribeAlbum 收藏或取消收藏歌曲的专辑
 // isSub: true 为收藏, false 为取消收藏。
 // isSelected: true 操作选中的歌曲, false 操作正在播放的歌曲。
 func subscribeAlbum(n *Netease, isSub bool, isSelected bool) model.Page {
-	coreLogic := func(n *Netease) model.Page {
+	prepare := func(n *Netease) model.Fetch {
 		song, ok := getTargetSong(n, isSelected)
 		if !ok {
 			return nil
 		}
-		if song.Album.Id == 0 {
-			notify.Notify(notify.NotifyContent{
-				Title:   model.T(MsgOperationFailed),
-				Text:    model.T(MsgErrorNoAlbum),
-				Url:     types.AppGithubUrl,
-				GroupId: types.GroupID,
-				Level:   notify.ToastError,
-			})
-			return nil
-		}
-		t := "1"
-		if !isSub {
-			t = "2" // API 中 '1' 为收藏, '2'（或任何非 1）为取消收藏
-		}
-		s := service.AlbumSubService{ID: strconv.FormatInt(song.Album.Id, 10), T: t}
-		if code, resp := s.AlbumSub(); code != 200 {
-			var msg string
-			if msg, _ = jsonparser.GetString(resp, "message"); msg == "" {
-				msg, _ = jsonparser.GetString(resp, "data", "message")
+		return func() model.Hook {
+			if song.Album.Id == 0 {
+				notify.Notify(notify.NotifyContent{
+					Title:   model.T(MsgOperationFailed),
+					Text:    model.T(MsgErrorNoAlbum),
+					Url:     types.AppGithubUrl,
+					GroupId: types.GroupID,
+					Level:   notify.ToastError,
+				})
+				return nil
 			}
-			if msg == "" {
-				msg = model.T(MsgOperationFailed)
+			t := "1"
+			if !isSub {
+				t = "2" // API 中 '1' 为收藏, '2'（或任何非 1）为取消收藏
+			}
+			s := service.AlbumSubService{ID: strconv.FormatInt(song.Album.Id, 10), T: t}
+			if code, resp := s.AlbumSub(); code != 200 {
+				var msg string
+				if msg, _ = jsonparser.GetString(resp, "message"); msg == "" {
+					msg, _ = jsonparser.GetString(resp, "data", "message")
+				}
+				if msg == "" {
+					msg = model.T(MsgOperationFailed)
+				}
+				notify.Notify(notify.NotifyContent{
+					Title:   msg,
+					Text:    song.Album.Name,
+					Url:     types.AppGithubUrl,
+					GroupId: types.GroupID,
+				})
+				return nil
+			}
+			title := "已收藏专辑"
+			if !isSub {
+				title = "已取消收藏专辑"
 			}
 			notify.Notify(notify.NotifyContent{
-				Title:   msg,
+				Title:   title,
 				Text:    song.Album.Name,
 				Url:     types.AppGithubUrl,
 				GroupId: types.GroupID,
+				Icon:    "",
 			})
 			return nil
 		}
-		title := "已收藏专辑"
-		if !isSub {
-			title = "已取消收藏专辑"
-		}
-		notify.Notify(notify.NotifyContent{
-			Title:   title,
-			Text:    song.Album.Name,
-			Url:     types.AppGithubUrl,
-			GroupId: types.GroupID,
-			Icon:    "",
-		})
-		return nil
 	}
-	return NewOperation(n, coreLogic).ShowLoading().NeedsAuth().Execute()
+	return NewBackgroundOperation(n, prepare).NeedsAuth().Execute()
 }
 
 // subscribeArtist 收藏或取消收藏歌曲的歌手
 // isSub: true 为收藏, false 为取消收藏。
 // isSelected: true 操作选中的歌曲, false 操作正在播放的歌曲。
 func subscribeArtist(n *Netease, isSub bool, isSelected bool) model.Page {
-	coreLogic := func(n *Netease) model.Page {
+	prepare := func(n *Netease) model.Fetch {
 		song, ok := getTargetSong(n, isSelected)
 		if !ok {
 			return nil
 		}
-		if len(song.Artists) == 0 {
-			notify.Notify(notify.NotifyContent{
-				Title:   model.T(MsgOperationFailed),
-				Text:    model.T(MsgErrorNoArtist),
-				Url:     types.AppGithubUrl,
-				GroupId: types.GroupID,
-				Level:   notify.ToastError,
-			})
-			return nil
-		}
-
-		artist := song.Artists[0]
-
-		t := "1"
-		if !isSub {
-			t = "2" // API 中 '1' 为收藏, '2'（或任何非 1）为取消收藏
-		}
-		s := service.ArtistSubService{T: t, Id: strconv.FormatInt(artist.Id, 10)}
-		if code, resp := s.ArtistSub(); code != 200 {
-			var msg string
-			if msg, _ = jsonparser.GetString(resp, "message"); msg == "" {
-				msg, _ = jsonparser.GetString(resp, "data", "message")
+		return func() model.Hook {
+			if len(song.Artists) == 0 {
+				notify.Notify(notify.NotifyContent{
+					Title:   model.T(MsgOperationFailed),
+					Text:    model.T(MsgErrorNoArtist),
+					Url:     types.AppGithubUrl,
+					GroupId: types.GroupID,
+					Level:   notify.ToastError,
+				})
+				return nil
 			}
-			if msg == "" {
-				msg = model.T(MsgOperationFailed)
+
+			artist := song.Artists[0]
+
+			t := "1"
+			if !isSub {
+				t = "2" // API 中 '1' 为收藏, '2'（或任何非 1）为取消收藏
+			}
+			s := service.ArtistSubService{T: t, Id: strconv.FormatInt(artist.Id, 10)}
+			if code, resp := s.ArtistSub(); code != 200 {
+				var msg string
+				if msg, _ = jsonparser.GetString(resp, "message"); msg == "" {
+					msg, _ = jsonparser.GetString(resp, "data", "message")
+				}
+				if msg == "" {
+					msg = model.T(MsgOperationFailed)
+				}
+				notify.Notify(notify.NotifyContent{
+					Title:   msg,
+					Text:    artist.Name,
+					Url:     types.AppGithubUrl,
+					GroupId: types.GroupID,
+				})
+				return nil
+			}
+			title := "已收藏歌手"
+			if !isSub {
+				title = "已取消收藏歌手"
 			}
 			notify.Notify(notify.NotifyContent{
-				Title:   msg,
+				Title:   title,
 				Text:    artist.Name,
 				Url:     types.AppGithubUrl,
 				GroupId: types.GroupID,
+				Icon:    "",
 			})
 			return nil
 		}
-		title := "已收藏歌手"
-		if !isSub {
-			title = "已取消收藏歌手"
-		}
-		notify.Notify(notify.NotifyContent{
-			Title:   title,
-			Text:    artist.Name,
-			Url:     types.AppGithubUrl,
-			GroupId: types.GroupID,
-			Icon:    "",
-		})
-		return nil
 	}
-	return NewOperation(n, coreLogic).ShowLoading().NeedsAuth().Execute()
+	return NewBackgroundOperation(n, prepare).NeedsAuth().Execute()
 }
 
 // appendSongsToCurPlaylist 添加歌曲到播放列表
 func appendSongsToCurPlaylist(n *Netease, addToNext bool) {
-	op := NewOperation(n, func(n *Netease) model.Page {
+	op := NewBackgroundOperation(n, func(n *Netease) model.Fetch {
 		main := n.MustMain()
 		menu := main.CurMenu()
 		selectedIndex := menu.RealDataIndex(main.SelectedIndex())
 		subMenu := menu.SubMenu(n.App, selectedIndex)
 		var appendSongs []structs.Song
 		var notifyURL string
+		load := func() model.Hook { return nil }
 
 		sm, isSongsMenu := menu.(SongsMenu)
 		subSm, subIsSongsMenu := subMenu.(SongsMenu)
@@ -654,56 +674,94 @@ func appendSongsToCurPlaylist(n *Netease, addToNext bool) {
 			notifyURL = netease.WebUrlOfSong(song.Id)
 		case subIsSongsMenu: // 选中项菜单是 SongsMenu
 			// 触发 BeforeEnterMenuHook 获取歌曲
-			if ok, _ := subSm.BeforeEnterMenuHook()(n.Main()); !ok {
-				return nil
-			}
-			appendSongs = subSm.Songs()
+			load = songsFetch(main, subSm)
 		default:
 			return nil
 		}
-		if len(appendSongs) == 0 {
-			return nil
+		var itemTitle string
+		if i := main.SelectedIndex(); i >= 0 && i < len(menu.MenuViews()) {
+			itemTitle = menu.MenuViews()[i].Title
 		}
 
-		var notifyTitle string
-		if addToNext && len(n.player.Playlist()) > 0 {
-			// 添加为下一曲
-			targetIndex := n.player.CurSongIndex() + 1
-			_ = n.player.playlistManager.Initialize(
-				n.player.CurSongIndex(),
-				slices.Concat(
-					n.player.Playlist()[:targetIndex],
-					appendSongs,
-					n.player.Playlist()[targetIndex:],
-				),
-			)
-			notifyTitle = "已添加到下一曲"
-		} else {
-			// 添加到播放列表末尾
-			_ = n.player.playlistManager.Initialize(
-				n.player.CurSongIndex(),
-				append(n.player.Playlist(), appendSongs...),
-			)
-			notifyTitle = "已添加到播放列表末尾"
-		}
+		return func() model.Hook {
+			loaded := load()
+			return func(main *model.Main) (bool, model.Page) {
+				if loaded != nil {
+					if ok, _ := loaded(main); !ok {
+						return true, nil
+					}
+					appendSongs = subSm.Songs()
+				}
+				if len(appendSongs) == 0 {
+					return true, nil
+				}
 
-		// 替换播放中数据，避免数据错乱
-		n.player.playingMenu = nil
-		n.player.playingMenuKey += "modified"
-		if curPlaylist, ok := menu.(*CurPlaylist); ok {
-			curPlaylist.songs = n.player.Playlist()
-			curPlaylist.menus = menux.GetViewFromSongs(n.player.Playlist())
-			main.RefreshMenuList()
+				var notifyTitle string
+				if addToNext && len(n.player.Playlist()) > 0 {
+					// 添加为下一曲
+					targetIndex := n.player.CurSongIndex() + 1
+					_ = n.player.playlistManager.Initialize(
+						n.player.CurSongIndex(),
+						slices.Concat(
+							n.player.Playlist()[:targetIndex],
+							appendSongs,
+							n.player.Playlist()[targetIndex:],
+						),
+					)
+					notifyTitle = "已添加到下一曲"
+				} else {
+					// 添加到播放列表末尾
+					_ = n.player.playlistManager.Initialize(
+						n.player.CurSongIndex(),
+						append(n.player.Playlist(), appendSongs...),
+					)
+					notifyTitle = "已添加到播放列表末尾"
+				}
+
+				// 替换播放中数据，避免数据错乱
+				n.player.playingMenu = nil
+				n.player.playingMenuKey += "modified"
+				if curPlaylist, ok := menu.(*CurPlaylist); ok {
+					curPlaylist.songs = n.player.Playlist()
+					curPlaylist.menus = menux.GetViewFromSongs(n.player.Playlist())
+					if main.CurMenu() == menu {
+						main.RefreshMenuList()
+					}
+				}
+				notify.Notify(notify.NotifyContent{
+					Title:   notifyTitle,
+					Text:    itemTitle,
+					Url:     notifyURL,
+					GroupId: types.GroupID,
+				})
+				return true, nil
+			}
 		}
-		notify.Notify(notify.NotifyContent{
-			Title:   notifyTitle,
-			Text:    menu.MenuViews()[main.SelectedIndex()].Title,
-			Url:     notifyURL,
-			GroupId: types.GroupID,
-		})
-		return nil
 	})
-	op.ShowLoading().Execute()
+	op.Execute()
+}
+
+// songsFetch loads a songs menu without entering it. Its hook runs in the
+// background when the menu allows that, otherwise on the UI goroutine.
+func songsFetch(main *model.Main, menu model.Menu) model.Fetch {
+	background := false
+	if l, ok := menu.(model.BackgroundLoader); ok {
+		background = l.LoadsInBackground()
+	}
+	if f, ok := menu.(model.EnterFetcher); ok && background {
+		return f.BeforeEnterMenuFetch()
+	}
+	hook := menu.BeforeEnterMenuHook()
+	switch {
+	case hook == nil:
+		return func() model.Hook { return func(*model.Main) (bool, model.Page) { return true, nil } }
+	case !background:
+		return func() model.Hook { return hook }
+	}
+	return func() model.Hook {
+		ok, page := hook(main)
+		return func(*model.Main) (bool, model.Page) { return ok, page }
+	}
 }
 
 // openAddSongToUserPlaylistMenu 打开“添加歌曲到歌单”菜单
@@ -734,67 +792,84 @@ func openAddSongToUserPlaylistMenu(n *Netease, isSelected, isAdd bool) model.Pag
 
 // addSongToUserPlaylist 添加或从歌单删除歌曲（仅在 AddToUserPlaylistMenu 中调用）
 func addSongToUserPlaylist(n *Netease, isAdd bool) model.Page {
-	coreLogic := func(n *Netease) model.Page {
+	prepare := func(n *Netease) model.Fetch {
 		main := n.MustMain()
 		menu, ok := main.CurMenu().(*AddToUserPlaylistMenu)
 		if !ok {
 			return nil
 		}
 		playlist := menu.playlists[menu.RealDataIndex(main.SelectedIndex())]
-		op := "add"
-		if !isAdd {
-			op = "del"
-		}
-		likeService := service.PlaylistTracksService{
-			TrackIds: []string{strconv.FormatInt(menu.song.Id, 10)},
-			Op:       op,
-			Pid:      strconv.FormatInt(playlist.Id, 10),
-		}
-		if code, resp := likeService.PlaylistTracks(); code != 200 {
-			var msg string
-			if msg, _ = jsonparser.GetString(resp, "message"); msg == "" {
-				msg, _ = jsonparser.GetString(resp, "data", "message")
+		song := menu.song
+		// leave goes back from the menu, unless it was left meanwhile.
+		leave := func(main *model.Main) bool {
+			if main.CurMenu() != model.Menu(menu) {
+				return false
 			}
-			if msg == "" && isAdd {
-				msg = "加入歌单失败"
-			} else if msg == "" && !isAdd {
-				msg = "从歌单中删除失败"
+			main.BackMenu()
+			return true
+		}
+		return func() model.Hook {
+			op := "add"
+			if !isAdd {
+				op = "del"
+			}
+			likeService := service.PlaylistTracksService{
+				TrackIds: []string{strconv.FormatInt(song.Id, 10)},
+				Op:       op,
+				Pid:      strconv.FormatInt(playlist.Id, 10),
+			}
+			if code, resp := likeService.PlaylistTracks(); code != 200 {
+				var msg string
+				if msg, _ = jsonparser.GetString(resp, "message"); msg == "" {
+					msg, _ = jsonparser.GetString(resp, "data", "message")
+				}
+				if msg == "" && isAdd {
+					msg = "加入歌单失败"
+				} else if msg == "" && !isAdd {
+					msg = "从歌单中删除失败"
+				}
+				notify.Notify(notify.NotifyContent{
+					Title:   msg,
+					Text:    song.Name,
+					Url:     types.AppGithubUrl,
+					GroupId: types.GroupID,
+				})
+				return func(main *model.Main) (bool, model.Page) {
+					leave(main)
+					return true, nil
+				}
+			}
+			title := "已添加到歌单「" + playlist.Name + "」"
+			if !isAdd {
+				title = "已从歌单「" + playlist.Name + "」中删除"
 			}
 			notify.Notify(notify.NotifyContent{
-				Title:   msg,
-				Text:    menu.song.Name,
-				Url:     types.AppGithubUrl,
+				Title:   title,
+				Text:    song.Name,
+				Url:     netease.WebUrlOfPlaylist(playlist.Id),
 				GroupId: types.GroupID,
 			})
-			main.BackMenu()
-			return nil
-		}
-		title := "已添加到歌单「" + playlist.Name + "」"
-		if !isAdd {
-			title = "已从歌单「" + playlist.Name + "」中删除"
-		}
-		notify.Notify(notify.NotifyContent{
-			Title:   title,
-			Text:    menu.song.Name,
-			Url:     netease.WebUrlOfPlaylist(playlist.Id),
-			GroupId: types.GroupID,
-		})
-		main.BackMenu()
+			return func(main *model.Main) (bool, model.Page) {
+				if !leave(main) {
+					return true, nil
+				}
 
-		// 刷新原歌单详情页
-		if !isAdd {
-			originalMenu, ok := main.CurMenu().(*PlaylistDetailMenu)
-			if ok && originalMenu.playlistId == playlist.Id {
-				t := main.MenuTitle()
-				main.BackMenu()
-				_, page := originalMenu.BeforeEnterMenuHook()(main)
-				main.EnterMenu(originalMenu, t)
-				return page
+				// 刷新原歌单详情页
+				if !isAdd {
+					originalMenu, ok := main.CurMenu().(*PlaylistDetailMenu)
+					if ok && originalMenu.playlistId == playlist.Id {
+						t := main.MenuTitle()
+						main.BackMenu()
+						if page := main.EnterMenu(originalMenu, t); page != nil {
+							return false, page
+						}
+					}
+				}
+				return true, nil
 			}
 		}
-		return nil
 	}
-	return NewOperation(n, coreLogic).ShowLoading().NeedsAuth().Execute()
+	return NewBackgroundOperation(n, prepare).NeedsAuth().Execute()
 }
 
 // delSongFromPlaylist 从播放列表删除选中歌曲,仅在当前播放列表界面有效
@@ -811,7 +886,7 @@ func delSongFromPlaylist(n *Netease) model.Page {
 		}
 
 		if removedSong, err := n.player.playlistManager.RemoveSong(selectedIndex); err == nil {
-			n.player.PlaySong(removedSong, DurationNext)
+			n.player.async(func() { n.player.PlaySong(removedSong, DurationNext) })
 		}
 		songs := n.player.Playlist()
 		menu.menus = menux.GetViewFromSongs(songs)
@@ -840,28 +915,30 @@ func delSongFromPlaylist(n *Netease) model.Page {
 // clearSongCache 清除歌曲缓存
 func clearSongCache(n *Netease) {
 	showConfirmPopup(n.App, model.T(MsgPromptClearCache), "确定清除所有歌曲缓存吗？此操作不可撤销。", func() {
-		op := NewOperation(n, func(n *Netease) model.Page {
-			err := n.trackManager.ClearCache()
-			if err != nil {
-				slog.Error("清除缓存失败", "error", err)
-				notify.Notify(notify.NotifyContent{
-					Title:   model.T(MsgOperationCacheClearFailed),
-					Text:    err.Error(),
-					GroupId: types.GroupID,
-					Level:   notify.ToastError,
-				})
-			} else {
-				slog.Info("清除缓存成功")
-				notify.Notify(notify.NotifyContent{
-					Title:   "清除缓存成功",
-					Text:    model.T(MsgOperationCacheCleared),
-					GroupId: types.GroupID,
-					Level:   notify.ToastSuccess,
-				})
+		op := NewBackgroundOperation(n, func(n *Netease) model.Fetch {
+			return func() model.Hook {
+				err := n.trackManager.ClearCache()
+				if err != nil {
+					slog.Error("清除缓存失败", "error", err)
+					notify.Notify(notify.NotifyContent{
+						Title:   model.T(MsgOperationCacheClearFailed),
+						Text:    err.Error(),
+						GroupId: types.GroupID,
+						Level:   notify.ToastError,
+					})
+				} else {
+					slog.Info("清除缓存成功")
+					notify.Notify(notify.NotifyContent{
+						Title:   "清除缓存成功",
+						Text:    model.T(MsgOperationCacheCleared),
+						GroupId: types.GroupID,
+						Level:   notify.ToastSuccess,
+					})
+				}
+				return nil
 			}
-			return nil
 		})
-		op.ShowLoading().Execute()
+		op.Execute()
 		n.App.Rerender(false)
 	})
 }
@@ -982,29 +1059,35 @@ func shareItem(n *Netease, isSelected bool, selectedIndex int) {
 
 // searchSong 搜索歌名
 func searchSong(n *Netease, isSelected bool) {
-	op := NewOperation(n, func(n *Netease) model.Page {
+	op := NewBackgroundOperation(n, func(n *Netease) model.Fetch {
 		song, ok := getTargetSong(n, isSelected)
 		if !ok {
 			return nil
 		}
 
-		main := n.MustMain()
-		searchService := service.SearchService{
-			S:     song.Name,
-			Type:  strconv.Itoa(int(StSingleSong)),
-			Limit: strconv.Itoa(types.SearchPageSize),
-		}
-		code, response := searchService.Search()
-		codeType := _struct.CheckCode(code)
-		if codeType != _struct.Success {
-			return nil
-		}
+		return func() model.Hook {
+			searchService := service.SearchService{
+				S:     song.Name,
+				Type:  strconv.Itoa(int(StSingleSong)),
+				Limit: strconv.Itoa(types.SearchPageSize),
+			}
+			code, response := searchService.Search()
+			codeType := _struct.CheckCode(code)
+			if codeType != _struct.Success {
+				return nil
+			}
 
-		n.search.wordsInput.SetValue(song.Name)
-		n.search.searchType = StSingleSong
-		n.search.result = _struct.GetSongsOfSearchResult(response)
+			return func(main *model.Main) (bool, model.Page) {
+				n.search.wordsInput.SetValue(song.Name)
+				n.search.searchType = StSingleSong
+				n.search.result = _struct.GetSongsOfSearchResult(response)
 
-		return main.EnterMenu(NewSearchResultMenu(newBaseMenu(n), StSingleSong), &model.MenuItem{Title: model.T(MsgMenuSearchResult)})
+				if page := main.EnterMenu(NewSearchResultMenu(newBaseMenu(n), StSingleSong), &model.MenuItem{Title: model.T(MsgMenuSearchResult)}); page != nil {
+					return false, page
+				}
+				return true, nil
+			}
+		}
 	})
-	op.ShowLoading().Execute()
+	op.Execute()
 }

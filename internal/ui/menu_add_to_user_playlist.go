@@ -99,44 +99,49 @@ func (m *AddToUserPlaylistMenu) BeforeEnterMenuHook() model.Hook {
 	}
 }
 
-func (m *AddToUserPlaylistMenu) BottomOutHook() model.Hook {
+func (m *AddToUserPlaylistMenu) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
+
+func (m *AddToUserPlaylistMenu) BottomOutFetch() model.Fetch {
 	if !m.hasMore {
 		return nil
 	}
-	return func(main *model.Main) (bool, model.Page) {
-		userId := m.userId
-		if m.userId == CurUser {
-			// 等于0，获取当前用户歌单
-			userId = m.netease.user.UserId
-		}
+	userId := m.userId
+	if m.userId == CurUser {
+		// 等于0，获取当前用户歌单
+		userId = m.netease.user.UserId
+	}
 
-		m.offset = m.offset + len(m.menus)
-		userPlaylists := service.UserPlaylistService{
-			Uid:    strconv.FormatInt(userId, 10),
-			Limit:  strconv.Itoa(m.limit),
-			Offset: strconv.Itoa(m.offset),
-		}
+	offset := m.offset + len(m.menus)
+	userPlaylists := service.UserPlaylistService{
+		Uid:    strconv.FormatInt(userId, 10),
+		Limit:  strconv.Itoa(m.limit),
+		Offset: strconv.Itoa(offset),
+	}
+	return func() model.Hook {
 		code, response := userPlaylists.UserPlaylist()
-		codeType := _struct.CheckCode(code)
-		if codeType == _struct.NeedLogin {
-			page, _ := m.netease.ToLoginPage(nil)
-			return false, page
-		} else if codeType != _struct.Success {
-			return false, nil
+		return func(main *model.Main) (bool, model.Page) {
+			m.offset = offset
+			codeType := _struct.CheckCode(code)
+			if codeType == _struct.NeedLogin {
+				page, _ := m.netease.ToLoginPage(nil)
+				return false, page
+			} else if codeType != _struct.Success {
+				return false, nil
+			}
+
+			list := _struct.GetPlaylists(response)
+			for _, playlist := range list {
+				m.menus = append(m.menus, model.MenuItem{Title: _struct.ReplaceSpecialStr(playlist.Name)})
+			}
+
+			m.playlists = append(m.playlists, list...)
+
+			// 是否有更多
+			if hasMore, err := jsonparser.GetBoolean(response, "more"); err == nil {
+				m.hasMore = hasMore
+			}
+
+			return true, nil
 		}
-
-		list := _struct.GetPlaylists(response)
-		for _, playlist := range list {
-			m.menus = append(m.menus, model.MenuItem{Title: _struct.ReplaceSpecialStr(playlist.Name)})
-		}
-
-		m.playlists = append(m.playlists, list...)
-
-		// 是否有更多
-		if hasMore, err := jsonparser.GetBoolean(response, "more"); err == nil {
-			m.hasMore = hasMore
-		}
-
-		return true, nil
 	}
 }

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 	"time"
 
@@ -51,49 +52,72 @@ func (m *SimilarSongsMenu) MenuViews() []model.MenuItem {
 }
 
 func (m *SimilarSongsMenu) BeforeEnterMenuHook() model.Hook {
-	return func(main *model.Main) (bool, model.Page) {
-		return m.fetchSimilarSongs(m.relateSongId, 2), nil
-	}
+	return model.HookOf(m.BeforeEnterMenuFetch())
+}
+
+// BeforeEnterMenuFetch fetches in the background; the songs join the
+// playlist on the UI goroutine.
+func (m *SimilarSongsMenu) BeforeEnterMenuFetch() model.Fetch {
+	return m.similarFetch(m.relateSongId)
 }
 
 func (m *SimilarSongsMenu) Songs() []structs.Song {
 	return m.songs
 }
 
-func (m *SimilarSongsMenu) BottomOutHook() model.Hook {
-	return func(main *model.Main) (bool, model.Page) {
-		return m.fetchSimilarSongs(m.songs[len(m.songs)-1].Id, 2), nil
+func (m *SimilarSongsMenu) BottomOutHook() model.Hook { return model.HookOf(m.BottomOutFetch()) }
+
+func (m *SimilarSongsMenu) BottomOutFetch() model.Fetch {
+	if len(m.songs) == 0 {
+		return nil
+	}
+	return m.similarFetch(m.songs[len(m.songs)-1].Id)
+}
+
+// similarFetch fetches songs similar to songId that the menu does not have
+// yet, and adds them to the menu and the playlist on the UI goroutine.
+func (m *SimilarSongsMenu) similarFetch(songId int64) model.Fetch {
+	known := maps.Clone(m.existSongIds)
+	return func() model.Hook {
+		songs := similarSongs(songId, known, 2)
+		return func(*model.Main) (bool, model.Page) {
+			if len(songs) == 0 {
+				return false, nil
+			}
+			for _, song := range songs {
+				m.existSongIds[song.Id] = struct{}{}
+			}
+			m.songs = append(m.songs, songs...)
+			m.menus = menux.GetViewFromSongs(m.songs)
+			_ = m.netease.player.playlistManager.Initialize(m.netease.player.CurSongIndex(), m.songs)
+			m.netease.player.playlistUpdateAt = time.Now()
+			return true, nil
+		}
 	}
 }
 
-func (m *SimilarSongsMenu) fetchSimilarSongs(songId int64, maxTry int) bool {
+// similarSongs fetches songs similar to songId that known lacks and adds them
+// to known, asking again up to maxTry times while there are none.
+func similarSongs(songId int64, known map[int64]struct{}, maxTry int) []structs.Song {
 	simiSongService := service.SimiSongService{
 		ID: strconv.FormatInt(songId, 10),
 	}
 	code, response := simiSongService.SimiSong()
 	codeType := _struct.CheckCode(code)
 	if codeType != _struct.Success {
-		return false
+		return nil
 	}
 
 	var songs []structs.Song
 	for _, song := range _struct.GetSimiSongs(response) {
-		if _, ok := m.existSongIds[song.Id]; !ok {
-			m.existSongIds[song.Id] = struct{}{}
+		if _, ok := known[song.Id]; !ok {
+			known[song.Id] = struct{}{}
 			songs = append(songs, song)
 		}
 	}
 
-	if len(songs) == 0 {
-		if maxTry <= 0 {
-			return false
-		}
-		return m.fetchSimilarSongs(songId, maxTry-1)
+	if len(songs) == 0 && maxTry > 0 {
+		return similarSongs(songId, known, maxTry-1)
 	}
-
-	m.songs = append(m.songs, songs...)
-	m.menus = menux.GetViewFromSongs(m.songs)
-	_ = m.netease.player.playlistManager.Initialize(m.netease.player.CurSongIndex(), m.songs)
-	m.netease.player.playlistUpdateAt = time.Now()
-	return true
+	return songs
 }
