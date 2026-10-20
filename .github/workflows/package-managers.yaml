@@ -1,0 +1,54 @@
+name: Package managers
+
+# Publishing a release (not a prerelease) updates the Homebrew formula in
+# Egdon/homebrew-tap and the Scoop manifest in Egdon/scoop-bucket. Each of
+# those repositories has a deploy key with write access, whose private half
+# is the secret HOMEBREW_TAP_DEPLOY_KEY or SCOOP_BUCKET_DEPLOY_KEY.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Homebrew
+            repo: Egdon/homebrew-tap
+            path: Formula/musicfox-deck.rb
+            script: hack/brew_formula.sh
+            key: HOMEBREW_TAP_DEPLOY_KEY
+          - name: Scoop
+            repo: Egdon/scoop-bucket
+            path: bucket/musicfox-deck.json
+            script: hack/scoop_manifest.sh
+            key: SCOOP_BUCKET_DEPLOY_KEY
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Write the manifest
+        run: |
+          gh release download "$TAG" -p SHA256SUMS
+          ${{ matrix.script }} "$TAG" SHA256SUMS > manifest
+          cat manifest
+      - name: Push it
+        env:
+          DEPLOY_KEY: ${{ secrets[matrix.key] }}
+          REPO: ${{ matrix.repo }}
+          DEST: ${{ matrix.path }}
+        run: hack/push_manifest.sh "$REPO" "$DEST" manifest "musicfox-deck ${TAG#v}"

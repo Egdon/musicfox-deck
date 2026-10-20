@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prints the Homebrew formula of a release for the Egdon/homebrew-tap
-# repository (.github/workflows/homebrew.yaml):
+# repository (.github/workflows/package-managers.yaml):
 #
 #   hack/brew_formula.sh v1.0.0 SHA256SUMS [URL]
 #

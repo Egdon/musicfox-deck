@@ -2,8 +2,8 @@ name: Release
 
 # A tag v* builds every platform into a draft release, tries the packages on
 # a range of systems and adds SHA256SUMS. Publishing the draft is left to a
-# person; it then updates the Homebrew formula (homebrew.yaml). Running this
-# workflow by hand builds and tries snapshots without releasing anything.
+# person; it then updates Homebrew and Scoop (package-managers.yaml). Running
+# this workflow by hand builds and tries snapshots without releasing anything.
 
 on:
   push:
@@ -165,6 +165,7 @@ jobs:
     if: ${{ !cancelled() && !failure() }}
     runs-on: windows-latest
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: linux-windows
@@ -177,6 +178,25 @@ jobs:
           $out = & (Get-Item x/*/musicfox.exe) --version
           $out
           if ($LASTEXITCODE -ne 0 -or -not ($out -match [regex]::Escape($env:EXPECT))) { throw "musicfox --version failed" }
+      # The manifest points at the archives, served from this machine.
+      - name: Write a Scoop manifest
+        shell: bash
+        run: |
+          (cd pkg && sha256sum -- *_windows_*.zip) > SHA256SUMS
+          hack/scoop_manifest.sh "$EXPECT" SHA256SUMS http://localhost:8000 > musicfox-deck.json
+      - name: Install with Scoop
+        shell: pwsh
+        run: |
+          $server = Start-Process python -ArgumentList '-m', 'http.server', '8000', '--directory', (Resolve-Path pkg).Path -PassThru
+          Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
+          $env:PATH = "$env:USERPROFILE\scoop\shims;$env:PATH"
+          scoop install ./musicfox-deck.json
+          $env:MUSICFOX_ROOT = (New-Item -ItemType Directory -Path "$env:RUNNER_TEMP/mfx-scoop").FullName
+          $out = musicfox --version
+          $out
+          $ok = $LASTEXITCODE -eq 0 -and ($out -match [regex]::Escape($env:EXPECT))
+          Stop-Process -Id $server.Id
+          if (-not $ok) { throw "musicfox from Scoop failed" }
 
   checksums:
     needs: [linux-windows, macos, try-linux, try-macos, try-windows]

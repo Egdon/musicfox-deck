@@ -285,14 +285,14 @@ foxful-cli 是本项目的核心 UI 框架，源码在 `third_party/foxful-cli/`
 2. 打 tag `vX.Y.Z` 并推送，`.github/workflows/release.yaml` 依次：
    - `draft`：以 `hack/release_notes.sh` 生成的说明创建草稿 Release（CHANGELOG 中文部分与中文下载表在前，英文部分与英文下载表在后）；
    - `linux-windows`：在 Ubuntu 22.04 容器里运行 `hack/release_container.sh`（Go、GoReleaser、llvm-mingw 都固定版本并校验 SHA-256），按 `.goreleaser.yaml` 编 Linux amd64/arm64 与 Windows amd64/arm64，打 tar.gz、zip、deb、rpm、Arch 包；`macos`：在 macOS runner 上按 `.goreleaser.darwin.yaml` 编两个架构的命令行版与 .app 版。两者都上传到同一个草稿（`use_existing_draft`）；
-   - `try-*`：在 Ubuntu 22.04/24.04、Debian 12（另有 arm64，经 QEMU）、Fedora、openSUSE Tumbleweed、Arch 的容器里安装包并运行 `musicfox --version`；在 macOS 上运行两个架构的二进制与 .app 版，并用生成的 formula 安装测试；在 Windows 上运行 x64 版；
+   - `try-*`：在 Ubuntu 22.04/24.04、Debian 12（另有 arm64，经 QEMU）、Fedora、openSUSE Tumbleweed、Arch 的容器里安装包并运行 `musicfox --version`；在 macOS 上运行两个架构的二进制与 .app 版，并用生成的 formula 安装测试；在 Windows 上运行 x64 版，并用生成的 Scoop 清单（经本机 HTTP 服务提供压缩包）安装测试；
    - `checksums`：全部通过后上传 `SHA256SUMS`。
-3. 检查草稿后手动发布（`gh release edit vX.Y.Z --draft=false`）。发布正式版会触发 `.github/workflows/homebrew.yaml`：`hack/brew_formula.sh` 生成 formula，经部署密钥（secret `HOMEBREW_TAP_DEPLOY_KEY`）推到 `Egdon/homebrew-tap`。
+3. 检查草稿后手动发布（`gh release edit vX.Y.Z --draft=false`）。发布正式版会触发 `.github/workflows/package-managers.yaml`：`hack/brew_formula.sh` 生成 Homebrew formula、`hack/scoop_manifest.sh` 生成 Scoop 清单，由 `hack/push_manifest.sh` 经各自的部署密钥（secret `HOMEBREW_TAP_DEPLOY_KEY`、`SCOOP_BUCKET_DEPLOY_KEY`）推到 `Egdon/homebrew-tap` 的 `Formula/` 与 `Egdon/scoop-bucket` 的 `bucket/`。该工作流也可手动运行并指定 tag。
 
-带 `-` 的 tag（如 `v1.0.0-rc.1`）是预发布：说明取去掉后缀的版本那一节，不更新 Homebrew。手动运行 release 工作流只构建、试装快照，不发布。
+带 `-` 的 tag（如 `v1.0.0-rc.1`）是预发布：说明取去掉后缀的版本那一节，不更新 Homebrew 与 Scoop。手动运行 release 工作流只构建、试装快照，不发布。
 
 - **Linux**：`hack/pkg-config-static` 让 goflac 的 `pkg-config --libs flac` 返回静态链接的 libFLAC 与 libogg，二进制只依赖 glibc ≥ 2.34 与 `libasound.so.2`。各发行版的 libFLAC soname 不同（.so.8 / .12 / .14），上游的发布包动态链接 libFLAC.so.8，在新发行版上无法启动。
-- **Windows**：只有 minimp3 需要 C 编译器；llvm-mingw（UCRT）编出的程序只依赖系统 DLL。
+- **Windows**：只有 minimp3 需要 C 编译器；llvm-mingw（UCRT）编出的程序只依赖系统 DLL。Scoop 清单不设置 `MUSICFOX_ROOT`，数据与其他安装方式一样位于 `%AppData%\go-musicfox`（go-musicfox 的 Scoop 清单把数据放在 `~\scoop\persist\go-musicfox\data`，README 的迁移说明提到这一点）。
 - **macOS**：未签名，只有链接器的 ad-hoc 签名。Homebrew formula 安装预编译的二进制，formula 下载的文件不带隔离属性，不会被 Gatekeeper 拦下；手动下载需要 `xattr -d com.apple.quarantine`。
 - **本地预演**：`make release-snapshot` 用 podman（或 docker）在同样的容器里构建 Linux 与 Windows 快照，输出到 `dist/`；macOS 只能在 CI 上验证。
 
@@ -334,7 +334,7 @@ endif
 | `<cmd> || { cmd2; }` | `<cmd> || ( cmd2 )` |
 | `hack/*.sh` | `hack/*.ps1`（PowerShell 实现） |
 
-**例外**：纯交叉编译/CI 内部工具（如 `hack/init_linux_env.sh`、`hack/init_windows_env.sh` 等 Docker 内部脚本，以及发布用的 `hack/release_container.sh`、`hack/pkg-config-static`、`hack/release_notes.sh`、`hack/brew_formula.sh` 和 `make release-snapshot`），仅在 Linux 容器或 CI 中执行，无需适配 Windows。
+**例外**：纯交叉编译/CI 内部工具（如 `hack/init_linux_env.sh`、`hack/init_windows_env.sh` 等 Docker 内部脚本，以及发布用的 `hack/release_container.sh`、`hack/pkg-config-static`、`hack/release_notes.sh`、`hack/brew_formula.sh`、`hack/scoop_manifest.sh`、`hack/push_manifest.sh` 和 `make release-snapshot`），仅在 Linux 容器或 CI 中执行，无需适配 Windows。
 
 ## 文档维护准则
 

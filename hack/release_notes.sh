@@ -74,6 +74,7 @@ $zh
 
 - 文件名中的 \`amd64\` 与 \`x86_64\` 均指 x86_64 架构，\`arm64\` 与 \`aarch64\` 均指 ARM64 架构。
 - macOS 也可通过 Homebrew 安装：\`brew install egdon/tap/musicfox-deck\`。\`*_macapp.zip\` 为 .app 版本，系统通知中显示应用图标。
+- Windows 也可通过 Scoop 安装：\`scoop bucket add egdon https://github.com/Egdon/scoop-bucket\` 后执行 \`scoop install musicfox-deck\`。
 - Linux 版需要 glibc 2.34 及以上与 ALSA（\`libasound.so.2\`）。
 - macOS 与 Windows 版未签名，首次运行前的设置参见 [README](https://github.com/Egdon/musicfox-deck#安装)。
 - 各文件的 SHA-256 校验值见 \`SHA256SUMS\`。
@@ -98,6 +99,7 @@ cat <<EOF
 
 - \`amd64\` and \`x86_64\` in file names both mean x86_64; \`arm64\` and \`aarch64\` both mean ARM64.
 - macOS can also install with Homebrew: \`brew install egdon/tap/musicfox-deck\`. \`*_macapp.zip\` is the .app version, whose notifications show the app icon.
+- Windows can also install with Scoop: \`scoop bucket add egdon https://github.com/Egdon/scoop-bucket\`, then \`scoop install musicfox-deck\`.
 - The Linux builds need glibc 2.34 or later and ALSA (\`libasound.so.2\`).
 - The macOS and Windows builds are not signed; see the [README](https://github.com/Egdon/musicfox-deck/blob/master/README.en.md#installation) for the first run.
 - \`SHA256SUMS\` lists the SHA-256 checksum of each file.
