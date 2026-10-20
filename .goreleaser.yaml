@@ -200,15 +200,15 @@ archives:
 
 nfpms:
   - id: go-musicfox
-    package_name: go-musicfox
+    package_name: musicfox-deck
     ids:
       - go-musicfox-linux-amd64
       - go-musicfox-linux-arm64
       - go-musicfox-linux-arm
-    maintainer: anhoder <anhoder@88.com>
-    description: A music player for netease music in terminal.
-    vendor: go-musicfox
-    homepage: https://github.com/go-musicfox/go-musicfox
+    maintainer: Egdon <Egdon@users.noreply.github.com>
+    description: A netease music player in the terminal, with a 3D cassette deck. A fork of go-musicfox.
+    vendor: musicfox-deck
+    homepage: https://github.com/Egdon/musicfox-deck
     license: GPL-3.0
     formats:
       - apk
@@ -254,6 +254,7 @@ brews:
       owner: go-musicfox
       name: homebrew-go-musicfox
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    skip_upload: true # the tap is upstream's
     ids:
       - musicfox
     url_template: "https://github.com/go-musicfox/go-musicfox/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
@@ -286,6 +287,7 @@ homebrew_casks:
       owner: go-musicfox
       name: homebrew-go-musicfox
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    skip_upload: true # the tap is upstream's
     ids:
       - musicfox
     binary: musicfox
@@ -307,6 +309,7 @@ homebrew_casks:
       owner: go-musicfox
       name: homebrew-go-musicfox
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    skip_upload: true # the tap is upstream's
     ids:
       - musicfox-darwin-app
     binary: musicfox.app/Contents/MacOS/musicfox
@@ -340,7 +343,7 @@ winget:
     commit_msg_template: "{{ .PackageIdentifier }}: {{ .Tag }}"
     homepage: "https://github.com/go-musicfox/go-musicfox"
     description: "A netease music player in terminal."
-    skip_upload: auto
+    skip_upload: true # the winget fork is upstream's
     release_notes: "{{.Changelog}}"
     tags:
       - golang
@@ -381,8 +384,8 @@ winget:
 
 release:
   github:
-    owner: go-musicfox
-    name: go-musicfox
+    owner: Egdon
+    name: musicfox-deck
   discussion_category_name: General
   prerelease: auto
   mode: replace

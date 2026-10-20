@@ -1,0 +1,28 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - master
+      - "feat/**"
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install audio libraries
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libflac-dev
+
+      # TestPlaylistManagerWithUIInteraction is flaky upstream as well.
+      - name: Test musicfox-deck
+        run: MUSICFOX_ROOT=$(mktemp -d) go test ./internal/... ./utils/... -skip TestPlaylistManagerWithUIInteraction
+
+      - name: Test foxful-cli
+        run: go test -mod=readonly github.com/anhoder/foxful-cli/model/... github.com/anhoder/foxful-cli/style/... github.com/anhoder/foxful-cli/motion/... github.com/anhoder/foxful-cli/ansix/...

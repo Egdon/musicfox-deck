@@ -6,7 +6,9 @@ on:
 
 jobs:
   check-guidelines:
+    # Upstream's own automation: it needs upstream's secrets and services.
     if: |
+      github.repository == 'go-musicfox/go-musicfox' &&
       github.event.issue.pull_request &&
       startsWith(github.event.comment.body, '/review') &&
       contains(fromJson('["OWNER","MEMBER"]'), github.event.comment.author_association)

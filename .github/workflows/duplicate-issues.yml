@@ -6,7 +6,8 @@ on:
 
 jobs:
   check-duplicates:
-    if: github.event.action == 'opened'
+    # Upstream's own automation: it needs upstream's secrets and services.
+    if: github.repository == 'go-musicfox/go-musicfox' && github.event.action == 'opened'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -94,7 +95,7 @@ jobs:
             Remember: post at most ONE comment combining all findings. If everything is fine, post nothing."
 
   recheck-compliance:
-    if: github.event.action == 'edited' && contains(github.event.issue.labels.*.name, 'needs:compliance')
+    if: github.repository == 'go-musicfox/go-musicfox' && github.event.action == 'edited' && contains(github.event.issue.labels.*.name, 'needs:compliance')
     runs-on: ubuntu-latest
     permissions:
       contents: read

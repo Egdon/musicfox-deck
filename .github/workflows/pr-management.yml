@@ -60,6 +60,8 @@ jobs:
   #           If no duplicates are found, say "No duplicate PRs found".
 
   add-contributor-label:
+    # Upstream's own automation: it needs upstream's secrets and services.
+    if: github.repository == 'go-musicfox/go-musicfox'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write

@@ -6,6 +6,8 @@ on:
 
 jobs:
   triage:
+    # Upstream's own automation: it needs upstream's secrets and services.
+    if: github.repository == 'go-musicfox/go-musicfox'
     runs-on: ubuntu-latest
     permissions:
       contents: read
