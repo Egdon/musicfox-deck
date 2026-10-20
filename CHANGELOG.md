@@ -1,3 +1,16 @@
+musicfox-deck（未发布）
+=============
+
+基于 go-musicfox v5.1.0。
+
+* 磁带卡座界面：曲目表加右侧 3D 磁带面板（逐字歌词、接下来播放），窄窗口改为底部播放条
+* 3D 磁带渲染器：透视光线投射，八分块 / 六分块 / 四分块自动选择；漂浮、跟随鼠标倾斜、切歌翻面
+* 播放页改为舞台布局，窄窗口为海报布局；进出播放页时磁带在面板与舞台之间形变
+* 动效：页面切换、菜单进出、弹窗、通知、选中项滑动、deck 启动动画；`[main] motion` 控制
+* 切歌改为异步执行，界面不再卡顿
+* 新增配置 `[main] motion`、`[main] blockGlyphs`、`[theme] layout`、`[startup] animation = "deck"`；移除 `[main.nowPlaying] effects`
+* foxful-cli 收进 `third_party/foxful-cli` 维护
+
 
 5.0.2
 =============

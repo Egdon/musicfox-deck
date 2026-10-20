@@ -1,324 +1,52 @@
-# go-musicfox
+# musicfox-deck
 
-go-musicfox 是用 Go 写的又一款网易云音乐命令行客户端，支持各种音质级别、UnblockNeteaseMusic、Last.fm、MPRIS 和 macOS 交互响应（睡眠暂停、蓝牙耳机连接断开响应和菜单栏控制等）等功能特性，以及 DLNA 投送。
+**磁带卡座风格的命令行网易云音乐。** musicfox-deck 是 [go-musicfox](https://github.com/go-musicfox/go-musicfox) 的二次开发版本：主界面左边是曲目表，右边一盘随音乐转动的 3D 磁带；播放页把磁带放上舞台；页面切换、菜单、弹窗和选中项都有克制而顺滑的动效。其余功能与原版一致：各种音质级别、UnblockNeteaseMusic、Last.fm、MPRIS、DLNA 投送等。
 
-[官网](https://musicfox.anhoder.com) | [Icon](https://github.com/go-musicfox/go-musicfox-icon)
+<p><img src="docs/assets/deck-panel.gif" alt="主界面：曲目表与磁带面板" width="880"/></p>
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/go-musicfox/go-musicfox) ![GitHub repo size](https://img.shields.io/github/repo-size/go-musicfox/go-musicfox) ![GitHub](https://img.shields.io/github/license/go-musicfox/go-musicfox) ![Last Tag](https://badgen.net/github/tag/go-musicfox/go-musicfox) ![GitHub last commit](https://badgen.net/github/last-commit/go-musicfox/go-musicfox) ![GitHub All Releases](https://img.shields.io/github/downloads/go-musicfox/go-musicfox/total) ![GitHub stars](https://img.shields.io/github/stars/go-musicfox/go-musicfox?style=social) ![GitHub forks](https://img.shields.io/github/forks/go-musicfox/go-musicfox?style=social)
-
-<p><img src="previews/logo.png" alt="logo" width="256"/></p>
-
-*([The icon](https://github.com/go-musicfox/go-musicfox-icon) is based on [kitty-icon](https://github.com/DinkDonk/kitty-icon))*
+> 配置和数据目录与原版共用（`go-musicfox`），原版的登录状态、配置和缓存可以直接使用。
 
 ------------------------------
+## 特色
+
+- **3D 磁带**：透视光线投射实时渲染。在 Ghostty、kitty、foot 等终端里用八分块字符绘制（每格 2×4 个子像素），其他终端自动改用六分块或四分块。播放时缓慢漂浮，鼠标移上去会跟着倾斜，切歌时立体翻面，暂停时落定；两个带盘的带层随播放进度此消彼长。
+- **主界面**：曲目表（序号、歌名、歌手、时长）占满高度，右侧磁带面板显示正在播放、逐字歌词和接下来播放。点磁带进入播放页，点接下来播放里的歌直接播放。窗口窄于 110 列时，面板收成曲目表下方的播放条。
+- **播放页**：磁带在左侧舞台上随窗口缩放，右侧是编号信息栏；窄窗口居中排成海报，矮窗口横排。进出播放页时，面板上的小磁带直接放大到舞台，或缩回面板。
+- **动效**：页面切换、菜单进出、弹窗、通知、选中项和启动页都有 150–250ms 的过渡，不回弹；可以调成只淡入淡出，或完全关闭。
+- **Warm Night 主题**：暖炭灰底配米灰文字，信号橙只标出正在发生的事，为夜间使用设计。
+
 ## 预览
 
-<video src="https://github.com/user-attachments/assets/3a4d1011-14f2-43bb-b70a-1392b7f8ec04"></video>
-
-<video src="https://github.com/user-attachments/assets/4f771321-0529-45a9-89ce-6a96e7d8164f"></video>
-
+| 播放页：磁带漂浮与逐字歌词 | 进入播放页：磁带放大到舞台 |
+|---|---|
+| <img src="docs/assets/now-playing.gif" alt="播放页" width="440"/> | <img src="docs/assets/morph.gif" alt="进入播放页" width="440"/> |
+| **切歌：磁带立体翻面** | **启动：磁带从景深处转入** |
+| <img src="docs/assets/flip.gif" alt="切歌翻面" width="440"/> | <img src="docs/assets/startup.gif" alt="启动动画" width="440"/> |
+| **菜单进出：逐行滑入** | **窄窗口：底部播放条与海报式播放页** |
+| <img src="docs/assets/menus.gif" alt="菜单过渡" width="440"/> | <img src="docs/assets/narrow.gif" alt="窄窗口" width="440"/> |
 
 ## 安装
 
-<details>
-<summary>
+### 下载
 
-### macOS
-</summary>
-
-#### 1. 通过 Homebrew 安装
-
-```sh
-$ brew install anhoder/go-musicfox/go-musicfox  // 指定 --head 使用master代码编译安装
-```
-
-如果你之前安装过 musicfox，需要使用下列命令重新链接:
-
-```sh
-$ brew unlink musicfox && brew link --overwrite go-musicfox
-```
-
-#### 2. 直接下载
-
-在 [Release](https://github.com/go-musicfox/go-musicfox/releases/latest) 下载 macOS 的可执行文件。
-
-</details>
-
-<details>
-<summary>
-
-### Linux
-</summary>
-
-#### 1. 使用发行版软件包（推荐）
-
-<details>
-<summary>
-
-##### Arch Linux
-</summary>
-
-###### 从 [AUR](https://aur.archlinux.org/) 安装
-
-```sh
-$ paru -S go-musicfox # 下载源代码编译安装
-$ paru -S go-musicfox-bin # 下载安装预编译好的二进制
-```
-
-###### 从 `archlinuxcn` 安装
-
-首先[添加 archlinuxcn 仓库到系统](https://www.archlinuxcn.org/archlinux-cn-repo-and-mirror/)。
-
-```sh
-# pacman -S go-musicfox
-```
-</details>
-
-<details>
-<summary>
-
-##### Fedora Linux
-</summary>
-
-###### 从 [Copr](https://copr.fedorainfracloud.org/coprs/poesty/go-musicfox/) 安装。
-
-```sh
-$ sudo dnf copr enable poesty/go-musicfox
-$ sudo dnf install go-musicfox
-```
-
-</details>
-
-<details>
-<summary>
-
-##### Debian系发行版（Ubuntu、Deepin、UOS等）
-</summary>
-
-###### 从 [星火商店](https://spark-app.store/) 安装。
-
-```sh
-$ sudo aptss install go-musicfox  //二进制包部署，同步较慢
-$ sudo aptss install go-musicfox-git  //从源码编译，请保持网络通畅
-```
-
-</details>
-
-<details>
-<summary>
-
-##### Gentoo Linux
-</summary>
-
-###### 从 [gentoo-zh Overlay](https://github.com/microcai/gentoo-zh) 安装
-
-```sh
-$ eselect repository enable gentoo-zh
-$ emerge --sync
-$ emerge -a media-sound/go-musicfox
-```
-
-</details>
-
-<details>
-<summary>
-
-##### NixOS
-</summary>
-
-<details>
-<summary>
-1. flake support
-</summary>
-下面是一个在nixos配置中使用它的例子
-
-```nix
-{
-  description = "My configuration";
-
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    go-musicfox.url = "github:go-musicfox/go-musicfox";
-  };
-
-  outputs = { nixpkgs, go-musicfox, ... }:
-    {
-      nixosConfigurations = {
-        hostname = nixpkgs.lib.nixosSystem
-          {
-            system = "x86_64-linux";
-            modules = [
-              {
-                nixpkgs.overlays = [ go-musicfox.overlays.default ];
-                environment.systemPackages = with pkgs;[
-                  go-musicfox
-                ];
-              }
-            ];
-          };
-      };
-    };
-}
-```
-
-临时运行:
-
-```sh
-$ nix run github:go-musicfox/go-musicfox
-```
-
-</details>
-<details>
-<summary>
-2. 配置 configuration.nix 或使用 Home Manager（推荐）
-</summary>
-
-```nix
-# configuration.nix
-environment.systemPackages = [
-  pkgs.go-musicfox
-];
-
-# home manager
-home.packages = [
-  pkgs.go-musicfox
-];
-```
-
-</details>
-<details>
-<summary>
-3. 从 <a href="https://search.nixos.org/packages?channel=unstable&show=go-musicfox&from=0&size=50&sort=relevance&type=packages&query=go-musicfox">Nixpkgs </a>安装
-</summary>
-安装到本地 profile：
-
-```sh
-$ nix-env -iA nixos.go-musicfox
-```
-
-临时安装：
-
-```sh
-$ nix-shell -p go-musicfox
-```
-</details>
-
-</details>
-
-<details>
-<summary>
-
-##### Void Linux
-</summary>
-
-从 [void-packages-zh](https://github.com/voidlinux-zh-association/void-packages-zh#readme) 安装。
-
-</details>
-
-<details>
-<summary>
-
-##### Termux(Android)
-</summary>
-
-```sh
-$ apt install go-musicfox
-```
-> 如果遇到卡顿，请切换到mpd播放引擎
-</details>
-
-#### 2. 通过 Homebrew 安装
-
-```sh
-$ brew install anhoder/go-musicfox/go-musicfox  // 指定 --head 使用master代码编译安装
-```
-
-如果你之前安装过 musicfox，需要使用下列命令重新链接:
-
-```sh
-$ brew unlink musicfox && brew link --overwrite go-musicfox
-```
-
-#### 3. 通过 Flatpak 安装
-
-<a href='https://flathub.org/apps/io.github.go_musicfox.go-musicfox'>
-    <img width='120' alt='Download on Flathub' src='https://flathub.org/api/badge?locale=zh-Hans'/>
-</a>
-
-#### 4. 直接下载
-
-在 [Release](https://github.com/go-musicfox/go-musicfox/releases/latest) 下载 Linux 的可执行文件。
-
-</details>
-
-<details>
-<summary>
-
-### Windows
-</summary>
-
-#### 1. 通过 scoop 安装
-
-```sh
-scoop bucket add go-musicfox https://github.com/go-musicfox/go-musicfox.git
-
-scoop install go-musicfox
-```
-
-#### 2. 直接下载
-
-在 [Release](https://github.com/go-musicfox/go-musicfox/releases/latest) 下载 Windows 的可执行文件。
-
-</details>
-
-<details>
-<summary>
+前往 [Releases](https://github.com/Egdon/musicfox-deck/releases) 下载对应平台的压缩包，或 deb、rpm、apk、Arch 安装包，运行其中的 `musicfox`。
 
 ### 手动编译
-</summary>
 
-注：需要 Go v1.22 及以上版本
+需要 Go 1.26 及以上版本。Linux 还需要 FLAC 和 ALSA 的开发包：
 
-前往 [下载 Go ](https://go.dev/dl/)页面选择适合你的 Go 安装包体。
-
-#### 在 Linux 上编译
-
-Linux 需要 `libFLAC-dev` 开发套件
-
-请根据你的发行版，选择适合你的安装命令：
-
-* APT (Debian, Ubuntu)
+* APT（Debian、Ubuntu）：`sudo apt install build-essential libflac-dev libasound2-dev`
+* DNF（Fedora）：`sudo dnf install flac-devel alsa-lib-devel`
+* pacman（Arch）：`sudo pacman -S flac`
 
 ```sh
-$ sudo apt install software-properties-common build-essential
-$ sudo add-apt-repository ppa:longsleep/golang-backports //ubuntu默认go语言版本为1.18，需要更新到1.21
-$ sudo apt install libflac-dev libasound2-dev golang-go
+$ git clone https://github.com/Egdon/musicfox-deck
+$ cd musicfox-deck
+$ make           # 编译到 bin 目录
+$ make install   # 安装到 $GOPATH/bin
 ```
 
-* pacman (Arch)
-
-```sh
-$ sudo pacman -S flac
-```
-
-* DNF (Fedora)
-
-```sh
-$ sudo dnf install flac-devel
-```
-
-其他发行版请根据相应文档寻找 `libflac-dev` 开发套件安装说明。
-
-#### 开始编译
-
-```sh
-$ git clone https://github.com/go-musicfox/go-musicfox
-$ go mod download
-$ make # 编译到 bin 目录下
-$ make install # 安装到 $GOPATH/bin下
-```
-
-</details>
+> Homebrew、AUR、Scoop、Flatpak 等渠道安装的是原版 go-musicfox，见[原版 README](https://github.com/go-musicfox/go-musicfox#安装)。
 
 ## 使用
 
@@ -401,7 +129,7 @@ DLNA 引擎允许你将音乐投送到兼容 DLNA 的设备（如智能电视、
 - **Dracula** - 流行的 Dracula 配色
 - **Nord** - 北欧冷色调
 - **Gruvbox** - 复古暖色调
-- **Warm Night** - 暖夜：Braun 式暖炭灰底配米灰文字，信号橙只标出正在发生的事，灰绿表示已开启的开关；为夜间使用设计，与播放页共用一套色板
+- **Warm Night**（musicfox-deck 默认）- 暖夜：Braun 式暖炭灰底配米灰文字，信号橙只标出正在发生的事，灰绿表示已开启的开关；为夜间使用设计，与播放页共用一套色板
 
 #### 使用方式
 
@@ -427,49 +155,50 @@ DLNA 引擎允许你将音乐投送到兼容 DLNA 的设备（如智能电视、
 </details>
 <details>
 <summary>
-全屏播放页：立体磁带、录像机 OSD 与瑞士网格排版。
+
+### 磁带卡座界面
+</summary>
+
+`[theme] layout = "deck"`（默认）启用，改成 `"classic"` 恢复原版布局。
+
+- **曲目表**：序号、歌名、歌手、时长四列，上方是分节标题，如 `07 ── 飙升榜  [更新27首] ……… 100 首`。在曲目间移动时，选中标记会滑过去。
+- **磁带面板**：窗口不小于 110 列 × 24 行时显示在右侧：迷你磁带、歌名、逐字歌词和接下来播放。点磁带进入播放页，点接下来播放里的歌直接播放，滚轮调音量。
+- **底部播放条**：更窄或更矮的窗口里，面板收成曲目表下方的一条：小磁带、歌名与歌手、正在唱的歌词，右侧是播放位置、播放模式和音量。
+
+相关配置：
+
+```toml
+[main]
+motion = "full"        # 动效：full（默认）/ subtle（只淡入淡出）/ off（关闭）
+blockGlyphs = "auto"   # 磁带用的块字符：auto / octant / sextant / quadrant / half
+
+[theme]
+layout = "deck"        # deck / classic
+activeTheme = "Warm Night"
+
+[startup]
+animation = "deck"     # 磁带从景深处转入，字标逐字浮现
+```
+
+`blockGlyphs = "auto"` 时按终端自动选择：Ghostty、kitty、foot 和较新的 VTE 终端用八分块，WezTerm、iTerm2、Alacritty、Konsole、Windows Terminal 用六分块，tmux 和其他终端用四分块。通过 SSH 使用时，建议把 `motion` 设为 `subtle`。
+
+</details>
+<details>
+<summary>
+
 ### 播放页
 </summary>
 
-在主界面按 `i` 进入，`i` 或 `Esc` 返回。
+在主界面按 `i` 或点击磁带进入，`i` 或 `Esc` 返回。
 
-- **画面**：
-  - 页头色带上的指示灯常驻显示随机、循环、单曲、红心、歌词、高音质等状态。
-  - 录像机风格的 OSD 显示播放状态、音量、快进快退。
-  - 左侧是曲目信息、七段数码管计数器和歌词。
-  - 右侧是一盘立体磁带，标签上写着歌名和歌手。两个带盘的带层随播放进度此消彼长，按真实走带速度转动，启动和停止有缓动；快进快退时带盘快速卷动。
-  - 切歌时旧磁带弹出、新磁带插入。
-  - 停止且队列为空时显示录像机的 NO SIGNAL 蓝屏。
-- **配色**：跟随当前主题，主题没有提供的颜色用 Warm Night 补齐。
-- **字符**：在 Ghostty 中，磁带用八分块字符（U+1CD00–U+1CDE5，每格 2×4 个子像素）绘制，由终端直接画出，与字体无关；其他终端自动改用四分块字符，精度减半。
-- **接下来播放**：顺序、列表循环、列表随机模式下列出队列里接下来的歌，单击可直接播放。
-- **全屏歌词**：按 `L` 在磁带视图与歌词视图之间切换。
-- **页内按键**：
-  - `←` / `→` 快退 / 快进 5 秒，`↑` / `↓` 调音量。
-  - 其余快捷键沿用你的绑定，但都作用于正在播放的歌曲。空格只切换播放 / 暂停，不会播放主界面选中的歌。
-  - 会打开菜单的操作（如 `c` 播放列表、`a` 专辑）执行后回到主界面显示结果。
-- **鼠标**：点进度条跳转，点底部按键栏控制播放，滚轮调音量。
-- **动效**：克制为主，只在有事发生时出现：显像管开机 / 关机（300ms 内）、切歌时一道 tracking 扫线、磁带弹出插入、带盘转动、OSD 淡出。可在配置中调整：
-  ```toml
-  [main.nowPlaying]
-  effects = "full"  # full / subtle（无开关机和扫线）/ off（无动画）
-  ```
-- **推荐搭配**：Warm Night 主题加扁平进度条，主界面与播放页风格一致：
-  ```toml
-  [theme]
-  activeTheme = "Warm Night"
-
-  [theme.progress]
-  renderMode = "flat"  # 跟随主题：已播放部分用 secondary，播放头用 accent
-  fullChar = "━"
-  fullCharWhenFirst = "━"
-  fullCharWhenLast = "━"
-  lastFullChar = "●"
-  emptyChar = "─"
-  emptyCharWhenFirst = "─"
-  emptyCharWhenLast = "─"
-  firstEmptyChar = "─"
-  ```
+- **宽窗口**（不小于 100 列 × 28 行）：左侧舞台上是随窗口缩放的大磁带；右侧是编号信息栏，`02 TRACK` 列出歌名、歌手、专辑和音质，`03 LYRICS` 是逐字歌词；下方是七段数码管计数器和 `04 UP NEXT`。
+- **窄窗口**：磁带居中排成海报，下面是歌名、歌手和正在唱的几行歌词，再下面是时间和进度条。
+- **矮窗口**：磁带在左，右侧只放曲目、时间和歌词。
+- **磁带**：播放时缓慢漂浮，鼠标移上去会跟着倾斜，切歌时立体翻面，暂停时落定；标签上印着 A/B 面和书写横线。
+- **逐字歌词**：有逐字时间轴（YRC）时，已唱的部分逐字亮起；只有行时间时按行高亮。
+- **其他**：页头指示灯常驻显示随机、循环、单曲、红心、歌词、高音质等状态；录像机风格的 OSD 显示播放状态和音量；按 `L` 切换全屏歌词；停止且队列为空时显示 NO SIGNAL 蓝屏。
+- **页内按键**：`←` / `→` 快退 / 快进 5 秒，`↑` / `↓` 调音量；其余快捷键沿用你的绑定，作用于正在播放的歌曲。
+- **鼠标**：点进度条跳转，点底部按键栏控制播放，点接下来播放里的歌直接播放，滚轮调音量。
 
 主界面调音量、暂停、快进、切换模式时，右上角也会短暂显示同样风格的 OSD 提示（`[main.notification] inApp = false` 时关闭）。
 
@@ -537,20 +266,13 @@ cornerRadius = 16.0
 ### 启动动画
 </summary>
 
-支持 8 种启动动画类型，可配置启动视觉效果：
-
-- `sequential` - 经典序列动画（默认）
-- `wave` - 波浪效果
-- `pulse` - 脉冲效果
-- `typewriter` - 打字机效果
-- `matrix` - 黑客帝国字符雨
-- `glitch` - 故障艺术
-- `neon` - 霓虹灯效果
-- `none` - 无动画
+- `deck`（默认）：磁带从景深处转入并落定，字标逐字浮现，下方细线随加载填满
+- `sequence`：原版的序列动画
+- 其他：`fade-in`、`rainbow-wave`、`typewriter`、`spinner`、`slide-in`、`glitch`、`matrix-rain`、`particle-burst`
 
 ```toml
 [startup]
-style = "matrix"  # 选择启动动画
+animation = "deck"
 ```
 
 </details>
@@ -820,9 +542,14 @@ See [CHANGELOG.md](./CHANGELOG.md)
 1. [go-musicfox/bubbletea](https://github.com/go-musicfox/bubbletea)：基于 [bubbletea](https://github.com/charmbracelet/bubbletea) 进行部分定制
 2. [go-musicfox/netease-music](https://github.com/go-musicfox/netease-music)：fork 自 [NeteaseCloudMusicApiWithGo](https://github.com/sirodeneko/NeteaseCloudMusicApiWithGo) ，在原项目的基础上去除 API 功能，只保留 service 和 util 作为一个独立的包，方便在其他 Go 项目中调用
 
-## 感谢
+## 致谢
 
-感谢以下项目及其贡献者们（但不限于）：
+musicfox-deck 建立在以下项目之上：
+
+* [go-musicfox](https://github.com/go-musicfox/go-musicfox)（GPL-3.0）：本项目 fork 自它，并会持续合并上游的更新。感谢 anhoder 和所有贡献者。
+* [foxful-cli](https://github.com/anhoder/foxful-cli)：go-musicfox 的 TUI 框架。本项目把它收进 `third_party/foxful-cli` 维护，来源与基线版本见其中的 `UPSTREAM.md`；它的上游仓库目前没有附带许可证文件。
+
+以及原版致谢的项目及其贡献者们（但不限于）：
 
 * [bubbletea](https://github.com/charmbracelet/bubbletea)
 * [beep](https://github.com/faiface/beep)
@@ -831,11 +558,3 @@ See [CHANGELOG.md](./CHANGELOG.md)
 * [NeteaseCloudMusicApiWithGo](https://github.com/sirodeneko/NeteaseCloudMusicApiWithGo)
 * [gcli](https://github.com/gookit/gcli)
 * ...
-
-<a href="https://www.star-history.com/?type=date&repos=go-musicfox%2Fgo-musicfox">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=go-musicfox/go-musicfox&type=date&theme=dark&legend=top-left&sealed_token=ZAtixBzEM1DC7Qb_x7HYTNMRwdWVEMvfdIf1dn6luTNC7vpVblPHzXHcA96fQ-DGGqRQSaVqgSPOU6aV7F_yK2rPlNEqJXG6uvK488Wd9BtQHTDLfKt4_s3y3O1NUElqoMtH8IcJHj2oYLr_-jq6v7K3nx47Udzs4BDC9eSZHRBac-7pVqfi8dZdWrPL" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=go-musicfox/go-musicfox&type=date&legend=top-left&sealed_token=ZAtixBzEM1DC7Qb_x7HYTNMRwdWVEMvfdIf1dn6luTNC7vpVblPHzXHcA96fQ-DGGqRQSaVqgSPOU6aV7F_yK2rPlNEqJXG6uvK488Wd9BtQHTDLfKt4_s3y3O1NUElqoMtH8IcJHj2oYLr_-jq6v7K3nx47Udzs4BDC9eSZHRBac-7pVqfi8dZdWrPL" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=go-musicfox/go-musicfox&type=date&legend=top-left&sealed_token=ZAtixBzEM1DC7Qb_x7HYTNMRwdWVEMvfdIf1dn6luTNC7vpVblPHzXHcA96fQ-DGGqRQSaVqgSPOU6aV7F_yK2rPlNEqJXG6uvK488Wd9BtQHTDLfKt4_s3y3O1NUElqoMtH8IcJHj2oYLr_-jq6v7K3nx47Udzs4BDC9eSZHRBac-7pVqfi8dZdWrPL" />
- </picture>
-</a>
