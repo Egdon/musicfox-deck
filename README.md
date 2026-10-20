@@ -2,6 +2,8 @@
 
 **磁带卡座风格的命令行网易云音乐。** musicfox-deck 是 [go-musicfox](https://github.com/go-musicfox/go-musicfox) 的二次开发版本：主界面左边是曲目表，右边一盘随音乐转动的 3D 磁带；播放页把磁带放上舞台；页面切换、菜单、弹窗和选中项都有克制而顺滑的动效。其余功能与原版一致：各种音质级别、UnblockNeteaseMusic、Last.fm、MPRIS、DLNA 投送等。
 
+*A terminal client for Netease Cloud Music with a real-time 3D cassette deck, forked from go-musicfox. Prebuilt for macOS, Windows and Linux; see [安装](#安装) for the downloads and `brew install egdon/tap/musicfox-deck`.*
+
 <p><img src="docs/assets/deck-panel.gif" alt="主界面：曲目表与磁带面板" width="880"/></p>
 
 > 配置和数据目录与原版共用（`go-musicfox`），原版的登录状态、配置和缓存可以直接使用。
@@ -27,17 +29,66 @@
 
 ## 安装
 
-### 下载
+| 系统 | 推荐方式 |
+|---|---|
+| macOS（Apple 芯片 / Intel） | `brew install egdon/tap/musicfox-deck` |
+| Windows 10 / 11 | 从 [Releases](https://github.com/Egdon/musicfox-deck/releases/latest) 下载 `windows_amd64.zip` 或 `windows_arm64.zip` |
+| Debian、Ubuntu | 下载 `.deb`，然后 `sudo apt install ./musicfox-deck_*_amd64.deb` |
+| Fedora、openSUSE | 下载 `.rpm`，然后 `sudo dnf install ./musicfox-deck-*.x86_64.rpm` |
+| Arch Linux | 下载 `.pkg.tar.zst`，然后 `sudo pacman -U musicfox-deck-*-x86_64.pkg.tar.zst` |
+| 其他 Linux | 下载 `linux_amd64.tar.gz`，把其中的 `musicfox` 放进 `PATH` |
 
-前往 [Releases](https://github.com/Egdon/musicfox-deck/releases) 下载对应平台的压缩包，或 deb、rpm、apk、Arch 安装包，运行其中的 `musicfox`。
+每个平台都有 x86_64 和 ARM64 两种架构：文件名里的 `amd64`、`x86_64` 指前者，`arm64`、`aarch64` 指后者。装好后在终端里运行 `musicfox`。
 
-### 手动编译
+### macOS
+
+用 Homebrew 安装最省事，它下载的程序不会被系统的安全检查拦下：
+
+```sh
+$ brew install egdon/tap/musicfox-deck
+```
+
+也可以从 Releases 手动下载 `darwin_arm64.tar.gz`（Apple 芯片）或 `darwin_amd64.tar.gz`（Intel）。程序没有经过苹果公证，用浏览器下载的话，第一次运行会被拦下，解压后执行一次：
+
+```sh
+$ xattr -d com.apple.quarantine ./musicfox
+```
+
+或者在「系统设置 → 隐私与安全性」里点「仍要打开」。`darwin_*_macapp.zip` 是 .app 版本，系统通知会带上应用图标。
+
+### Windows
+
+解压后在 [Windows Terminal](https://aka.ms/terminal) 里运行 `musicfox.exe`，或者把它所在的目录加进 `PATH`。程序没有签名：从资源管理器打开时如果出现 SmartScreen 提示，点「更多信息」→「仍要运行」。个别杀毒软件可能误报，可以对照 Releases 里的 `SHA256SUMS` 确认文件没被改动。
+
+### Linux
+
+安装包和压缩包里是同一个程序，需要 glibc 2.34 以上（Ubuntu 22.04、Debian 12、Fedora 35、RHEL 9 及之后的版本）和 ALSA（`libasound.so.2`，桌面系统都带）。安装包会自动声明这些依赖。
+
+登录页的「网页登录」需要 WebKitGTK 4.1：Debian、Ubuntu 的 `libwebkit2gtk-4.1-0`，Fedora 的 `webkit2gtk4.1`，Arch 的 `webkit2gtk-4.1`。deb 和 rpm 包把它列为推荐依赖；没有装时，登录页只提供扫码登录。
+
+### 终端与显示效果
+
+磁带用 Unicode 块字符画出来，终端支持的字符越精细，磁带越清晰。`[main] blockGlyphs = "auto"`（默认）时按终端自动选择：
+
+| 终端 | 字符 | 每格的子像素 |
+|---|---|---|
+| Ghostty、kitty、foot，以及较新的 GNOME Terminal 等 VTE 终端 | 八分块 | 2×4 |
+| WezTerm、iTerm2、Alacritty、Konsole、Windows Terminal | 六分块 | 2×3 |
+| 在 tmux 里，或其他终端 | 四分块 | 2×2 |
+
+macOS 自带的「终端」和 Windows 的命令提示符（CMD）不在支持范围内。通过 SSH 使用时，建议把 `[main] motion` 设为 `subtle`。
+
+### 从 go-musicfox 迁移
+
+musicfox-deck 和原版共用配置与数据目录，登录状态、配置和缓存都能直接用。两者的命令都叫 `musicfox`，不能同时安装：先卸载原版（例如 `brew uninstall go-musicfox`），再安装本版。原版配置里没有的新配置项，可以用 `musicfox upgrade-config` 补上（见[配置升级](#配置升级)）。
+
+### 从源码编译
 
 需要 Go 1.26 及以上版本。Linux 还需要 FLAC 和 ALSA 的开发包：
 
 * APT（Debian、Ubuntu）：`sudo apt install build-essential libflac-dev libasound2-dev`
 * DNF（Fedora）：`sudo dnf install flac-devel alsa-lib-devel`
-* pacman（Arch）：`sudo pacman -S flac`
+* pacman（Arch）：`sudo pacman -S flac alsa-lib`
 
 ```sh
 $ git clone https://github.com/Egdon/musicfox-deck
@@ -46,17 +97,7 @@ $ make           # 编译到 bin 目录
 $ make install   # 安装到 $GOPATH/bin
 ```
 
-### Fedora 等 RPM 发行版
-
-在源码目录执行 `./hack/rpm.sh`（需要 `rpm-build`），安装包生成在 `dist/` 下，然后：
-
-```sh
-$ sudo dnf install ./dist/musicfox-deck-*.rpm
-```
-
-运行依赖只有 `flac-libs`、`alsa-lib` 和 glibc，由安装包自动声明。网页登录窗口需要 WebKitGTK（`webkitgtk6.0` 或 `webkit2gtk4.1`，作为推荐依赖），没有时仍可扫码登录。
-
-> Homebrew、AUR、Scoop、Flatpak 等渠道安装的是原版 go-musicfox，见[原版 README](https://github.com/go-musicfox/go-musicfox#安装)。
+在 Fedora 上还可以执行 `./hack/rpm.sh`（需要 `rpm-build`），打一个本机用的 RPM，输出在 `dist/` 下。
 
 ## 使用
 
@@ -78,18 +119,6 @@ $ musicfox
   > Linux 用户推荐使用 [Kitty](https://sw.kovidgoyal.net/kitty/)
   >
   > Windows 用户推荐使用 [Windows Terminal](https://apps.microsoft.com/store/detail/windows-terminal/9N0DX20HK701)，使用体验更佳
-- 如果在执行文件时遇到以下错误，说明你的操作系统内不包含 `libFLAC.so.8`：
-  ```
-  ./musicfox: error while loading shared libraries: libFLAC.so.8: cannot open shared object file: No such file or directory
-  ```
-  例如 Ubuntu 23.10 及它的衍生版系列，`libFLAC.so.12` 已经将 `libFLAC.so.8` 替换。
-
-  遇到这种问题，你可以：
-  * 找到已安装的新版 `libFLAC.so`，将其软链为`libFLAC.so.8`: `ln -s /xxx/libFLAC.so /xxx/libFLAC.so.8` （**推荐**）
-  * 自行安装 `libflac8` （不推荐）
-  * 参照[手动编译](#手动编译)一节自行编译。
-
-  > 这里之所以使用 FLAC8，主要是为了兼容大部分系统，因为FLAC是向前兼容的（也就是说 `≥ 8` 的FLAC都可以使用）
 - wsl 环境下使用 beep 须安装 `libasound2-plugins`，见 [issues](https://github.com/microsoft/wslg/issues/864)
 - XDG 支持：完整的 XDG 支持，部分文件路径变更，见 [XDG 支持说明](./docs/xdg_support.md)
 - 配置文件格式：使用 [TOML](https://toml.io/) 格式
@@ -551,6 +580,10 @@ See [CHANGELOG.md](./CHANGELOG.md)
 
 1. [go-musicfox/bubbletea](https://github.com/go-musicfox/bubbletea)：基于 [bubbletea](https://github.com/charmbracelet/bubbletea) 进行部分定制
 2. [go-musicfox/netease-music](https://github.com/go-musicfox/netease-music)：fork 自 [NeteaseCloudMusicApiWithGo](https://github.com/sirodeneko/NeteaseCloudMusicApiWithGo) ，在原项目的基础上去除 API 功能，只保留 service 和 util 作为一个独立的包，方便在其他 Go 项目中调用
+
+## 许可证
+
+musicfox-deck 以 [GPL-3.0](./LICENSE) 发布。它修改自 go-musicfox v5.1.0（同为 GPL-3.0），修改由 Egdon 自 2026 年起完成，改动见 [CHANGELOG](./CHANGELOG.md) 和提交历史。
 
 ## 致谢
 

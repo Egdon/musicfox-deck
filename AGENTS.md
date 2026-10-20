@@ -212,7 +212,7 @@ type Player interface {
 - **网页登录**：macOS / Windows / Linux 三平台（非三平台 `login_webview.go` 桩）。Login 页「网页登录」入口在 WebView 检测不可用时自动隐藏：`webviewLoginAvailable()` 按 build tag 实现运行时检测——macOS WebKit 系统自带恒可用；Windows 经 `webviewloader.GetAvailableCoreWebView2BrowserVersionString("")` 检测 WebView2 Runtime；Linux 以 `webkitgtk.WebKitGTKVersion() == 0` 判定 WebKitGTK 库缺失；不可用时按钮不渲染，鼠标 hover/点击与键盘 right 导航同步跳过。检测结果在 `NewLoginPage` 缓存于 `LoginPage.webviewAvailable`。可用时弹出原生 WebView 窗口加载 `https://music.163.com/#/login`，通过原生 cookie API 每 ~1s 轮询检测 `MUSIC_U` cookie（HttpOnly，`document.cookie` 读不到）。页面层 `internal/ui/login_webview_page.go` 平台无关，仿 QR 登录页用 `tea.Tick` 轮询消费事件（`WebviewLoginEvent{CookieString, WindowClosed}`，缓冲 4 channel select-default 永不 close）；拿到 cookie 后复用 `utils/app.ParseCookieFromStr` → `neteaseutil.SetGlobalCookieJar` → `apputils.RefreshCookieJar()` 链路校验，失败则保持窗口继续轮询。共享常量在 `login_webview_consts.go`。三平台实现：
   - **macOS**：`internal/macdriver/webkit`（purego + objc 桥接，无 CGO）弹出 WKWebView，使用 `nonPersistentDataStore`（内存不落盘）；`WKHTTPCookieStore getAllCookies:`（macOS 27 改名，init 时经 `instancesRespondToSelector:` 兼容 `getAllCookiesWithCompletionHandler:`）轮询；block 回调运行在 WebKit 私有队列，只做数据 marshal 经 channel 回传。控制器 `internal/ui/login_webview_darwin.go` + 主线程派发 `login_webview_helper_darwin.go`（`MusicfoxWebviewLoginHelper`，仿 `internal/desktop_lyrics/helper_darwin.go` 的 performSelectorOnMainThread 模式）。窗口显示期间将全局 `SetActivationPolicy(Prohibited)`（`internal/runtime/runtime_darwin.go:26`）临时切换为 `Accessory` 并激活，关闭时恢复；所有退出路径（成功/用户关窗/取消）都恢复。
   - **Windows**：`internal/ui/login_webview_windows.go`，依赖 `github.com/13thgoutham/go-webview2` v1.0.25（wailsapp/go-webview2 v1.0.23 的修复 fork，零 CGO，`pkg/webview2` 生成 COM 绑定 + `webviewloader` 从内存加载 WebView2Loader.dll）。单 UI 线程模型：messageLoop goroutine（`LockOSThread` + CoInitializeEx）承载建窗（RegisterClassExW/CreateWindowExW）→ 环境/控制器创建（回调经消息泵派发）→ `SetTimer` WM_TIMER 轮询 `GetCookieManager().GetCookies("")`（空 uri 取全部 cookie 含 HttpOnly）→ 消息循环退出后 `cleanup()`（`controller.Close()` + 经 IUnknown vtable Release 槽释放 COM 对象）。Close() 幂等 = 置 closed + `PostMessage(WM_CLOSE)`。WebView2 Runtime：Win11 自带，Win10 绝大多数已装。**依赖替换原因**：wailsapp/go-webview2 v1.0.23 生成的 `ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler` / `ICoreWebView2CallDevToolsProtocolMethodCompletedHandler` / `ICoreWebView2ExecuteScriptCompletedHandler` 三个 handler 的 Invoke 回调以 `string`（16 字节）承载 LPCWSTR 结果，新版 Go（≥1.22）`compileCallback` 逐参数限制 ≤ uintptr（8 字节）导致包 init 时 panic；上游无修复版本（最新即 v1.0.23，PR #36/#37 未合并），故改用 13thgoutham fork v1.0.25（含 PR #36/#37 的生成器级修复）；`make vendor` 后无需额外打补丁。
-  - **Linux**：`internal/webkitgtk`（purego 直调 WebKitGTK，零 CGO）运行时优先加载 6.0 栈（`libwebkitgtk-6.0.so.4` + `libgtk-4.so.1`），失败自动回退 4.1 栈（`libwebkit2gtk-4.1.so.0` + `libgtk-3.so.0`，覆盖 Debian 11/12、Ubuntu 22.04 等旧发行版）。6.0 使用 `WebKitNetworkSession` 与 `webkit_cookie_manager_get_all_cookies`；4.1/4.0 使用旧版 `WebContext` / `CookieManager` API，其中 4.1 链接 libsoup 3、4.0 链接 libsoup 2，并通过带 URI 的 `webkit_cookie_manager_get_cookies` 查询 Cookie。所有支持栈都不可用不 panic（`WebKitGTKVersion()` 返回 0，导出函数降级 no-op，controller 走 WindowClosed 回退，且 Login 页「网页登录」入口自动隐藏）。**符号缺失降级**：库可加载（RTLD_LAZY）但缺少对应 API 符号时，`registerSymbol`（`purego.Dlsym` 失败静默跳过而非 `RegisterLibFunc` panic）使对应函数指针保持 nil，栈可用性检查判定该栈不可用并继续回退，最终 `WebKitGTKVersion()` 返回 0 走表单登录降级，不影响主应用启动。版本差异分发：`gtk_window_new` 带参/无参、`gtk_window_set_child` vs `gtk_container_add`、`gtk_widget_show_all`、窗口关闭信号 "close-request"（GTK4）vs "delete-event"（GTK3，均经 `GSignalConnectCloseRequest` 统一连接，回调统一 `func(window, extra uintptr) int32` 返回 0 允许关闭）。`internal/ui/login_webview_linux.go`：GTK 线程模型——`runGTK` goroutine（`LockOSThread`）内 `gtk_init_check` → 创建对应 API 栈的 WebView → `gtk_window_new` → `g_timeout_add` 轮询 Cookie → `gtk_main` 阻塞；Close() 幂等 = `gtk_main_quit`（跨线程安全）。无 DISPLAY/WAYLAND_DISPLAY 时直接发 WindowClosed 降级二维码登录。每次轮询释放 GList/SoupCookie/GError，退出时 `g_object_unref` window/webView/session。
+  - **Linux**：`internal/webkitgtk`（purego 直调 WebKitGTK，零 CGO）运行时优先加载 6.0 栈（`libwebkitgtk-6.0.so.4` + `libgtk-4.so.1`），失败自动回退 4.1 栈（`libwebkit2gtk-4.1.so.0` + `libgtk-3.so.0`，覆盖 Debian 11/12、Ubuntu 22.04 等旧发行版）。6.0 使用 `WebKitNetworkSession` 与 `webkit_cookie_manager_get_all_cookies`（WebKitGTK 6.0 没有 `webkit_web_view_new_with_network_session`，会话要作为构造属性传入，所以这条路径目前总是不可用，以 debug 日志回退 4.1）；4.1/4.0 使用旧版 `WebContext` / `CookieManager` API，其中 4.1 链接 libsoup 3、4.0 链接 libsoup 2，并通过带 URI 的 `webkit_cookie_manager_get_cookies` 查询 Cookie。所有支持栈都不可用不 panic（`WebKitGTKVersion()` 返回 0，导出函数降级 no-op，controller 走 WindowClosed 回退，且 Login 页「网页登录」入口自动隐藏）。**符号缺失降级**：库可加载（RTLD_LAZY）但缺少对应 API 符号时，`registerSymbol`（`purego.Dlsym` 失败静默跳过而非 `RegisterLibFunc` panic）使对应函数指针保持 nil，栈可用性检查判定该栈不可用并继续回退，最终 `WebKitGTKVersion()` 返回 0 走表单登录降级，不影响主应用启动。版本差异分发：`gtk_window_new` 带参/无参、`gtk_window_set_child` vs `gtk_container_add`、`gtk_widget_show_all`、窗口关闭信号 "close-request"（GTK4）vs "delete-event"（GTK3，均经 `GSignalConnectCloseRequest` 统一连接，回调统一 `func(window, extra uintptr) int32` 返回 0 允许关闭）。`internal/ui/login_webview_linux.go`：GTK 线程模型——`runGTK` goroutine（`LockOSThread`）内 `gtk_init_check` → 创建对应 API 栈的 WebView → `gtk_window_new` → `g_timeout_add` 轮询 Cookie → `gtk_main` 阻塞；Close() 幂等 = `gtk_main_quit`（跨线程安全）。无 DISPLAY/WAYLAND_DISPLAY 时直接发 WindowClosed 降级二维码登录。每次轮询释放 GList/SoupCookie/GError，退出时 `g_object_unref` window/webView/session。
 
 ## 开发指南
 
@@ -275,9 +275,30 @@ foxful-cli 是本项目的核心 UI 框架，源码在 `third_party/foxful-cli/`
   16. `model/statusbar.go`、`style/theme.go`：状态栏左侧标签可由主题配置（`statusBar.label`，Warm Night 用 `■`）。
   17. `model/main_loading.go`：实现了 `BackgroundLoader`（`LoadsInBackground() == true`）的菜单，其 `BeforeEnterMenuHook` 在 UI goroutine 之外运行，结束后以 `menuLoadedMsg` 回到 `App.Update`（Main 不在屏幕上时也会进入菜单，但不切换页面）；加载期间界面照常绘制，分节标题已显示新菜单名；`BackMenu`、`BackToMenu`、切标签、`EnterMenu` 会取消进行中的加载，迟到的结果被丢弃。这类钩子不得接触界面（写终端、改页面状态）。`EnterMenu`、`DeferWithLoading`、`RefreshMenuWithLoading` 与 `BottomOutHook` 仍同步执行。
 
-### 打包 RPM
+### 发布
 
-`hack/rpm.sh` 用系统 gcc 执行 `make build`（conda 等环境的编译器找不到系统的 FLAC、ALSA 头文件），再按 `deploy/rpm/musicfox-deck.spec` 把 `bin/musicfox` 打成 RPM，输出到 `dist/`。版本号取最近的 tag 加快照后缀（如 `5.1.0^20261020git11c1f7e`）。依赖由 rpmbuild 从二进制推导（`libFLAC.so.14`、`libasound.so.2`、glibc）；WebKitGTK 只在网页登录时动态加载，列为推荐依赖。该脚本只用于 Linux。
+版本号独立于上游，从 v1.0.0 开始；`types.UpstreamVersion` 记录所基于的 go-musicfox 版本（合并上游后更新），`--version` 一并显示。因为与原版共用数据目录：更新日志弹窗记在自己的键 `deck_changelog_seen`（`storage.ChangelogSeen`），从原版迁来的用户也会看到一次；`ExtInfo.StorageVersion` 与当前版本不同（无论新旧）就刷新通知图标等文件。`version.CompareVersion` 按数字比较各段（1.10 晚于 1.9）。
+
+发布步骤：
+
+1. 在 `CHANGELOG.md` 顶部写好本版一节（版本号、`=` 下划线、`YYYY-MM-DD` 日期，再是条目；与 go-musicfox 的记录之间以 `---` 隔开），同步程序内弹窗用的 `utils/filex/embed/changelog.md`。
+2. 打 tag `vX.Y.Z` 并推送，`.github/workflows/release.yaml` 依次：
+   - `draft`：以 `hack/release_notes.sh`（截取 CHANGELOG 一节，附下载表）创建草稿 Release；
+   - `linux-windows`：在 Ubuntu 22.04 容器里运行 `hack/release_container.sh`（Go、GoReleaser、llvm-mingw 都固定版本并校验 SHA-256），按 `.goreleaser.yaml` 编 Linux amd64/arm64 与 Windows amd64/arm64，打 tar.gz、zip、deb、rpm、Arch 包；`macos`：在 macOS runner 上按 `.goreleaser.darwin.yaml` 编两个架构的命令行版与 .app 版。两者都上传到同一个草稿（`use_existing_draft`）；
+   - `try-*`：在 Ubuntu 22.04/24.04、Debian 12（另有 arm64，经 QEMU）、Fedora、openSUSE Tumbleweed、Arch 的容器里安装包并运行 `musicfox --version`；在 macOS 上运行两个架构的二进制与 .app 版，并用生成的 formula 安装测试；在 Windows 上运行 x64 版；
+   - `checksums`：全部通过后上传 `SHA256SUMS`。
+3. 检查草稿后手动发布（`gh release edit vX.Y.Z --draft=false`）。发布正式版会触发 `.github/workflows/homebrew.yaml`：`hack/brew_formula.sh` 生成 formula，经部署密钥（secret `HOMEBREW_TAP_DEPLOY_KEY`）推到 `Egdon/homebrew-tap`。
+
+带 `-` 的 tag（如 `v1.0.0-rc.1`）是预发布：说明取去掉后缀的版本那一节，不更新 Homebrew。手动运行 release 工作流只构建、试装快照，不发布。
+
+- **Linux**：`hack/pkg-config-static` 让 goflac 的 `pkg-config --libs flac` 返回静态链接的 libFLAC 与 libogg，二进制只依赖 glibc ≥ 2.34 与 `libasound.so.2`。各发行版的 libFLAC soname 不同（.so.8 / .12 / .14），上游的发布包动态链接 libFLAC.so.8，在新发行版上无法启动。
+- **Windows**：只有 minimp3 需要 C 编译器；llvm-mingw（UCRT）编出的程序只依赖系统 DLL。
+- **macOS**：未签名，只有链接器的 ad-hoc 签名。Homebrew formula 安装预编译的二进制，formula 下载的文件不带隔离属性，不会被 Gatekeeper 拦下；手动下载需要 `xattr -d com.apple.quarantine`。
+- **本地预演**：`make release-snapshot` 用 podman（或 docker）在同样的容器里构建 Linux 与 Windows 快照，输出到 `dist/`；macOS 只能在 CI 上验证。
+
+#### 打包 RPM（本机）
+
+`hack/rpm.sh` 用系统 gcc 执行 `make build`（conda 等环境的编译器找不到系统的 FLAC、ALSA 头文件），再按 `deploy/rpm/musicfox-deck.spec` 把 `bin/musicfox` 打成本机用的 RPM，输出到 `dist/`。版本号取最近的 tag 加快照后缀（如 `1.0.0^20261020git11c1f7e`）。依赖由 rpmbuild 从二进制推导（本机的 `libFLAC.so.N`、`libasound.so.2`、glibc），只适合在打包的这台机器所用的发行版上安装；分发用 Release 里的 rpm。WebKitGTK 只在网页登录时动态加载，列为推荐依赖。该脚本只用于 Linux。
 
 ### 跨平台构建兼容性
 
@@ -313,7 +334,7 @@ endif
 | `<cmd> || { cmd2; }` | `<cmd> || ( cmd2 )` |
 | `hack/*.sh` | `hack/*.ps1`（PowerShell 实现） |
 
-**例外**：纯交叉编译/CI 内部工具（如 `hack/init_linux_env.sh`、`hack/init_windows_env.sh` 等 Docker 内部脚本），仅在 Linux Docker 容器中执行，无需适配 Windows。
+**例外**：纯交叉编译/CI 内部工具（如 `hack/init_linux_env.sh`、`hack/init_windows_env.sh` 等 Docker 内部脚本，以及发布用的 `hack/release_container.sh`、`hack/pkg-config-static`、`hack/release_notes.sh`、`hack/brew_formula.sh` 和 `make release-snapshot`），仅在 Linux 容器或 CI 中执行，无需适配 Windows。
 
 ## 文档维护准则
 

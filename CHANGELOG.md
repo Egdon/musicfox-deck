@@ -1,16 +1,22 @@
-musicfox-deck（未发布）
+1.0.0
 =============
+（未发布）
 
-基于 go-musicfox v5.1.0。
+musicfox-deck 的第一个版本，基于 go-musicfox v5.1.0，配置和数据目录与原版共用。
 
 * 磁带卡座界面：曲目表加右侧 3D 磁带面板（逐字歌词、接下来播放），窄窗口改为底部播放条
 * 3D 磁带渲染器：透视光线投射，八分块 / 六分块 / 四分块自动选择；漂浮、跟随鼠标倾斜、切歌翻面
 * 播放页改为舞台布局，窄窗口为海报布局；进出播放页时磁带在面板与舞台之间形变
 * 动效：页面切换、菜单进出、弹窗、通知、选中项滑动、deck 启动动画；`[main] motion` 控制
-* 切歌改为异步执行，界面不再卡顿
+* 切歌、进入歌单等菜单改为后台执行，歌词和播放进度也不再等网络，界面不会卡住
 * 新增配置 `[main] motion`、`[main] blockGlyphs`、`[theme] layout`、`[startup] animation = "deck"`；移除 `[main.nowPlaying] effects`
+* 安装包：macOS（含 Homebrew）、Windows、Linux（deb、rpm、Arch 包和通用压缩包）。Linux 版静态链接 libFLAC，不再因发行版的 libFLAC 版本不同而无法启动
+* 启动时不再打印 WebKitGTK 的警告
 * foxful-cli 收进 `third_party/foxful-cli` 维护
 
+---
+
+以下是 go-musicfox 的更新记录。
 
 5.0.2
 =============
