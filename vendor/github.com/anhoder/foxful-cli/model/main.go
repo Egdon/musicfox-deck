@@ -375,7 +375,8 @@ func (m *Main) Update(msg tea.Msg, a *App) (Page, tea.Cmd) {
 		}
 		return m, nil
 	case tea.WindowSizeMsg:
-		m.isDualColumn = msg.Width >= 75 && m.options.DualColumn
+		cw := m.contentWidthFor(msg.Width, msg.Height)
+		m.isDualColumn = cw >= 75 && m.options.DualColumn
 		m.menuStartRow = msg.Height / 3
 		if m.options.MaxMenuStartRow > 0 {
 			if m.menuStartRow > m.options.MaxMenuStartRow {
@@ -391,18 +392,18 @@ func (m *Main) Update(msg tea.Msg, a *App) (Page, tea.Cmd) {
 		}
 		if m.isDualColumn {
 			switch {
-			case msg.Width < 100:
-				m.menuStartColumn = msg.Width / 5
-			case msg.Width < 150:
-				m.menuStartColumn = msg.Width / 4
+			case cw < 100:
+				m.menuStartColumn = cw / 5
+			case cw < 150:
+				m.menuStartColumn = cw / 4
 			default:
-				m.menuStartColumn = msg.Width / 3
+				m.menuStartColumn = cw / 3
 			}
 		} else {
-			if msg.Width < 100 {
-				m.menuStartColumn = msg.Width / 3
+			if cw < 100 {
+				m.menuStartColumn = cw / 3
 			} else {
-				m.menuStartColumn = msg.Width * 2 / 5
+				m.menuStartColumn = cw * 2 / 5
 			}
 		}
 		if m.menuStartColumn < 5 {
@@ -507,7 +508,7 @@ func (m *Main) View(a *App) string {
 	// ── 2. Tab bar (if multi-tab mode enabled) ──
 	if m.options.EnableTabs && m.tabs != nil {
 		// Update tabs widget size to match window width
-		m.tabs.SetSize(w, 0) // height auto-calculated by tabs widget
+		m.tabs.SetSize(m.ContentWidth(), 0) // height auto-calculated by tabs widget
 		m.tabs.SetHovered(m.hoveredTabIdx)
 		sections = append(sections, m.tabs.View())
 	}
@@ -1072,7 +1073,7 @@ func (m *Main) menuTitleViewContent(a *App, menuTitle *MenuItem) string {
 	if menuTitle == nil {
 		menuTitle = m.menuTitle
 	}
-	windowWidth := a.WindowWidth()
+	windowWidth := m.ContentWidth()
 	startCol := m.menuStartColumn
 	ss := style.CurrentStyleSet()
 
@@ -1317,8 +1318,9 @@ func (m *Main) centeredMenuView(a *App, lines int) string {
 	// Anchor every row using the nominal entry width. An overflowing selected
 	// item may append a dedicated right-separator cell; centering its actual
 	// width would shift the title one column left.
-	rowStartColumn := max((a.windowWidth-entryLength*m.getNumColumns())/2, 0)
-	rowStyle := lipgloss.NewStyle().Width(a.windowWidth)
+	contentWidth := m.ContentWidth()
+	rowStartColumn := max((contentWidth-entryLength*m.getNumColumns())/2, 0)
+	rowStyle := lipgloss.NewStyle().Width(contentWidth)
 
 	var rows []string
 	for i := 0; i < lines; i++ {
@@ -1365,8 +1367,8 @@ func (m *Main) centeredEntryLength(a *App, titleLengths []int) int {
 		}
 	}
 
-	remainingWidth := a.windowWidth - 4
-	extraPadding := (a.windowWidth - 40) / 5
+	remainingWidth := m.ContentWidth() - 4
+	extraPadding := (m.ContentWidth() - 40) / 5
 	if extraPadding > 0 {
 		remainingWidth -= extraPadding
 	}
@@ -1410,7 +1412,7 @@ func (m *Main) menuListView(a *App) string {
 	// fill blanks to maintain fixed page size
 	if maxLines > lines {
 		var fillLines []string
-		blankLine := style.CurrentStyleSet().AppBackground.Width(a.WindowWidth()).Render("")
+		blankLine := style.CurrentStyleSet().AppBackground.Width(m.ContentWidth()).Render("")
 		for i := lines; i < maxLines; i++ {
 			fillLines = append(fillLines, blankLine)
 		}
@@ -1466,7 +1468,7 @@ func (m *Main) menuItemView(a *App, index int) (string, int) {
 		menuTitle       string
 		itemMaxLen      int
 		menuName        string
-		windowWidth     = a.WindowWidth()
+		windowWidth     = m.ContentWidth()
 		maxIndexWidth   = m.getMaxIndexWidth()
 	)
 
@@ -1691,7 +1693,7 @@ func (m *Main) menuLineView(a *App, line int) string {
 			keyMatch := e.leftIndex == index &&
 				e.leftTitle == leftItem.Title && e.leftSubtitle == leftItem.Subtitle &&
 				e.leftSelected == m.isSelected(index) && e.leftHovered == (!m.inSearching && index == m.hoveredMenuItemIdx) &&
-				e.windowWidth == a.WindowWidth() && e.menuStartColumn == m.menuStartColumn &&
+				e.windowWidth == m.ContentWidth() && e.menuStartColumn == m.menuStartColumn &&
 				e.dualColumn == m.isDualColumn && e.styleGen == gen && e.scrollPhase == scrollPhase
 			if keyMatch && rightItem == nil {
 				return e.view
@@ -1712,7 +1714,7 @@ func (m *Main) menuLineView(a *App, line int) string {
 		if index+1 < len(m.menuList) {
 			secondMenuItemStr, _ = m.menuItemView(a, index+1)
 		} else {
-			secondMenuItemStr = style.CurrentStyleSet().AppBackground.Render(strings.Repeat(" ", max(0, a.WindowWidth()-m.menuStartColumn-firstColumnWidth)))
+			secondMenuItemStr = style.CurrentStyleSet().AppBackground.Render(strings.Repeat(" ", max(0, m.ContentWidth()-m.menuStartColumn-firstColumnWidth)))
 		}
 		// Fixed 4-space gap between columns, painted with the app background so
 		// the gap doesn't reveal content rendered beneath the TUI cells.
@@ -1740,7 +1742,7 @@ func (m *Main) menuLineView(a *App, line int) string {
 		leftSelected:    m.isSelected(index),
 		leftHovered:     !m.inSearching && index == m.hoveredMenuItemIdx,
 		rightIndex:      -1,
-		windowWidth:     a.WindowWidth(),
+		windowWidth:     m.ContentWidth(),
 		menuStartColumn: m.menuStartColumn,
 		dualColumn:      m.isDualColumn,
 		styleGen:        style.StyleGeneration(),
@@ -1800,7 +1802,7 @@ func (m *Main) isOverBackButton(x, y int, a *App) bool {
 	if m.options.CenterEverything {
 		// In centerEverything mode, the back button and title are centered together.
 		titleWidth := lipgloss.Width(m.menuTitle.String())
-		windowWidth := a.WindowWidth()
+		windowWidth := m.ContentWidth()
 
 		// Account for truncation
 		if titleWidth > windowWidth-4 {
@@ -1844,7 +1846,7 @@ func (m *Main) menuItemAt(x, y int) int {
 	if m.isDualColumn {
 		if m.options.CenterEverything {
 			// In centered mode, columns are centered — split at midpoint
-			if x > m.app.WindowWidth()/2 {
+			if x > m.ContentWidth()/2 {
 				col = 1
 			}
 		} else {
@@ -1852,8 +1854,8 @@ func (m *Main) menuItemAt(x, y int) int {
 			// The left column occupies up to leftItemWidth, then 4-space gap,
 			// then the right column.
 			leftItemWidth := 44
-			if m.app.WindowWidth() <= 88 {
-				leftItemWidth = (m.app.WindowWidth() - m.menuStartColumn - 4) / 2
+			if m.ContentWidth() <= 88 {
+				leftItemWidth = (m.ContentWidth() - m.menuStartColumn - 4) / 2
 			}
 			splitX := m.menuStartColumn - 4 + leftItemWidth + 2
 			if x >= splitX {
@@ -1913,11 +1915,11 @@ func (m *Main) centeredMenuItemTextBounds(index int) (start, end int, ok bool) {
 
 	column := (index - m.getPageStartIndex()) % m.getNumColumns()
 	if m.isDualColumn {
-		start += (m.app.WindowWidth()-entryLength*2)/2 + column*entryLength
-		end += (m.app.WindowWidth()-entryLength*2)/2 + column*entryLength
+		start += (m.ContentWidth()-entryLength*2)/2 + column*entryLength
+		end += (m.ContentWidth()-entryLength*2)/2 + column*entryLength
 	} else {
-		start += (m.app.WindowWidth() - entryLength) / 2
-		end += (m.app.WindowWidth() - entryLength) / 2
+		start += (m.ContentWidth() - entryLength) / 2
+		end += (m.ContentWidth() - entryLength) / 2
 	}
 	return start, end, true
 }
@@ -1944,7 +1946,7 @@ func (m *Main) isSelected(index int) bool {
 
 func (m *Main) searchInputView(app *App) string {
 	var (
-		windowWidth = app.WindowWidth()
+		windowWidth = m.ContentWidth()
 		ss          = style.CurrentStyleSet()
 	)
 
