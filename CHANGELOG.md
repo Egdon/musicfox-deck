@@ -1,6 +1,6 @@
 1.0.0
 =============
-（未发布）
+2026-10-20
 
 musicfox-deck 的首个版本，基于 go-musicfox v5.1.0，与 go-musicfox 共用配置与数据目录。
 
