@@ -161,7 +161,9 @@ func TestSchedulerSlowFrames(t *testing.T) {
 			fast++
 		}
 	}
-	if fast < 3 || slow < 16 || slow > 22 {
-		t.Fatalf("%d fast and %d slow frames", fast, slow)
+	// A second of slow frames, less the fast start.
+	want := int((time.Second - 50*time.Millisecond) / SlowInterval)
+	if fast < 3 || slow < want-3 || slow > want+3 {
+		t.Fatalf("%d fast and %d slow frames, want about %d slow", fast, slow, want)
 	}
 }

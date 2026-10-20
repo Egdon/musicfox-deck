@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/anhoder/foxful-cli/model"
 
@@ -99,4 +100,23 @@ func deckLines(f *deck.Frame, bg color.Color) []string {
 		lines[y] = b.String()
 	}
 	return lines
+}
+
+// deckPacer redraws a slowly moving cassette at most deckPace apart: the
+// interface draws faster while it animates other things or takes keys, and
+// a floating cassette looks the same at that pace. A cassette moving
+// briskly, or drawn into a different view, is redrawn every time.
+type deckPacer struct {
+	last *deck.Frame
+	at   time.Time
+	view deck.View
+}
+
+const deckPace = 33 * time.Millisecond
+
+func (c *deckPacer) frame(now time.Time, v deck.View, brisk bool, render func() *deck.Frame) *deck.Frame {
+	if c.last == nil || brisk || v != c.view || now.Sub(c.at) >= deckPace || now.Before(c.at) {
+		c.last, c.at, c.view = render(), now, v
+	}
+	return c.last
 }

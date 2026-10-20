@@ -51,6 +51,7 @@ type DeckPanel struct {
 	handler *EventHandler
 
 	renderer deck.Renderer
+	cassette deckPacer
 	motion   deck.Motion
 	reels    deck.Reels
 	stepped  time.Time
@@ -278,8 +279,10 @@ func (p *DeckPanel) View(a *model.App, _ *model.Main, w, h int) string {
 		if docked {
 			pose, v.Fit = deckTurned(pose, deckDockTurn), deckGrow(deck.Rect{W: float64(cw), H: float64(ch)}, deckDockGrow)
 		}
-		s.Deck = p.renderer.Render(v, deckPaletteOf(s.Pal), pose,
-			deck.State{Radii: deck.PackRadii(p.progress(), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift})
+		s.Deck = p.cassette.frame(now, v, p.motion.Brisk(now), func() *deck.Frame {
+			return p.renderer.Render(v, deckPaletteOf(s.Pal), pose,
+				deck.State{Radii: deck.PackRadii(p.progress(), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift})
+		})
 	}
 	p.docked = docked
 	if !s.Idle {

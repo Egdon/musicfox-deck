@@ -74,6 +74,7 @@ type NowPlayingPage struct {
 	stoppedSince time.Time
 
 	renderer  deck.Renderer // the cassette on the stage
+	cassette  deckPacer     // paces its redraws while it only floats
 	morph     deck.Renderer // the cassette while it morphs, over the whole window
 	motion    deck.Motion
 	reels     deck.Reels
@@ -739,8 +740,11 @@ func (p *NowPlayingPage) snapshot(a *model.App, now time.Time, w, h int, withDec
 		if withDeck {
 			pose, lift := p.motion.At(now)
 			sideB := p.motion.SideB(now)
-			frame = p.renderer.Render(deck.View{W: sw, H: sh, Tier: deckTier(a), Aspect: deckAspect(a)}, deckPaletteOf(pal), pose,
-				deck.State{Radii: deck.PackRadii(p.reels.Progress(now, p.progress()), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift})
+			v := deck.View{W: sw, H: sh, Tier: deckTier(a), Aspect: deckAspect(a)}
+			frame = p.cassette.frame(now, v, p.motion.Brisk(now), func() *deck.Frame {
+				return p.renderer.Render(v, deckPaletteOf(pal), pose,
+					deck.State{Radii: deck.PackRadii(p.reels.Progress(now, p.progress()), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift})
+			})
 		}
 	}
 	lines, cur, sung := lyricsNow(p.netease.lyricService, player.PassedTime())

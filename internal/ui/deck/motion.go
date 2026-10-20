@@ -268,6 +268,13 @@ func (m *Motion) Busy(now time.Time) bool {
 	return m.amp != 0 || m.ampV != 0 || m.lean != [2]float64{} || m.leanTo != [2]float64{} || m.Flipping(now)
 }
 
+// Brisk reports whether the cassette moves fast enough to be drawn on every
+// frame: flipping over, or leaning towards or away from the pointer. Its
+// float alone is slow.
+func (m *Motion) Brisk(now time.Time) bool {
+	return m.Flipping(now) || m.lean != m.leanTo || m.leanV != [2]float64{}
+}
+
 func normAngle(a float64) float64 {
 	a = math.Mod(a, 2*math.Pi)
 	if a > math.Pi {

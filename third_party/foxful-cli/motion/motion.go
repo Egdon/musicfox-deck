@@ -136,7 +136,7 @@ type FrameMsg struct{ gen uint64 }
 
 // SlowInterval paces slow continuous animations, such as something floating,
 // when nothing faster runs.
-const SlowInterval = 50 * time.Millisecond
+const SlowInterval = 33 * time.Millisecond
 
 // Scheduler keeps a single frame timer in flight while animations run and
 // stops when they end. Animations started anywhere, even while rendering,
