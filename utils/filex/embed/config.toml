@@ -245,7 +245,7 @@ neteaseCookie = ""
 # 主题文件存放于 embed/themes/（内置）和 ~/.config/go-musicfox/themes/（用户自定义）
 activeTheme = "Warm Night"
 # 主界面布局：
-#   deck：左侧曲目表（序号、歌名、歌手、时长）占满高度，宽度够时右侧显示磁带面板
+#   deck：左侧曲目表（序号、歌名、歌手、时长）占满高度，宽度够时右侧显示磁带面板，窗口窄时收成曲目表下方的播放条
 #   classic：原版布局
 layout = "deck"
 # 是否在界面顶部显示标题
