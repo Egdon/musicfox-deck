@@ -107,7 +107,7 @@ jobs:
           - image: opensuse/tumbleweed
             install: zypper -n -q install --no-recommends --allow-unsigned-rpm ./musicfox-deck-*.x86_64.rpm
           - image: archlinux:latest
-            install: pacman -Sy --noconfirm -q archlinux-keyring && pacman -U --noconfirm -q ./musicfox-deck-*-x86_64.pkg.tar.zst
+            install: pacman -Sy --noconfirm && pacman -U --noconfirm ./musicfox-deck-*-x86_64.pkg.tar.zst
           - image: debian:12
             platform: linux/arm64
             install: apt-get update -qq && apt-get install -y -qq --no-install-recommends ./musicfox-deck_*_arm64.deb
