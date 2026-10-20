@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"math"
 	"math/rand/v2"
+	"slices"
 	"testing"
 	"time"
 
@@ -175,7 +176,7 @@ func TestRestFaceIsUnshaded(t *testing.T) {
 	m := materialsFor(testPal)
 	pose := RestPose()
 	rot := rotation(pose.Yaw, pose.Pitch, pose.Roll)
-	sc := &scene{m: &m, rot: rot, scale: 1, o: rot.applyT(vec3{0, 0, camDist}.mul(-1)), lObj: rot.applyT(keyLight), detail: 1}
+	sc := &scene{m: &m, rot: rot, inv: 1, o: rot.applyT(vec3{0, 0, camDist}.mul(-1)), lObj: rot.applyT(keyLight), detail: 1}
 	// Aim at the label paper between the letter and the window.
 	target := rot.apply(vec3{30 - faceW/2, 14.5 - faceH/2, -depth / 2}).add(vec3{0, 0, camDist})
 	c, mt, ok := sc.sample(target)
@@ -224,6 +225,33 @@ func TestRenderIsDeterministicAndStaysInView(t *testing.T) {
 
 // Cells only the shadow falls on say how dark it is; the cassette's own
 // cells do not.
+// Turning the reels redraws only the hubs, which must give the frame a full
+// render would.
+func TestTurningReelsDrawsLikeAFullRender(t *testing.T) {
+	rng := rand.New(rand.NewPCG(3, 5))
+	sizes := [][2]int{{40, 14}, {64, 22}, {20, 6}, {96, 32}}
+	tiers := []Tier{Octant, Sextant, Quadrant, Half}
+	for i := range 64 {
+		sz := sizes[i%len(sizes)]
+		v := View{W: sz[0], H: sz[1], Tier: tiers[i/len(sizes)%len(tiers)]}
+		pose := RestPose()
+		pose.Yaw += (rng.Float64()*2 - 1) * math.Pi
+		pose.Pitch += (rng.Float64()*2 - 1) * 0.3
+		pose.Roll = (rng.Float64()*2 - 1) * 0.1
+		st := State{Radii: ReelRadii(rng.Float64()), Lift: 2}
+		var turned Renderer
+		for range 6 {
+			st.Angles = [2]float64{rng.Float64() * 2 * math.Pi, rng.Float64() * 2 * math.Pi}
+			st.Blur = []float64{0, 0.3, 1}[rng.IntN(3)]
+			got := turned.Render(v, testPal, pose, st)
+			var fresh Renderer
+			if want := fresh.Render(v, testPal, pose, st); !slices.Equal(got.Cells, want.Cells) {
+				t.Fatalf("case %d: turning the reels drew another frame than a full render", i)
+			}
+		}
+	}
+}
+
 func TestShadowCellsAreMarked(t *testing.T) {
 	st := State{Radii: PackRadii(0.4, false), Lift: restLift}
 	v := View{W: 50, H: 18, Tier: Octant}
@@ -414,6 +442,20 @@ func benchmarkRender(b *testing.B, w, h int, tier Tier) {
 		r.Render(View{W: w, H: h, Tier: tier}, testPal, pose, State{Radii: ReelRadii(0.4), Angles: [2]float64{float64(i) * 0.1, float64(i) * 0.2}, Lift: lift})
 	}
 }
+
+// benchmarkTurnReels draws a cassette that holds still while its reels turn.
+func benchmarkTurnReels(b *testing.B, w, h int, tier Tier) {
+	var r Renderer
+	st := State{Radii: ReelRadii(0.4), Lift: RestLift}
+	b.ResetTimer()
+	for i := range b.N {
+		st.Angles = [2]float64{float64(i) * 0.1, float64(i) * 0.2}
+		r.Render(View{W: w, H: h, Tier: tier}, testPal, RestPose(), st)
+	}
+}
+
+func BenchmarkTurnReelsPageOctant(b *testing.B)  { benchmarkTurnReels(b, 64, 22, Octant) }
+func BenchmarkTurnReelsLargeOctant(b *testing.B) { benchmarkTurnReels(b, 96, 32, Octant) }
 
 func BenchmarkRenderPageOctant(b *testing.B)  { benchmarkRender(b, 64, 22, Octant) }
 func BenchmarkRenderPageSextant(b *testing.B) { benchmarkRender(b, 64, 22, Sextant) }

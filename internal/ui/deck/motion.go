@@ -43,7 +43,9 @@ func (m *Reels) Run() { m.speed, m.vel = 1, 0 }
 // Stop halts the reels at once.
 func (m *Reels) Stop() { m.speed, m.vel = 0, 0 }
 
-func (m *Reels) winding(now time.Time) bool { return now.Sub(m.windStart) < windDuration }
+// Winding reports whether a seek winds the tape fast: its packs change size
+// quickly.
+func (m *Reels) Winding(now time.Time) bool { return now.Sub(m.windStart) < windDuration }
 
 // Advance turns the reels by dt seconds. Both carry the tape at the same
 // speed, so the emptier reel spins faster. dir is 1 while the A side plays
@@ -53,7 +55,7 @@ func (m *Reels) Advance(dt float64, playing bool, now time.Time, radii [2]float6
 	if playing {
 		target = 1
 	}
-	if m.winding(now) {
+	if m.Winding(now) {
 		target = 9 * m.windDir
 	}
 	if math.Abs(target) > math.Abs(m.speed) {
@@ -89,7 +91,7 @@ func (m *Reels) Wind(dir float64, now time.Time, from, to float64) {
 // Progress is the progress the tape packs show: while winding they travel
 // from where the seek started to where it lands.
 func (m *Reels) Progress(now time.Time, real float64) float64 {
-	if !m.winding(now) {
+	if !m.Winding(now) {
 		return real
 	}
 	t := float64(now.Sub(m.windStart)) / float64(windDuration)

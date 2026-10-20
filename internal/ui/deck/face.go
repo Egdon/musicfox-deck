@@ -1,7 +1,5 @@
 package deck
 
-import "math"
-
 // mat tells surfaces apart: neighboring samples of different materials mark
 // an edge worth supersampling.
 type mat uint8
@@ -27,6 +25,10 @@ const (
 	matClamp
 	matTape
 )
+
+// turns reports whether a material lies on a reel hub, whose look follows the
+// reel's angle and blur. Everything else stays put while the reels turn.
+func (m mat) turns() bool { return m >= matSpindle && m <= matClamp }
 
 // faceSample describes a point of the A or B face before lighting. The normal
 // is in face space: x along u, y along v, z pointing out of the face.
@@ -55,10 +57,13 @@ const (
 // detail is how many sub-pixel rows one face unit spans: print that would
 // not resolve is left out rather than turned into noise.
 func face(m *materials, u, v float64, side int, detail float64) faceSample {
-	sd := shellSD(u, v)
-	if sd > -1 { // chamfered rim
-		nx, ny := shellNormal2D(u, v)
-		return faceSample{albedo: m.shell, n: vec3{nx * 0.7, ny * 0.7, 0.7}.norm(), gloss: 0.6, m: matBevel}
+	// The chamfered rim runs within a unit of the outline; two units in,
+	// corners included, a point is clear of it.
+	if u < 2 || u > faceW-2 || v < 2 || v > faceH-2 {
+		if shellSD(u, v) > -1 {
+			nx, ny := shellNormal2D(u, v)
+			return faceSample{albedo: m.shell, n: vec3{nx * 0.7, ny * 0.7, 0.7}.norm(), gloss: 0.6, m: matBevel}
+		}
 	}
 	for _, s := range screws {
 		if dx, dy := u-s[0], v-s[1]; dx*dx+dy*dy < 1.3 {
@@ -82,7 +87,7 @@ func face(m *materials, u, v float64, side int, detail float64) faceSample {
 		spread := (v - 37) * 4 / 11
 		if u >= 20-spread && u <= 56+spread {
 			for _, hx := range [2]float64{26.5, 49.5} {
-				if math.Hypot(u-hx, v-44) < 1.4 {
+				if hypot(u-hx, v-44) < 1.4 {
 					return faceSample{albedo: m.hole, n: flatOut, m: matHole}
 				}
 			}

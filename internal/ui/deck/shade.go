@@ -25,7 +25,7 @@ var restNL = restNormal.dot(keyLight)
 type scene struct {
 	m      *materials
 	rot    mat3    // object to camera rotation
-	scale  float64 // object to camera scale
+	inv    float64 // 1 / the object to camera scale
 	o      vec3    // the eye in object space
 	radii  [2]float64
 	angles [2]float64
@@ -36,7 +36,7 @@ type scene struct {
 
 // sample shades the ray from the eye in camera-space direction d.
 func (sc *scene) sample(d vec3) (c rgb, m mat, covered bool) {
-	dObj := sc.rot.applyT(d).mul(1 / sc.scale)
+	dObj := sc.rot.applyT(d).mul(sc.inv)
 	h, ok := intersectShell(sc.o, dObj)
 	if !ok {
 		return sc.m.bg, matBg, false
@@ -106,7 +106,7 @@ func (sc *scene) recess(h shellHit, d, view vec3, side int) (rgb, mat) {
 	if windowDist(u, v) > windowR {
 		// The ray meets the recess wall before reaching the reels.
 		x := min(max(u, reelCenters[0][0]), reelCenters[1][0])
-		l := math.Hypot(u-x, v-reelCenters[0][1])
+		l := hypot(u-x, v-reelCenters[0][1])
 		wall := vec3{-(u - x) / l, -(v - reelCenters[0][1]) / l, 0}
 		c, m = sc.light(sc.m.shell.scale(0.95), wall, view, 0.2), matWall
 	} else {
@@ -155,7 +155,7 @@ func (sc *scene) reel(x, y float64) (rgb, mat) {
 	m := sc.m
 	for i, rc := range reelCenters {
 		dx, dy := x-(rc[0]-faceW/2), y-(rc[1]-faceH/2)
-		r := math.Hypot(dx, dy)
+		r := hypot(dx, dy)
 		if r >= sc.radii[i] {
 			continue
 		}

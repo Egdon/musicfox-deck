@@ -66,22 +66,47 @@ type Frame struct {
 }
 
 // Renderer draws cassettes. It keeps its buffers between frames and returns
-// the previous frame when nothing changed; a Frame is valid until the next
-// call.
+// the previous frame when nothing changed, or redraws only the hubs when just
+// the reels turned; a Frame is valid until the next call.
 type Renderer struct {
 	key   renderKey
 	valid bool
 	mats  materials
 	pal   Palette
 	frame Frame
+	pass  pass
 
 	col  []rgb     // object color per sub-pixel
 	cov  []float64 // object coverage per sub-pixel
 	mat  []mat
 	edge []bool
+	hub  []bool // a sample of the sub-pixel landed on a hub, which turns
+	mark []uint8
 	shad []float64
 	tmp  []float64
 }
+
+// pass is where the last full render drew: its scene and its box, in cells
+// and in sub-pixels.
+type pass struct {
+	sc     scene
+	cam    camera
+	x0, y0 int
+	bw, bh int
+	gc, gr int
+	sw, sh int
+	bounds Rect // the cells the cassette covers: rays outside miss it
+}
+
+// ray is the camera-space direction through (fx, fy) in sub-pixels of the box.
+func (p *pass) ray(fx, fy float64) vec3 {
+	px := float64(p.x0) + fx/float64(p.gc)
+	py := (float64(p.y0) + fy/float64(p.gr)) * p.cam.aspect
+	return vec3{(px - p.cam.cx) / p.cam.focal, (py - p.cam.cy) / p.cam.focal, 1}
+}
+
+// subSamples are where an edge sub-pixel is sampled again.
+var subSamples = [4][2]float64{{0.25, 0.25}, {0.75, 0.25}, {0.25, 0.75}, {0.75, 0.75}}
 
 type renderKey struct {
 	v    View
@@ -160,6 +185,13 @@ func (r *Renderer) Render(v View, pal Palette, pose Pose, st State) *Frame {
 	if r.valid && key == r.key {
 		return &r.frame
 	}
+	if r.valid && key.v == r.key.v && key.pal == r.key.pal && key.pose == r.key.pose &&
+		key.st.Radii == r.key.st.Radii && key.st.Lift == r.key.st.Lift {
+		r.key = key
+		if r.turnReels(v, st) {
+			return &r.frame
+		}
+	}
 	if !r.valid || pal != r.pal {
 		r.mats, r.pal = materialsFor(pal), pal
 	}
@@ -171,6 +203,7 @@ func (r *Renderer) Render(v View, pal Palette, pose Pose, st State) *Frame {
 	}
 	r.frame.W, r.frame.H, r.frame.Cells = v.W, v.H, r.frame.Cells[:n]
 	clear(r.frame.Cells)
+	r.pass = pass{}
 	if v.W <= 0 || v.H <= 0 {
 		return &r.frame
 	}
@@ -178,10 +211,10 @@ func (r *Renderer) Render(v View, pal Palette, pose Pose, st State) *Frame {
 	cam := newCamera(v)
 	rot, s := rotation(pose.Yaw, pose.Pitch, pose.Roll), scaleOf(pose)
 	t := vec3{pose.X, pose.Y, camDist}
-	sc := &scene{
+	sc := scene{
 		m:      &r.mats,
 		rot:    rot,
-		scale:  s,
+		inv:    1 / s,
 		o:      rot.applyT(t.mul(-1)).mul(1 / s),
 		radii:  st.Radii,
 		angles: st.Angles,
@@ -209,51 +242,30 @@ func (r *Renderer) Render(v View, pal Palette, pose Pose, st State) *Frame {
 	bw, bh := x1-x0, y1-y0
 	sw, sh := bw*gc, bh*gr
 	r.grow(sw * sh)
+	r.pass = pass{sc: sc, cam: cam, x0: x0, y0: y0, bw: bw, bh: bh, gc: gc, gr: gr, sw: sw, sh: sh,
+		bounds: Rect{bx0, by0, bx1 - bx0, by1 - by0}}
+	p := &r.pass
 
 	// Pass 1: one ray through the center of every sub-pixel.
-	ray := func(fx, fy float64) vec3 {
-		px := float64(x0) + fx/float64(gc)
-		py := (float64(y0) + fy/float64(gr)) * cam.aspect
-		return vec3{(px - cam.cx) / cam.focal, (py - cam.cy) / cam.focal, 1}
-	}
 	parallel(sh, func(j0, j1 int) {
 		for j := j0; j < j1; j++ {
 			for i := range sw {
 				k := j*sw + i
-				c, m, ok := sc.sample(ray(float64(i)+0.5, float64(j)+0.5))
-				r.col[k], r.mat[k], r.cov[k] = c, m, 0
-				if ok {
-					r.cov[k] = 1
-				}
+				r.center(p, i, j, k)
 			}
 		}
 	})
 	// Pass 2: four more rays where neighboring materials differ.
-	edge := r.edge
 	for j := range sh {
 		for i := range sw {
-			k, m := j*sw+i, r.mat[j*sw+i]
-			edge[k] = (i > 0 && r.mat[k-1] != m) || (i+1 < sw && r.mat[k+1] != m) ||
-				(j > 0 && r.mat[k-sw] != m) || (j+1 < sh && r.mat[k+sw] != m)
+			r.edge[j*sw+i] = r.isEdge(p, i, j)
 		}
 	}
 	parallel(sh, func(j0, j1 int) {
 		for j := j0; j < j1; j++ {
 			for i := range sw {
-				k := j*sw + i
-				if !edge[k] {
-					continue
-				}
-				var sum rgb
-				hits := 0
-				for _, o := range [4][2]float64{{0.25, 0.25}, {0.75, 0.25}, {0.25, 0.75}, {0.75, 0.75}} {
-					if c, _, ok := sc.sample(ray(float64(i)+o[0], float64(j)+o[1])); ok {
-						sum, hits = sum.add(c), hits+1
-					}
-				}
-				r.cov[k] = float64(hits) / 4
-				if hits > 0 {
-					r.col[k] = sum.scale(1 / float64(hits))
+				if k := j*sw + i; r.edge[k] {
+					r.supersample(p, i, j, k)
 				}
 			}
 		}
@@ -278,56 +290,228 @@ func (r *Renderer) Render(v View, pal Palette, pose Pose, st State) *Frame {
 	}
 
 	// Pass 4: compose and fit each cell.
-	bg := r.mats.bg
 	parallel(bh, func(c0, c1 int) {
 		px := make([]rgb, gc*gr)
 		for cy := c0; cy < c1; cy++ {
 			for cx := range bw {
-				covered, dark := false, 0.0
-				for q := range gc * gr {
-					k := (cy*gr+q/gc)*sw + cx*gc + q%gc
-					cov, shadow := r.cov[k], r.shad[k]
-					under := bg.scale(1 - shadowDepth*shadow)
-					px[q] = r.col[k].scale(cov).add(under.scale(1 - cov))
-					covered = covered || cov > 0
-					dark += shadow
-				}
-				dark /= float64(gc * gr)
-				if !covered && dark < 0.01 {
-					continue
-				}
-				c := fitCell(px, v.Tier)
-				if !covered {
-					c.Shadow = shadowDepth * dark
-				}
-				r.frame.Cells[(y0+cy)*v.W+x0+cx] = c
+				r.compose(p, v, cx, cy, px)
 			}
 		}
 	})
 	return &r.frame
 }
 
+// center shades the ray through the center of sub-pixel (i, j), at index k.
+func (r *Renderer) center(p *pass, i, j, k int) {
+	fx, fy := float64(i)+0.5, float64(j)+0.5
+	if !p.mayHit(fx, fy) {
+		r.col[k], r.mat[k], r.cov[k], r.hub[k] = r.mats.bg, matBg, 0, false
+		return
+	}
+	c, m, ok := p.sc.sample(p.ray(fx, fy))
+	r.col[k], r.mat[k], r.cov[k], r.hub[k] = c, m, 0, m.turns()
+	if ok {
+		r.cov[k] = 1
+	}
+}
+
+// mayHit reports whether the ray through (fx, fy) passes within the cells the
+// cassette covers; the shadow's margin lies beyond them.
+func (p *pass) mayHit(fx, fy float64) bool {
+	const e = 1e-6
+	x := float64(p.x0) + fx/float64(p.gc)
+	y := float64(p.y0) + fy/float64(p.gr)
+	b := p.bounds
+	return x >= b.X-e && x <= b.X+b.W+e && y >= b.Y-e && y <= b.Y+b.H+e
+}
+
+// isEdge reports whether sub-pixel (i, j) borders another material.
+func (r *Renderer) isEdge(p *pass, i, j int) bool {
+	k := j*p.sw + i
+	m := r.mat[k]
+	return (i > 0 && r.mat[k-1] != m) || (i+1 < p.sw && r.mat[k+1] != m) ||
+		(j > 0 && r.mat[k-p.sw] != m) || (j+1 < p.sh && r.mat[k+p.sw] != m)
+}
+
+// supersample replaces the center sample of sub-pixel (i, j) with four.
+func (r *Renderer) supersample(p *pass, i, j, k int) {
+	var sum rgb
+	hits := 0
+	for _, o := range subSamples {
+		c, m, ok := p.sc.sample(p.ray(float64(i)+o[0], float64(j)+o[1]))
+		if ok {
+			sum, hits = sum.add(c), hits+1
+		}
+		r.hub[k] = r.hub[k] || m.turns()
+	}
+	r.cov[k] = float64(hits) / 4
+	if hits > 0 {
+		r.col[k] = sum.scale(1 / float64(hits))
+	}
+}
+
+// compose fits cell (cx, cy) of the box from its sub-pixels over the shadowed
+// backdrop; px is scratch space for one cell.
+func (r *Renderer) compose(p *pass, v View, cx, cy int, px []rgb) {
+	bg := r.mats.bg
+	covered, dark := false, 0.0
+	for q := range p.gc * p.gr {
+		k := (cy*p.gr+q/p.gc)*p.sw + cx*p.gc + q%p.gc
+		cov, shadow := r.cov[k], r.shad[k]
+		under := bg.scale(1 - shadowDepth*shadow)
+		px[q] = r.col[k].scale(cov).add(under.scale(1 - cov))
+		covered = covered || cov > 0
+		dark += shadow
+	}
+	dark /= float64(p.gc * p.gr)
+	cell := &r.frame.Cells[(p.y0+cy)*v.W+p.x0+cx]
+	if !covered && dark < 0.01 {
+		*cell = Cell{}
+		return
+	}
+	c := fitCell(px, v.Tier)
+	if !covered {
+		c.Shadow = shadowDepth * dark
+	}
+	*cell = c
+}
+
+// Marks turnReels keeps per sub-pixel.
+const (
+	markHub  uint8 = 1 << iota // on a hub before the reels turned
+	markNear                   // on a hub or next to one: may change
+)
+
+// turnReels redraws the frame for new reel angles and blur, which change
+// only the hubs: the sub-pixels with a sample on one and, as their materials
+// may change, the edges next to them. It reports false when the coverage
+// changed after all, which moves the shadow and needs a full render.
+func (r *Renderer) turnReels(v View, st State) bool {
+	p := &r.pass
+	if p.sw == 0 {
+		return true // nothing is drawn
+	}
+	p.sc.m, p.sc.angles, p.sc.blur = &r.mats, st.Angles, st.Blur
+	sw, sh := p.sw, p.sh
+	i0, j0, i1, j1 := sw, sh, -1, -1
+	for k, h := range r.hub {
+		if h {
+			i, j := k%sw, k/sw
+			i0, j0, i1, j1 = min(i0, i), min(j0, j), max(i1, i), max(j1, j)
+		}
+	}
+	if i1 < 0 {
+		return true // no hub in sight
+	}
+	i0, j0, i1, j1 = max(i0-1, 0), max(j0-1, 0), min(i1+1, sw-1), min(j1+1, sh-1)
+	if len(r.mark) < sw*sh {
+		r.mark = make([]uint8, sw*sh)
+	}
+	mark := r.mark
+	for j := j0; j <= j1; j++ {
+		for i := i0; i <= i1; i++ {
+			k := j*sw + i
+			mark[k] = 0
+			if r.hub[k] {
+				mark[k] = markHub
+			}
+		}
+	}
+	for j := j0; j <= j1; j++ {
+		for i := i0; i <= i1; i++ {
+			k := j*sw + i
+			if r.hub[k] || (i > 0 && r.hub[k-1]) || (i+1 < sw && r.hub[k+1]) ||
+				(j > 0 && r.hub[k-sw]) || (j+1 < sh && r.hub[k+sw]) {
+				mark[k] |= markNear
+			}
+		}
+	}
+	// The hubs' own center samples first: the edges depend on them.
+	for j := j0; j <= j1; j++ {
+		for i := i0; i <= i1; i++ {
+			if k := j*sw + i; mark[k]&markNear != 0 {
+				r.tmp[k] = r.cov[k]
+				if mark[k]&markHub != 0 {
+					r.center(p, i, j, k)
+				}
+			}
+		}
+	}
+	for j := j0; j <= j1; j++ {
+		for i := i0; i <= i1; i++ {
+			k := j*sw + i
+			if mark[k]&markNear == 0 {
+				continue
+			}
+			was, edge := r.edge[k], r.isEdge(p, i, j)
+			r.edge[k] = edge
+			switch {
+			case mark[k]&markHub != 0:
+				if edge {
+					r.supersample(p, i, j, k)
+				}
+			case edge && !was:
+				r.supersample(p, i, j, k)
+			case was && !edge:
+				r.center(p, i, j, k)
+			}
+			if r.cov[k] != r.tmp[k] {
+				return false
+			}
+		}
+	}
+	px := make([]rgb, p.gc*p.gr)
+	for cy := j0 / p.gr; cy <= j1/p.gr; cy++ {
+		for cx := i0 / p.gc; cx <= i1/p.gc; cx++ {
+			if r.near(p, cx, cy) {
+				r.compose(p, v, cx, cy, px)
+			}
+		}
+	}
+	return true
+}
+
+// near reports whether a sub-pixel of cell (cx, cy) is marked markNear.
+func (r *Renderer) near(p *pass, cx, cy int) bool {
+	for q := range p.gc * p.gr {
+		if r.mark[(cy*p.gr+q/p.gc)*p.sw+cx*p.gc+q%p.gc]&markNear != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *Renderer) grow(n int) {
 	if cap(r.col) < n {
 		r.col, r.cov, r.mat, r.edge = make([]rgb, n), make([]float64, n), make([]mat, n), make([]bool, n)
-		r.shad, r.tmp = make([]float64, n), make([]float64, n)
+		r.hub, r.shad, r.tmp = make([]bool, n), make([]float64, n), make([]float64, n)
 	}
 	r.col, r.cov, r.mat, r.edge = r.col[:n], r.cov[:n], r.mat[:n], r.edge[:n]
-	r.shad, r.tmp = r.shad[:n], r.tmp[:n]
+	r.hub, r.shad, r.tmp = r.hub[:n], r.shad[:n], r.tmp[:n]
 }
 
-// boxBlur averages src over a window of 2r+1 samples along (dx, dy) into dst.
+// boxBlur averages src over a window of 2r+1 samples along (dx, dy) into dst,
+// counting samples beyond the edges as zero. The window slides: each step
+// adds the sample it reaches and drops the one it leaves.
 func boxBlur(src, dst []float64, w, h, r, dx, dy int) {
-	for j := range h {
-		for i := range w {
-			var sum float64
-			for k := -r; k <= r; k++ {
-				x, y := i+k*dx, j+k*dy
-				if x >= 0 && y >= 0 && x < w && y < h {
-					sum += src[y*w+x]
-				}
+	n, lines, step, stride := w, h, 1, w // along rows
+	if dy != 0 {
+		n, lines, step, stride = h, w, w, 1 // along columns
+	}
+	for l := range lines {
+		base := l * stride
+		var sum float64
+		for k := range min(r+1, n) {
+			sum += src[base+k*step]
+		}
+		for i := range n {
+			dst[base+i*step] = sum / float64(2*r+1)
+			if k := i + r + 1; k < n {
+				sum += src[base+k*step]
 			}
-			dst[j*w+i] = sum / float64(2*r+1)
+			if k := i - r; k >= 0 {
+				sum -= src[base+k*step]
+			}
 		}
 	}
 }

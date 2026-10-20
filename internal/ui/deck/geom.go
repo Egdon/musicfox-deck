@@ -187,6 +187,9 @@ type shellHit struct {
 // rectangle extruded along z. The shell is convex, so the ray enters where it
 // is inside both the z slab and the outline.
 func intersectShell(o, d vec3) (shellHit, bool) {
+	if h, ok := faceHit(o, d); ok {
+		return h, true
+	}
 	tz0, tz1, ok := slab(o.z, d.z, -depth/2, depth/2)
 	if !ok {
 		return shellHit{}, false
@@ -211,6 +214,31 @@ func intersectShell(o, d vec3) (shellHit, bool) {
 	return h, true
 }
 
+// faceHit is the quick way in for most rays: through the face turned to the
+// eye, at a point clear of the outline's edges and corners. intersectShell
+// finds the same hit there, by the same arithmetic.
+func faceHit(o, d vec3) (shellHit, bool) {
+	var h shellHit
+	z := 0.0
+	switch {
+	case o.z < -depth/2 && d.z > 0:
+		z, h.surf, h.n = -depth/2, surfFront, vec3{0, 0, -1}
+	case o.z > depth/2 && d.z < 0:
+		z, h.surf, h.n = depth/2, surfBack, vec3{0, 0, 1}
+	default:
+		return shellHit{}, false
+	}
+	const e = 1e-6
+	t := (z - o.z) / d.z
+	p := o.at(d, t)
+	ax, ay := math.Abs(p.x), math.Abs(p.y)
+	if ax > faceW/2-e || ay > faceH/2-e || (ax > faceW/2-radius-e && ay > faceH/2-radius-e) {
+		return shellHit{}, false
+	}
+	h.t, h.p = t, p
+	return h, true
+}
+
 // shellSD is the signed distance to the shell outline in face coordinates.
 func shellSD(u, v float64) float64 {
 	return roundRectSD(u, v, faceW, faceH, radius)
@@ -219,7 +247,20 @@ func shellSD(u, v float64) float64 {
 func roundRectSD(u, v, w, h, r float64) float64 {
 	qx := math.Abs(u-w/2) - (w/2 - r)
 	qy := math.Abs(v-h/2) - (h/2 - r)
-	return math.Hypot(max(qx, 0), max(qy, 0)) + min(max(qx, qy), 0) - r
+	return hypot(max(qx, 0), max(qy, 0)) + min(max(qx, qy), 0) - r
+}
+
+// hypot is math.Hypot for the small lengths of the cassette, several times
+// faster. It is exact when either side is zero, as most points away from
+// corners and reel centers are.
+func hypot(x, y float64) float64 {
+	switch {
+	case x == 0:
+		return math.Abs(y)
+	case y == 0:
+		return math.Abs(x)
+	}
+	return math.Sqrt(x*x + y*y)
 }
 
 // shellNormal2D is the outward normal of the outline nearest to (u, v).
@@ -227,7 +268,7 @@ func shellNormal2D(u, v float64) (float64, float64) {
 	const e = 0.05
 	nx := shellSD(u+e, v) - shellSD(u-e, v)
 	ny := shellSD(u, v+e) - shellSD(u, v-e)
-	l := math.Hypot(nx, ny)
+	l := hypot(nx, ny)
 	if l == 0 {
 		return 0, -1
 	}
@@ -237,5 +278,5 @@ func shellNormal2D(u, v float64) (float64, float64) {
 // windowDist is the distance to the axis of the stadium-shaped window.
 func windowDist(u, v float64) float64 {
 	x := min(max(u, reelCenters[0][0]), reelCenters[1][0])
-	return math.Hypot(u-x, v-reelCenters[0][1])
+	return hypot(u-x, v-reelCenters[0][1])
 }
