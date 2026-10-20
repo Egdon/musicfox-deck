@@ -581,10 +581,6 @@ See [CHANGELOG.md](./CHANGELOG.md)
 1. [go-musicfox/bubbletea](https://github.com/go-musicfox/bubbletea)：基于 [bubbletea](https://github.com/charmbracelet/bubbletea) 进行部分定制
 2. [go-musicfox/netease-music](https://github.com/go-musicfox/netease-music)：fork 自 [NeteaseCloudMusicApiWithGo](https://github.com/sirodeneko/NeteaseCloudMusicApiWithGo) ，在原项目的基础上去除 API 功能，只保留 service 和 util 作为一个独立的包，方便在其他 Go 项目中调用
 
-## 许可证
-
-musicfox-deck 以 [GPL-3.0](./LICENSE) 发布。它修改自 go-musicfox v5.1.0（同为 GPL-3.0），修改由 Egdon 自 2026 年起完成，改动见 [CHANGELOG](./CHANGELOG.md) 和提交历史。
-
 ## 致谢
 
 musicfox-deck 建立在以下项目之上：
