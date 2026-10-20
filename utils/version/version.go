@@ -1,8 +1,10 @@
 package version
 
 import (
+	"cmp"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/buger/jsonparser"
@@ -54,31 +56,30 @@ func CompareVersion(v1, v2 string, equal bool) bool {
 
 	v1Arr := strings.Split(v1, ".")
 	v2Arr := strings.Split(v2, ".")
-	if len(v1Arr) >= 1 && len(v2Arr) >= 1 {
-		if v1Arr[0] > v2Arr[0] {
-			return true
-		}
-		if v1Arr[0] < v2Arr[0] {
-			return false
-		}
-	}
-
-	if len(v1Arr) >= 2 && len(v2Arr) >= 2 {
-		if v1Arr[1] > v2Arr[1] {
-			return true
-		}
-		if v1Arr[1] < v2Arr[1] {
-			return false
-		}
-	}
-
-	if len(v1Arr) >= 3 && len(v2Arr) >= 3 {
-		if v1Arr[2] > v2Arr[2] {
-			return true
-		}
-		if v1Arr[2] < v2Arr[2] {
-			return false
+	for i := 0; i < 3 && i < len(v1Arr) && i < len(v2Arr); i++ {
+		if c := comparePart(v1Arr[i], v2Arr[i]); c != 0 {
+			return c > 0
 		}
 	}
 	return false
+}
+
+// comparePart compares one part of two versions by its leading number, so
+// that 10 comes after 9, and then by whatever follows the number.
+func comparePart(a, b string) int {
+	na, ra := leadingNumber(a)
+	nb, rb := leadingNumber(b)
+	if na != nb {
+		return cmp.Compare(na, nb)
+	}
+	return strings.Compare(ra, rb)
+}
+
+func leadingNumber(s string) (int, string) {
+	i := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		i++
+	}
+	n, _ := strconv.Atoi(s[:i])
+	return n, s[i:]
 }
