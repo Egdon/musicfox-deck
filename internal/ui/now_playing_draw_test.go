@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"math"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/go-musicfox/go-musicfox/internal/structs"
 	"github.com/go-musicfox/go-musicfox/internal/types"
+	"github.com/go-musicfox/go-musicfox/internal/ui/deck"
 )
 
 func npTestSnapshot() *npSnapshot {
@@ -57,20 +57,22 @@ func TestNowPlayingFrameFillsScreen(t *testing.T) {
 		name string
 		snap func(*npSnapshot)
 		fx   func(*npScreen)
+		deck deck.Tier
+		pose deck.Pose
 	}
 	variants := []variant{
 		{name: "no deck"},
-		{name: "deck octants", snap: func(s *npSnapshot) { s.Deck = npTestDeckFrame(true, npPose{}) }},
-		{name: "deck quadrants", snap: func(s *npSnapshot) { s.Deck = npTestDeckFrame(false, npPose{}) }},
-		{name: "deck ejecting", snap: func(s *npSnapshot) { s.Deck = npTestDeckFrame(true, npPose{DY: -10, Tilt: 0.3, Fade: 0.4}) }},
+		{name: "deck octants", deck: deck.Octant},
+		{name: "deck quadrants", deck: deck.Quadrant},
+		{name: "deck flipping", deck: deck.Octant, pose: deck.Pose{Yaw: 1.4, Pitch: 0.3, Scale: 0.95}},
 		{name: "lyrics", snap: func(s *npSnapshot) { s.LyricsMode = true }},
 		{name: "blue", snap: func(s *npSnapshot) { s.BlueScreen, s.State, s.Scanlines = true, types.Stopped, true }},
 		{name: "empty", snap: func(s *npSnapshot) { *s = npSnapshot{Now: s.Now, Pal: s.Pal, Keys: s.Keys} }},
 		{name: "shuffle", snap: func(s *npSnapshot) { s.Mode, s.Upcoming = types.PmInfRandom, nil }},
 		{name: "osd fading", snap: func(s *npSnapshot) { s.OSDFade = 0.5 }},
 		{name: "sweep", fx: func(scr *npScreen) { scr.sweep(0.5) }},
-		{name: "power-on", fx: func(scr *npScreen) { scr.powerOn(0.5) }},
-		{name: "power-off", fx: func(scr *npScreen) { scr.powerOff(0.9) }},
+		{name: "fading", fx: func(scr *npScreen) { scr.fade(0.6) }},
+		{name: "painted", fx: func(scr *npScreen) { scr.paint("\x1b[38;2;200;200;200m王子系变装 ❤️\x1b[m\nplain", 0.3) }},
 	}
 	for _, size := range sizes {
 		w, h := size[0], size[1]
@@ -79,6 +81,15 @@ func TestNowPlayingFrameFillsScreen(t *testing.T) {
 			s := npTestSnapshot()
 			if v.snap != nil {
 				v.snap(s)
+			}
+			if v.deck != 0 && npWide(w, h) {
+				_, _, sw, sh := npStage(w, h)
+				pose := v.pose
+				if pose == (deck.Pose{}) {
+					pose = deck.RestPose()
+				}
+				var r deck.Renderer
+				s.Deck = r.Render(deck.View{W: sw, H: sh, Tier: v.deck}, deckPaletteOf(s.Pal), pose, deck.State{Radii: deck.ReelRadii(0.3)})
 			}
 			var scr npScreen
 			scr.reset(w, h)
@@ -136,24 +147,20 @@ func TestNowPlayingSevenSegmentDigits(t *testing.T) {
 	}
 }
 
-func TestNowPlayingReelRadii(t *testing.T) {
-	centerGap := npReelCenters[1][0] - npReelCenters[0][0]
-	prev := npReelRadii(0)
-	if prev[0] != npReelMax || prev[1] != npReelMin {
-		t.Fatalf("radii at start = %v, want [%v %v]", prev, npReelMax, npReelMin)
-	}
-	for i := 1; i <= 20; i++ {
-		r := npReelRadii(float64(i) / 20)
-		if r[0] >= prev[0] || r[1] <= prev[1] {
-			t.Fatalf("radii not monotonic at %d/20: %v after %v", i, r, prev)
+func TestNowPlayingWrap(t *testing.T) {
+	for _, c := range []struct {
+		text string
+		w, n int
+		want []string
+	}{
+		{"ON & ON", 20, 2, []string{"ON & ON"}},
+		{"A very long English title that wraps", 16, 2, []string{"A very long", "English title that wraps"}},
+		{"一首很长很长很长的歌名", 10, 2, []string{"一首很长很", "长很长的歌名"}},
+	} {
+		got := npWrap(c.text, c.w, c.n)
+		if strings.Join(got, "|") != strings.Join(c.want, "|") {
+			t.Errorf("npWrap(%q, %d) = %q, want %q", c.text, c.w, got, c.want)
 		}
-		if r[0]+r[1] >= centerGap-1 {
-			t.Fatalf("reels overlap at %d/20: %v", i, r)
-		}
-		if area := r[0]*r[0] + r[1]*r[1]; math.Abs(area-(npReelMin*npReelMin+npReelMax*npReelMax)) > 1e-9 {
-			t.Fatalf("tape area not conserved at %d/20: %v", i, area)
-		}
-		prev = r
 	}
 }
 

@@ -76,8 +76,3 @@ func npGhostOf(bg, rule color.RGBA) color.RGBA {
 	mix := func(a, b uint8) uint8 { return uint8(float64(a) + (float64(b)-float64(a))*0.4 + 0.5) }
 	return color.RGBA{mix(bg.R, rule.R), mix(bg.G, rule.G), mix(bg.B, rule.B), 0xFF}
 }
-
-// Off is the color of a powered-off tube.
-func (p npPalette) Off() color.RGBA {
-	return color.RGBA{uint8(float64(p.Bg.R) * 0.55), uint8(float64(p.Bg.G) * 0.55), uint8(float64(p.Bg.B) * 0.55), 0xFF}
-}

@@ -141,14 +141,6 @@ inApp = true
 # TUI 内 toast 自动消失时长（秒，0 使用默认 4 秒）
 inAppTimeout = 4
 
-# 播放页（主界面按 i 进入，Esc 返回）
-[main.nowPlaying]
-# 动效级别：
-#   full：显像管开关机、切歌扫线、磁带弹出插入、带盘转动、提示淡出、空队列画面的扫描线
-#   subtle：只保留磁带弹出插入、带盘转动和提示淡出
-#   off：没有动画
-effects = "full"
-
 # 歌词显示相关设置
 [main.lyric]
 # 是否显示歌词

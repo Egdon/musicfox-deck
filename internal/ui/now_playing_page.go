@@ -2,31 +2,27 @@ package ui
 
 import (
 	"math"
-	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/anhoder/foxful-cli/model"
+	"github.com/anhoder/foxful-cli/motion"
 	"github.com/anhoder/foxful-cli/style"
 
 	"github.com/go-musicfox/go-musicfox/internal/configs"
 	"github.com/go-musicfox/go-musicfox/internal/keybindings"
 	"github.com/go-musicfox/go-musicfox/internal/structs"
 	"github.com/go-musicfox/go-musicfox/internal/types"
+	"github.com/go-musicfox/go-musicfox/internal/ui/deck"
 	"github.com/go-musicfox/go-musicfox/utils/likelist"
 )
 
 const PageTypeNowPlaying model.PageType = "now_playing"
 
 const (
-	npPowerOnDuration  = 300 * time.Millisecond
-	npPowerOffDuration = 250 * time.Millisecond
+	npMorphDuration    = 320 * time.Millisecond // the panel's cassette growing onto the stage
 	npSweepDuration    = 450 * time.Millisecond
-	npEjectDuration    = 260 * time.Millisecond
-	npInsertDuration   = 340 * time.Millisecond
-	npEjectTimeout     = 1500 * time.Millisecond // put the tape back if no track change follows
-	npTransitionFrame  = 33 * time.Millisecond
-	npReelFrame        = 50 * time.Millisecond // at most 12.3° per step on an empty reel
+	npFlipTimeout      = 1500 * time.Millisecond // flip back if no track change follows
 	npPlayOSDDuration  = 2 * time.Second
 	npOSDFadeDuration  = 400 * time.Millisecond
 	npEventOSDDuration = 1500 * time.Millisecond
@@ -36,9 +32,6 @@ const (
 
 // npRenderMsg redraws the page; App.Rerender sends it to the current page.
 type npRenderMsg struct{}
-
-// npFrameMsg drives the animation loop; gen discards ticks of an older loop.
-type npFrameMsg struct{ gen int }
 
 // npDeferredMsg runs a blocking action after the frame announcing it is drawn.
 type npDeferredMsg struct {
@@ -53,27 +46,32 @@ type npQueueKey struct {
 	updatedAt time.Time
 }
 
-// NowPlayingPage is the full-screen now-playing view: a 3D cassette deck with
-// a VCR-style on-screen display.
+// NowPlayingPage is the full-screen now-playing view: a 3D cassette on a
+// stage, the track and its lyrics, with a VCR-style on-screen display.
 type NowPlayingPage struct {
 	netease *Netease
 	handler *EventHandler
 
-	gen    int
-	loopOn bool // a npFrameMsg is in flight
+	gen int // discards deferred actions of an earlier visit
 
-	effects    configs.NowPlayingEffects
+	level      motion.Level
 	lyricsMode bool
 	keys       npKeys
 
-	poweredOnAt  time.Time  // start of the warm-up; zero once it is over
-	exitAt       time.Time  // start of the power-off; zero while not leaving
-	exitTo       model.Page // shown after the power-off; nil means Main
+	// The cassette morphs between the main screen's panel and the stage.
+	morphIn   time.Time
+	morphOut  time.Time
+	fromFrame string    // the main screen as it was left
+	toFrame   string    // the main screen to return to
+	panelBox  deck.Rect // the panel's cassette, in window cells
+	stage     deck.Rect // where the cassette rests in the current layout
+
+	exitTo       model.Page // shown after leaving; nil means Main
 	drivePending bool       // Main holds deferred work that needs a tick
 
-	sweepAt  time.Time
-	ejectAt  time.Time // the cassette is being taken out for a track change
-	insertAt time.Time // the next cassette slides in
+	sweepAt time.Time
+	flipAt  time.Time // a flip the page started for a track change
+	flipDir int
 
 	osdText  string
 	osdUntil time.Time
@@ -83,9 +81,11 @@ type NowPlayingPage struct {
 	switching    bool // the playlist moved on but the engine still plays the old song
 	stoppedSince time.Time
 
-	reels     npReelMotion
+	renderer  deck.Renderer // the cassette on the stage
+	morph     deck.Renderer // the cassette while it morphs, over the whole window
+	motion    deck.Motion
+	reels     deck.Reels
 	lastFrame time.Time
-	deck      npDeck
 
 	pal    npPalette
 	palGen uint64
@@ -118,51 +118,58 @@ func (p *NowPlayingPage) Msg() tea.Msg {
 	return npRenderMsg{}
 }
 
-// enter resets the page each time it is shown.
+// enter resets the page each time it is shown. The cassette carries on from
+// the panel's, so the morph starts from exactly what was on screen.
 func (p *NowPlayingPage) enter(now time.Time) {
 	p.gen++
-	p.loopOn = false
-	p.effects = configs.AppConfig.Main.NowPlaying.EffectsLevel()
+	p.level = p.netease.MotionLevel()
 	p.keys = npBoundKeys()
-	p.poweredOnAt = time.Time{}
-	if p.effects == configs.NowPlayingEffectsFull {
-		p.poweredOnAt = now
-	}
-	p.exitAt, p.exitTo, p.drivePending = time.Time{}, nil, false
-	p.sweepAt, p.ejectAt, p.insertAt = time.Time{}, time.Time{}, time.Time{}
+	p.morphIn, p.morphOut, p.fromFrame, p.toFrame = time.Time{}, time.Time{}, "", ""
+	p.exitTo, p.drivePending = nil, false
+	p.sweepAt, p.flipAt = time.Time{}, time.Time{}
 	p.lastFrame = now
 	p.lastSongID = p.currentSong().Id
 	p.lastState = p.netease.player.State()
 	p.osdText, p.osdUntil = "", time.Time{}
-	p.reels.speed, p.reels.vel = 0, 0
+	if panel := p.netease.deckPanel; panel != nil {
+		p.motion, p.reels = panel.motion, panel.reels
+	} else {
+		p.motion, p.reels = deck.Motion{}, deck.Reels{}
+		p.reels.Reset(p.lastSongID)
+	}
+	p.motion.FloatAmount = 0
+	if p.level == motion.Full {
+		p.motion.FloatAmount = 1
+	}
 	if p.lastState == types.Playing {
 		p.showOSD(osdStateText(types.Playing), now, npPlayOSDDuration)
-		if p.effects != configs.NowPlayingEffectsOff {
-			p.reels.speed = 1 // already running: no spin-up on entry
+		if p.level != motion.Off && !p.reels.Moving() {
+			p.reels.Run()
 		}
 	}
 	p.stoppedSince = time.Time{}
 	p.queueKey = npQueueKey{index: -2}
 }
 
+// HandlePageTransition grows the main screen's panel cassette onto the stage
+// instead of the App's crossfade.
+func (p *NowPlayingPage) HandlePageTransition(a *model.App, tx model.PageTransition) bool {
+	panel := p.netease.deckPanel
+	if p.level != motion.Full || panel == nil || tx.From != model.Page(p.netease.MustMain()) {
+		return false
+	}
+	box, ok := panel.CassetteBox()
+	if !ok {
+		return false
+	}
+	p.morphIn, p.fromFrame, p.panelBox = tx.Start, tx.FromFrame, box
+	a.Animate(npMorphDuration + 50*time.Millisecond)
+	return true
+}
+
 func (p *NowPlayingPage) Update(msg tea.Msg, a *model.App) (model.Page, tea.Cmd) {
 	now := time.Now()
 	switch m := msg.(type) {
-	case npFrameMsg:
-		if m.gen != p.gen {
-			return p, nil
-		}
-		p.loopOn = false
-		p.advance(now)
-		if !p.exitAt.IsZero() && now.Sub(p.exitAt) >= npPowerOffDuration {
-			return p.leave(a)
-		}
-		if !p.poweredOnAt.IsZero() && now.Sub(p.poweredOnAt) >= npPowerOnDuration {
-			p.poweredOnAt = time.Time{}
-			// The asynchronous cover renderer may have drawn once more after
-			// the page was entered.
-			p.clearCover()
-		}
 	case npDeferredMsg:
 		if m.gen == p.gen {
 			m.run()
@@ -179,15 +186,19 @@ func (p *NowPlayingPage) Update(msg tea.Msg, a *model.App) (model.Page, tea.Cmd)
 		p.handleWheel(m, now)
 	case tea.MouseMotionMsg:
 		page, cmd := p.settle(a, now)
-		return page, tea.Batch(cmd, p.handleMotion(m, a))
+		return page, tea.Batch(cmd, p.handleMotion(m, a, now))
 	}
 	return p.settle(a, now)
 }
 
-// settle polls the player, runs Main's deferred work once no popup is open and
-// keeps the animation loop going.
+// settle moves everything on to now, runs Main's deferred work once no popup
+// is open and keeps frames coming while anything moves.
 func (p *NowPlayingPage) settle(a *model.App, now time.Time) (model.Page, tea.Cmd) {
+	p.advance(now)
 	p.poll(now)
+	if !p.morphOut.IsZero() && now.Sub(p.morphOut) >= npMorphDuration {
+		return p.leave(a)
+	}
 	if p.drivePending && !a.HasPopup() {
 		p.drivePending = false
 		// Operations such as liking a song are deferred until Main handles a
@@ -197,49 +208,44 @@ func (p *NowPlayingPage) settle(a *model.App, now time.Time) (model.Page, tea.Cm
 			return page, cmd
 		}
 	}
-	return p, p.ensureLoop(now)
+	p.requestFrames(a, now)
+	return p, nil
 }
 
-func (p *NowPlayingPage) frameInterval(now time.Time) time.Duration {
+// requestFrames asks the App for frames: fast ones for morphs, flips and the
+// sweep, calm ones for floating and turning reels.
+func (p *NowPlayingPage) requestFrames(a *model.App, now time.Time) {
+	playing := p.netease.player.State() == types.Playing
 	switch {
-	case !p.poweredOnAt.IsZero() || !p.exitAt.IsZero() || now.Sub(p.sweepAt) < npSweepDuration ||
-		!p.ejectAt.IsZero() || !p.insertAt.IsZero():
-		return npTransitionFrame
-	case p.effects != configs.NowPlayingEffectsOff && (p.reels.moving() || p.netease.player.State() == types.Playing):
-		return npReelFrame
-	case now.Before(p.osdUntil) || p.drivePending:
-		return npReelFrame
-	case !p.stoppedSince.IsZero() && now.Sub(p.stoppedSince) < npBlueScreenDelay:
-		return npReelFrame
+	case !p.morphIn.IsZero() && now.Sub(p.morphIn) < npMorphDuration,
+		!p.morphOut.IsZero(),
+		p.motion.Flipping(now),
+		now.Sub(p.sweepAt) < npSweepDuration:
+		a.Animate(50 * time.Millisecond)
+	case p.level != motion.Off && (playing || p.motion.Busy(now) || p.reels.Moving()),
+		now.Before(p.osdUntil.Add(npOSDFadeDuration)),
+		p.drivePending,
+		!p.stoppedSince.IsZero() && now.Sub(p.stoppedSince) < npBlueScreenDelay:
+		a.AnimateSlow(100 * time.Millisecond)
 	}
-	return 0
 }
 
-// ensureLoop schedules the next animation frame unless one is in flight or
-// nothing moves; the loop restarts with the next message that needs it.
-func (p *NowPlayingPage) ensureLoop(now time.Time) tea.Cmd {
-	if p.loopOn {
-		return nil
-	}
-	interval := p.frameInterval(now)
-	if interval <= 0 {
-		return nil
-	}
-	p.loopOn = true
-	gen := p.gen
-	return tea.Tick(interval, func(time.Time) tea.Msg { return npFrameMsg{gen: gen} })
-}
-
-// advance turns the reels. Both turn at the same tape speed, so the emptier
-// reel spins faster.
+// advance moves the cassette and turns the reels. Both reels carry the tape
+// at the same speed, so the emptier one spins faster.
 func (p *NowPlayingPage) advance(now time.Time) {
-	dt := min(now.Sub(p.lastFrame).Seconds(), 0.1) // no jump after a stall
+	dt := min(max(now.Sub(p.lastFrame).Seconds(), 0), 0.1) // no jump after a stall
 	p.lastFrame = now
-	if p.effects == configs.NowPlayingEffectsOff || dt <= 0 {
+	playing := p.netease.player.State() == types.Playing
+	p.motion.Step(now, playing)
+	if p.level == motion.Off || dt <= 0 {
 		return
 	}
-	playing := p.netease.player.State() == types.Playing
-	p.reels.advance(dt, playing, now, npReelRadii(p.reels.progress(now, p.progress())))
+	sideB := p.motion.SideB(now)
+	dir := 1.0
+	if sideB {
+		dir = -1
+	}
+	p.reels.Advance(dt, playing, now, deck.PackRadii(p.reels.Progress(now, p.progress()), sideB), dir)
 }
 
 // poll picks up player changes, including those made outside the page
@@ -250,21 +256,24 @@ func (p *NowPlayingPage) poll(now time.Time) {
 	state := player.State()
 	if song.Id != p.lastSongID {
 		if p.lastSongID != 0 {
-			p.cueInsert(now)
+			switch {
+			case !p.flipAt.IsZero(): // the page flipped for this change already
+				p.flipAt = time.Time{}
+			case p.level == motion.Full:
+				p.motion.Flip(1, now)
+			default:
+				p.motion.FlipNow()
+			}
 			if now.Sub(p.sweepAt) > time.Second {
 				p.startSweep(now)
 			}
 		}
 		p.lastSongID = song.Id
-		// A new cassette: its reels start at rest in their own position.
-		p.reels.speed, p.reels.vel = 0, 0
-		p.reels.angles = [2]float64{math.Mod(float64(song.Id)*0.37, 2*math.Pi), math.Mod(float64(song.Id)*0.71, 2*math.Pi)}
+		p.reels.Reset(song.Id)
 	}
-	switch {
-	case !p.insertAt.IsZero() && now.Sub(p.insertAt) >= npInsertDuration:
-		p.ejectAt, p.insertAt = time.Time{}, time.Time{}
-	case !p.ejectAt.IsZero() && p.insertAt.IsZero() && now.Sub(p.ejectAt) >= npEjectTimeout:
-		p.insertAt = now // the track did not change: put the same tape back
+	if !p.flipAt.IsZero() && now.Sub(p.flipAt) >= npFlipTimeout {
+		p.motion.Flip(-p.flipDir, now) // the track did not change: turn back
+		p.flipAt = time.Time{}
 	}
 	if state != p.lastState {
 		switch {
@@ -342,59 +351,15 @@ func (p *NowPlayingPage) visibleOSD(now time.Time, state types.State) string {
 // osdFade fades a timed OSD out over its last moments, as a VCR does.
 func (p *NowPlayingPage) osdFade(now time.Time) float64 {
 	left := p.osdUntil.Sub(now)
-	if p.switching || p.effects == configs.NowPlayingEffectsOff || left <= 0 || left >= npOSDFadeDuration {
+	if p.switching || p.level == motion.Off || left <= 0 || left >= npOSDFadeDuration {
 		return 0
 	}
 	return 1 - float64(left)/float64(npOSDFadeDuration)
 }
 
-// startEject takes the cassette out for a track change.
-func (p *NowPlayingPage) startEject(now time.Time) {
-	if p.effects == configs.NowPlayingEffectsOff {
-		return
-	}
-	if p.ejectAt.IsZero() || !p.insertAt.IsZero() {
-		p.ejectAt, p.insertAt = now, time.Time{}
-	}
-}
-
-// cueInsert slides the next cassette in once the current one is out; a track
-// change the page did not start ejects first.
-func (p *NowPlayingPage) cueInsert(now time.Time) {
-	if p.effects == configs.NowPlayingEffectsOff {
-		return
-	}
-	if p.ejectAt.IsZero() || !p.insertAt.IsZero() {
-		p.ejectAt = now
-	}
-	p.insertAt = p.ejectAt.Add(npEjectDuration)
-	if p.insertAt.Before(now) {
-		p.insertAt = now
-	}
-}
-
-// deckPose places the cassette during a swap; shown is false while the slot
-// is empty.
-func (p *NowPlayingPage) deckPose(now time.Time) (pose npPose, shown bool) {
-	if !p.insertAt.IsZero() && !now.Before(p.insertAt) {
-		t := min(float64(now.Sub(p.insertAt))/float64(npInsertDuration), 1)
-		e := 1 - math.Pow(1-t, 3) // ease out
-		return npPose{DY: -20 * (1 - e), Tilt: 0.35 * (1 - e), Fade: 0.8 * (1 - e)}, true
-	}
-	if !p.ejectAt.IsZero() {
-		t := float64(now.Sub(p.ejectAt)) / float64(npEjectDuration)
-		if t >= 1 {
-			return npPose{}, false
-		}
-		e := t * t // ease in
-		return npPose{DY: -16 * e, Tilt: 0.44 * e, Fade: e}, true
-	}
-	return npPose{}, true
-}
-
 // startSweep runs the tracking line of a track change.
 func (p *NowPlayingPage) startSweep(now time.Time) {
-	if p.effects != configs.NowPlayingEffectsFull {
+	if p.level != motion.Full {
 		return
 	}
 	p.sweepAt = now
@@ -433,12 +398,12 @@ func (p *NowPlayingPage) seek(delta time.Duration, now time.Time) {
 	to := min(max(player.PassedTime()+delta, 0), p.currentSong().Duration)
 	player.Seek(to)
 	p.showOSD(osdSeekText(delta, to), now, npEventOSDDuration)
-	if d := p.currentSong().Duration; d > 0 && p.effects != configs.NowPlayingEffectsOff {
+	if d := p.currentSong().Duration; d > 0 && p.level != motion.Off {
 		dir := 1.0
 		if delta < 0 {
 			dir = -1
 		}
-		p.reels.wind(dir, now, from, float64(to)/float64(d))
+		p.reels.Wind(dir, now, from, float64(to)/float64(d))
 	}
 }
 
@@ -458,21 +423,22 @@ func (p *NowPlayingPage) switchMode(now time.Time) {
 	p.showOSD(osdModeText(player.Mode()), now, npEventOSDDuration)
 }
 
-// switchTrack shows the track change first and switches on the next message:
-// PlaySong resolves the song URL synchronously, freezing the UI on the change
-// instead of on a stale frame.
-func (p *NowPlayingPage) switchTrack(now time.Time, osd string, run func()) tea.Cmd {
+// switchTrack turns the cassette over and switches halfway: PlaySong
+// resolves the song URL synchronously, and the UI then freezes while the
+// cassette is edge-on rather than on a stale picture.
+func (p *NowPlayingPage) switchTrack(now time.Time, osd string, dir int, run func()) tea.Cmd {
 	p.showOSD(osd, now, npEventOSDDuration)
 	p.startSweep(now)
-	p.startEject(now)
-	delay := npTransitionFrame
-	if p.effects != configs.NowPlayingEffectsOff {
-		delay = npEjectDuration // let the tape come out before the UI blocks
+	delay := 16 * time.Millisecond
+	if p.level == motion.Full {
+		p.motion.Flip(dir, now)
+		p.flipAt, p.flipDir = now, dir
+		delay = deck.FlipDuration / 2
 	}
 	gen := p.gen
-	return tea.Batch(p.ensureLoop(now), tea.Tick(delay, func(time.Time) tea.Msg {
+	return tea.Tick(delay, func(time.Time) tea.Msg {
 		return npDeferredMsg{gen: gen, run: run}
-	}))
+	})
 }
 
 // jumpTo plays the k-th song of the up-next list. Stepping the playlist keeps
@@ -482,7 +448,7 @@ func (p *NowPlayingPage) jumpTo(k int, now time.Time) tea.Cmd {
 	if player.Mode() == types.PmSingleLoop {
 		return nil
 	}
-	return p.switchTrack(now, "▶▶ NEXT", func() {
+	return p.switchTrack(now, "▶▶ NEXT", 1, func() {
 		for range k {
 			if _, err := player.playlistManager.NextSong(true); err != nil {
 				return
@@ -503,37 +469,52 @@ func (p *NowPlayingPage) forward(op keybindings.OperateType, a *model.App, now t
 	return p.settle(a, now)
 }
 
+// startExit leaves the page. Back to the main screen the cassette shrinks
+// into the panel; anywhere else the App crossfades.
 func (p *NowPlayingPage) startExit(a *model.App, now time.Time, to model.Page) (model.Page, tea.Cmd) {
 	p.exitTo = to
-	if p.effects != configs.NowPlayingEffectsFull {
+	main := p.netease.MustMain()
+	panel := p.netease.deckPanel
+	if p.level != motion.Full || panel == nil || (to != nil && to != model.Page(main)) || !p.morphOut.IsZero() {
 		return p.leave(a)
 	}
-	p.exitAt = now
-	return p, p.ensureLoop(now)
+	frame := a.Snapshot(main) // also lays the panel out for this window
+	box, ok := panel.CassetteBox()
+	if !ok {
+		return p.leave(a)
+	}
+	p.morphOut, p.toFrame, p.panelBox = now, frame, box
+	a.Animate(npMorphDuration + 50*time.Millisecond)
+	return p, nil
 }
 
 func (p *NowPlayingPage) leave(a *model.App) (model.Page, tea.Cmd) {
 	p.gen++
-	p.loopOn = false
-	p.exitAt = time.Time{}
+	morphed := !p.morphOut.IsZero()
+	p.morphOut = time.Time{}
+	if panel := p.netease.deckPanel; panel != nil {
+		panel.adopt(p.motion, p.reels)
+	}
 	pointer := a.SetMousePointer("default")
 	main := p.netease.MustMain()
 	if to := p.exitTo; to != nil && to != model.Page(main) {
 		p.exitTo = nil
 		return to, tea.Batch(pointer, func() tea.Msg { return to.Msg() })
 	}
-	// The rerender tick also lets Main run work deferred by operations that
-	// sent us back to it.
-	return main, tea.Batch(pointer, a.RerenderCmd(true))
+	if morphed {
+		a.SuppressPageTransition() // the cassette is already in the panel
+	}
+	// The tick also lets Main run work deferred by operations that sent us
+	// back to it.
+	return main, tea.Batch(pointer, func() tea.Msg { return main.Msg() })
 }
 
 // ---- input ----
 
 func (p *NowPlayingPage) handleKey(k tea.KeyPressMsg, a *model.App, now time.Time) (model.Page, tea.Cmd) {
-	if !p.exitAt.IsZero() {
+	if !p.morphOut.IsZero() {
 		return p, nil
 	}
-	p.poweredOnAt = time.Time{} // any key skips the warm-up
 	switch k.String() {
 	case "esc":
 		return p.startExit(a, now, nil)
@@ -566,9 +547,9 @@ func (p *NowPlayingPage) handleOp(op keybindings.OperateType, a *model.App, now 
 	case keybindings.OpPlayOrToggle, keybindings.OpToggle:
 		p.toggle()
 	case keybindings.OpPrevious:
-		return p, p.switchTrack(now, "◀◀ PREV", func() { player.PreviousSong(true) })
+		return p, p.switchTrack(now, "◀◀ PREV", -1, func() { player.PreviousSong(true) })
 	case keybindings.OpNext:
-		return p, p.switchTrack(now, "▶▶ NEXT", func() { player.NextSong(true) })
+		return p, p.switchTrack(now, "▶▶ NEXT", 1, func() { player.NextSong(true) })
 	case keybindings.OpRerenderUI:
 		return p, a.RerenderCmd(true)
 	case keybindings.OpSeekBackward1s:
@@ -613,14 +594,13 @@ func (p *NowPlayingPage) hitAt(x, y int) (npHit, bool) {
 
 func (p *NowPlayingPage) handleClick(m tea.MouseClickMsg, a *model.App, now time.Time) (model.Page, tea.Cmd) {
 	mouse := m.Mouse()
-	if mouse.Button != tea.MouseLeft || !p.exitAt.IsZero() {
+	if mouse.Button != tea.MouseLeft || !p.morphOut.IsZero() {
 		return p.settle(a, now)
 	}
 	hit, ok := p.hitAt(mouse.X, mouse.Y)
 	if !ok {
 		return p.settle(a, now)
 	}
-	p.poweredOnAt = time.Time{}
 	player := p.netease.player
 	switch hit.kind {
 	case npHitProgress:
@@ -629,9 +609,9 @@ func (p *NowPlayingPage) handleClick(m tea.MouseClickMsg, a *model.App, now time
 			p.seek(target-player.PassedTime(), now)
 		}
 	case npHitPrev:
-		return p, p.switchTrack(now, "◀◀ PREV", func() { player.PreviousSong(true) })
+		return p, p.switchTrack(now, "◀◀ PREV", -1, func() { player.PreviousSong(true) })
 	case npHitNext:
-		return p, p.switchTrack(now, "▶▶ NEXT", func() { player.NextSong(true) })
+		return p, p.switchTrack(now, "▶▶ NEXT", 1, func() { player.NextSong(true) })
 	case npHitToggle:
 		p.toggle()
 	case npHitLike:
@@ -665,10 +645,18 @@ func (p *NowPlayingPage) handleWheel(m tea.MouseWheelMsg, now time.Time) {
 	p.showOSD(osdVolumeText(p.netease.player.Volume()), now, npEventOSDDuration)
 }
 
-// handleMotion shows a pointer over clickable regions. It is re-sent on every
-// move because notifications may change the pointer in between.
-func (p *NowPlayingPage) handleMotion(m tea.MouseMotionMsg, a *model.App) tea.Cmd {
+// handleMotion leans the cassette towards a pointer over the stage and shows
+// a pointer over clickable regions. The shape is re-sent on every move
+// because notifications may change it in between.
+func (p *NowPlayingPage) handleMotion(m tea.MouseMotionMsg, a *model.App, now time.Time) tea.Cmd {
 	mouse := m.Mouse()
+	if st := p.stage; p.level == motion.Full && st.W > 0 && float64(mouse.X) >= st.X && float64(mouse.X) < st.X+st.W &&
+		float64(mouse.Y) >= st.Y && float64(mouse.Y) < st.Y+st.H {
+		p.motion.Point((float64(mouse.X)-st.X-st.W/2)/(st.W/2), (float64(mouse.Y)-st.Y-st.H/2)/(st.H/2), now)
+		a.Animate(100 * time.Millisecond)
+	} else {
+		p.motion.Leave()
+	}
 	if _, over := p.hitAt(mouse.X, mouse.Y); over {
 		p.pointerOnHit = true
 		return a.SetMousePointer("pointer")
@@ -687,11 +675,58 @@ func (p *NowPlayingPage) View(a *model.App) string {
 	if w <= 0 || h <= 0 {
 		return ""
 	}
-	now := time.Now()
+	now := a.FrameTime()
 	p.scr.reset(w, h)
-	p.hits = npRender(&p.scr, p.snapshot(now, w, h))
-	p.applyEffects(now)
+	morphing := !p.morphOut.IsZero() || (!p.morphIn.IsZero() && now.Sub(p.morphIn) < npMorphDuration)
+	s := p.snapshot(a, now, w, h, !morphing)
+	p.hits = npRender(&p.scr, s)
+	p.scr.fillBackground()
+	if t := now.Sub(p.sweepAt); t >= 0 && t < npSweepDuration {
+		p.scr.sweep(float64(t) / float64(npSweepDuration))
+	}
+	if morphing {
+		p.drawMorph(a, now, w, h)
+	}
 	return p.scr.render()
+}
+
+// drawMorph moves the cassette between the panel and the stage while the
+// rest of the screen dips through the background: the main screen fades out
+// and the page in, or the other way round.
+func (p *NowPlayingPage) drawMorph(a *model.App, now time.Time, w, h int) {
+	in := p.morphOut.IsZero()
+	start, from, to := p.morphIn, p.panelBox, p.stage
+	if !in {
+		start, from, to = p.morphOut, p.stage, p.panelBox
+	}
+	t := min(max(float64(now.Sub(start))/float64(npMorphDuration), 0), 1)
+	e := motion.OutCubic(t)
+	// The main screen's own cassette is the one that moves: blank it out.
+	blankPanel := func() {
+		b := p.panelBox
+		p.scr.fill(int(b.X), int(b.Y), int(math.Ceil(b.W)), int(math.Ceil(b.H)), p.pal.Bg)
+	}
+	switch {
+	case in && t < 0.5:
+		p.scr.paint(p.fromFrame, motion.InQuad(t/0.5))
+		blankPanel()
+	case in:
+		p.scr.fade(1 - motion.OutCubic((t-0.5)/0.5))
+	case t < 0.5:
+		p.scr.fade(motion.InQuad(t / 0.5))
+	default:
+		p.scr.paint(p.toFrame, 1-motion.OutCubic((t-0.5)/0.5))
+		blankPanel()
+	}
+	box := deck.Rect{
+		X: from.X + (to.X-from.X)*e, Y: from.Y + (to.Y-from.Y)*e,
+		W: from.W + (to.W-from.W)*e, H: from.H + (to.H-from.H)*e,
+	}
+	pose, lift := p.motion.At(now)
+	sideB := p.motion.SideB(now)
+	f := p.morph.Render(deck.View{W: w, H: h, Tier: deckTier(a), Aspect: deckAspect(a), Fit: box}, deckPaletteOf(p.palette()), pose,
+		deck.State{Radii: deck.PackRadii(p.progress(), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift})
+	p.scr.drawDeck(f, 0, 0)
 }
 
 // palette follows the active theme; unset roles fall back to Warm Night.
@@ -702,36 +737,30 @@ func (p *NowPlayingPage) palette() npPalette {
 	return p.pal
 }
 
-func (p *NowPlayingPage) applyEffects(now time.Time) {
-	p.scr.fillBackground()
-	if t := now.Sub(p.sweepAt); t >= 0 && t < npSweepDuration {
-		p.scr.sweep(float64(t) / float64(npSweepDuration))
-	}
-	if !p.poweredOnAt.IsZero() {
-		if t := now.Sub(p.poweredOnAt); t < npPowerOnDuration {
-			p.scr.powerOn(float64(t) / float64(npPowerOnDuration))
-		}
-	}
-	if !p.exitAt.IsZero() {
-		p.scr.powerOff(min(float64(now.Sub(p.exitAt))/float64(npPowerOffDuration), 1))
-	}
-}
-
-func (p *NowPlayingPage) snapshot(now time.Time, w, h int) *npSnapshot {
+// snapshot captures what the page draws. The cassette is rendered onto the
+// stage unless it is morphing, in which case drawMorph draws it.
+func (p *NowPlayingPage) snapshot(a *model.App, now time.Time, w, h int, withDeck bool) *npSnapshot {
 	player := p.netease.player
 	song := p.currentSong()
 	state := player.State()
-	lines, index := p.lyrics()
 	pal := p.palette()
 	blue := song.Id == 0 && !p.stoppedSince.IsZero() && now.Sub(p.stoppedSince) >= npBlueScreenDelay
-	var deck *npDeckFrame
-	if pose, shown := p.deckPose(now); shown && !blue && !p.lyricsMode && w >= 100 && h >= 30 {
-		deck = p.deck.frame(pal, npOctantSupport(), npDeckState{
-			Progress: p.reels.progress(now, p.progress()),
-			Angles:   p.reels.angles,
-			Blur:     p.reels.blur(),
-			Pose:     pose,
-		})
+	p.stage = deck.Rect{}
+	var frame *deck.Frame
+	if !blue && !p.lyricsMode && npWide(w, h) {
+		x, y, sw, sh := npStage(w, h)
+		p.stage = deck.Rect{X: float64(x), Y: float64(y), W: float64(sw), H: float64(sh)}
+		if withDeck {
+			pose, lift := p.motion.At(now)
+			sideB := p.motion.SideB(now)
+			frame = p.renderer.Render(deck.View{W: sw, H: sh, Tier: deckTier(a), Aspect: deckAspect(a)}, deckPaletteOf(pal), pose,
+				deck.State{Radii: deck.PackRadii(p.reels.Progress(now, p.progress()), sideB), Angles: p.reels.Angles, Blur: p.reels.Blur(), Lift: lift})
+		}
+	}
+	lines, cur, sung := lyricsNow(p.netease.lyricService, player.PassedTime())
+	lyrics := make([]npLyricLine, len(lines))
+	for i, l := range lines {
+		lyrics[i] = npLyricLine{Text: l.Text, Trans: l.Trans}
 	}
 	return &npSnapshot{
 		Now:        now,
@@ -739,7 +768,7 @@ func (p *NowPlayingPage) snapshot(now time.Time, w, h int) *npSnapshot {
 		Song:       song,
 		State:      state,
 		BlueScreen: blue,
-		Scanlines:  p.effects == configs.NowPlayingEffectsFull,
+		Scanlines:  p.level == motion.Full,
 		Passed:     player.PassedTime(),
 		Volume:     player.Volume(),
 		Mode:       player.Mode(),
@@ -749,47 +778,16 @@ func (p *NowPlayingPage) snapshot(now time.Time, w, h int) *npSnapshot {
 		QueueLen:   p.queueLen,
 		TapeMins:   p.tapeMins,
 		Upcoming:   p.upcoming,
-		Lyrics:     lines,
-		LyricIndex: index,
+		Lyrics:     lyrics,
+		LyricIndex: cur,
+		Sung:       sung,
 		LyricsMode: p.lyricsMode,
 		OSD:        p.visibleOSD(now, state),
 		OSDFade:    p.osdFade(now),
 		Keys:       p.keys,
-		Angles:     p.reels.angles,
-		Deck:       deck,
+		Angles:     p.reels.Angles,
+		Deck:       frame,
 	}
-}
-
-func (p *NowPlayingPage) lyrics() ([]npLyricLine, int) {
-	if p.netease.lyricService == nil {
-		return nil, -1
-	}
-	st := p.netease.lyricService.State()
-	switch {
-	case st.YRCEnabled && len(st.YRCLines) > 0:
-		lines := make([]npLyricLine, len(st.YRCLines))
-		for i, l := range st.YRCLines {
-			var b strings.Builder
-			for _, w := range l.Words {
-				b.WriteString(w.Word)
-			}
-			lines[i].Text = b.String()
-			if st.ShowTranslation {
-				lines[i].Trans = l.TranslatedLyric
-			}
-		}
-		return lines, st.YRCLineIndex
-	case len(st.Fragments) > 0:
-		lines := make([]npLyricLine, len(st.Fragments))
-		for i, f := range st.Fragments {
-			lines[i].Text = f.Content
-			if st.ShowTranslation {
-				lines[i].Trans = st.TranslatedFragments[f.StartTimeMs]
-			}
-		}
-		return lines, st.CurrentIndex
-	}
-	return nil, -1
 }
 
 // npBoundKeys returns display labels of the user's bindings for the legend.

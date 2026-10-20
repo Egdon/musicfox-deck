@@ -59,7 +59,30 @@ type DeckPanel struct {
 func NewDeckPanel(n *Netease, h *EventHandler) *DeckPanel {
 	p := &DeckPanel{netease: n, handler: h}
 	p.motion.FloatAmount = 0.5
+	n.deckPanel = p
 	return p
+}
+
+// CassetteBox returns where the cassette was drawn in the last frame, in
+// window cells, and whether the panel showed.
+func (p *DeckPanel) CassetteBox() (deck.Rect, bool) {
+	main := p.netease.MustMain()
+	if main == nil {
+		return deck.Rect{}, false
+	}
+	x, y, _, _, ok := main.PanelRect()
+	if !ok || p.deckBox.Empty() {
+		return deck.Rect{}, false
+	}
+	b := p.deckBox
+	return deck.Rect{X: float64(x + b.Min.X), Y: float64(y + b.Min.Y), W: float64(b.Dx()), H: float64(b.Dy())}, true
+}
+
+// adopt takes over the cassette's state from the now-playing page, so the
+// panel carries on where the page left it.
+func (p *DeckPanel) adopt(m deck.Motion, r deck.Reels) {
+	m.FloatAmount = p.motion.FloatAmount
+	p.motion, p.reels = m, r
 }
 
 func (p *DeckPanel) Layout(_ *model.App, w, h int) model.SidePanelLayout {

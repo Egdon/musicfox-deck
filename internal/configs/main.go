@@ -47,37 +47,11 @@ type MainConfig struct {
 	Visualizer  VisualizerConfig `koanf:"visualizer"`
 
 	Notification NotificationConfig `koanf:"notification"`
-	NowPlaying   NowPlayingConfig   `koanf:"nowPlaying"`
 	Lyric        LyricConfig        `koanf:"lyric"`
 	Pprof        PprofConfig        `koanf:"pprof"`
 	Account      AccountConfig      `koanf:"account"`
 	// 界面语言（如 "zh"、"zh-CN"、"en"），影响 foxful-cli 内置文案。留空跟随默认（中文）
 	Locale string `koanf:"locale"`
-}
-
-// NowPlayingEffects 播放页动效级别
-type NowPlayingEffects string
-
-const (
-	NowPlayingEffectsFull   NowPlayingEffects = "full"   // 开关机、切歌扫线、磁带弹出插入、带盘转动、提示淡出
-	NowPlayingEffectsSubtle NowPlayingEffects = "subtle" // 只保留磁带弹出插入、带盘转动、提示淡出
-	NowPlayingEffectsOff    NowPlayingEffects = "off"    // 不做任何动画
-)
-
-// NowPlayingConfig 播放页相关设置
-type NowPlayingConfig struct {
-	// 动效级别：full / subtle / off
-	Effects NowPlayingEffects `koanf:"effects"`
-}
-
-// EffectsLevel 返回有效的动效级别，未知值按 full 处理
-func (c NowPlayingConfig) EffectsLevel() NowPlayingEffects {
-	switch c.Effects {
-	case NowPlayingEffectsSubtle, NowPlayingEffectsOff:
-		return c.Effects
-	default:
-		return NowPlayingEffectsFull
-	}
 }
 
 // NotificationConfig 桌面通知相关设置

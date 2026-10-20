@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-musicfox/go-musicfox/internal/structs"
 	"github.com/go-musicfox/go-musicfox/internal/types"
+	"github.com/go-musicfox/go-musicfox/internal/ui/deck"
 )
 
 // ---- framebuffer ----
@@ -310,79 +311,70 @@ func (s *npScreen) sweep(t float64) {
 	}
 }
 
-// fade blends every color towards the powered-off tube; k=1 is fully off.
+// fade blends every color towards the page background; k=1 is all background.
 func (s *npScreen) fade(k float64) {
 	if k <= 0 {
 		return
 	}
-	off := s.pal.Off()
 	for y := 0; y < s.h; y++ {
 		line := s.buf.Line(y)
 		for x := range line {
 			st := &line[x].Style
 			if st.Fg != nil {
-				st.Fg = npLerp(st.Fg, off, k)
+				st.Fg = npLerp(st.Fg, s.pal.Bg, k)
 			}
 			if st.Bg != nil {
-				st.Bg = npLerp(st.Bg, off, k)
+				st.Bg = npLerp(st.Bg, s.pal.Bg, k)
 			}
 		}
 	}
 }
 
-func (s *npScreen) blankRow(y int) {
-	for x := 0; x < s.w; x++ {
-		s.set(x, y, " ", 1, uv.Style{Bg: s.pal.Off()})
-	}
-}
-
-func (s *npScreen) blank() {
-	for y := 0; y < s.h; y++ {
-		s.blankRow(y)
-	}
-}
-
-// aperture keeps the rows within half rows of the middle visible.
-func (s *npScreen) aperture(half int) {
-	mid := s.h / 2
-	for y := 0; y < s.h; y++ {
-		if y < mid-half || y > mid+half {
-			s.blankRow(y)
+// paint replaces the screen with a rendered frame, such as another page,
+// faded towards the background by k.
+func (s *npScreen) paint(frame string, k float64) {
+	sb := uv.NewScreenBuffer(s.w, s.h) // measures cells as the renderer does
+	uv.NewStyledString(frame).Draw(sb, sb.Bounds())
+	s.buf.Clear()
+	for y := range s.h {
+		for x := range s.w {
+			c := sb.CellAt(x, y)
+			if c == nil || c.Width == 0 {
+				continue
+			}
+			// Keep the frame's widths agreeing under both measures.
+			if cl, w, _ := npNextCluster(c.Content); w != c.Width || cl != c.Content {
+				if w < 1 || w > c.Width {
+					cl, w = "?", 1
+				}
+				s.set(x, y, cl, w, c.Style)
+				for i := w; i < c.Width; i++ {
+					s.set(x+i, y, " ", 1, c.Style)
+				}
+				continue
+			}
+			s.buf.SetCell(x, y, c)
 		}
 	}
+	s.fillBackground()
+	s.fade(k)
 }
 
-func (s *npScreen) beam(y, w int) {
-	w = min(w, s.w)
-	if w <= 0 {
+// drawDeck copies the cells a cassette frame draws onto the screen at (x, y).
+func (s *npScreen) drawDeck(f *deck.Frame, x, y int) {
+	if f == nil {
 		return
 	}
-	s.repeat((s.w-w)/2, y, w, "─", uv.Style{Fg: s.pal.Secondary, Bg: s.pal.Off()})
-}
-
-// powerOn is the tube warming up over the finished frame; q runs 0→1. A thin
-// beam stretches across the middle, then the picture opens and fades in.
-func (s *npScreen) powerOn(q float64) {
-	if q < 0.35 {
-		s.blank()
-		s.beam(s.h/2, int(float64(s.w)*q/0.35))
-		return
+	for i, c := range f.Cells {
+		if c.Ch == "" {
+			continue
+		}
+		st := uv.Style{Bg: c.Bg}
+		if c.Ch != " " {
+			st.Fg = c.Fg
+		}
+		s.set(x+i%f.W, y+i/f.W, c.Ch, 1, st)
 	}
-	open := (q - 0.35) / 0.65
-	s.fade(1 - open)
-	s.aperture(int(math.Ceil(open * float64(s.h) / 2)))
-}
-
-// powerOff fades the picture while it closes into a beam that shrinks away.
-func (s *npScreen) powerOff(q float64) {
-	if q < 0.6 {
-		closing := q / 0.6
-		s.fade(closing)
-		s.aperture(int(math.Floor((1 - closing) * float64(s.h) / 2)))
-		return
-	}
-	s.blank()
-	s.beam(s.h/2, int(float64(s.w)*(1-(q-0.6)/0.4)))
 }
 
 // ---- page layout ----
@@ -407,12 +399,13 @@ type npSnapshot struct {
 	Upcoming   []structs.Song
 	Lyrics     []npLyricLine
 	LyricIndex int
+	Sung       float64 // how much of the current line has been sung, 0..1
 	LyricsMode bool
 	OSD        string
 	OSDFade    float64 // 0 shows the OSD fully, 1 hides it
 	Keys       npKeys
 	Angles     [2]float64
-	Deck       *npDeckFrame // cassette for the wide layout; nil draws none
+	Deck       *deck.Frame // the cassette on the stage; nil draws none
 }
 
 type npLyricLine struct {
@@ -517,7 +510,7 @@ func npRender(scr *npScreen, s *npSnapshot) []npHit {
 	switch {
 	case s.BlueScreen:
 		return npRenderBlueScreen(scr, s)
-	case scr.w >= 100 && scr.h >= 30 && !s.LyricsMode:
+	case npWide(scr.w, scr.h) && !s.LyricsMode:
 		return npRenderWide(scr, s)
 	case scr.w >= 60 && scr.h >= 20:
 		return npRenderStacked(scr, s)
@@ -693,8 +686,9 @@ func npLyrics(scr *npScreen, x, y, w, rows int, s *npSnapshot) {
 		var st uv.Style
 		switch {
 		case ln.dist == 0 && !ln.trans:
-			st = uv.Style{Fg: p.Hero, Attrs: uv.AttrBold}
 			scr.text(x, y+r, "▸", uv.Style{Fg: p.Accent}, 1)
+			scr.karaoke(x+2, y+r, ln.text, s.Sung, w-2)
+			continue
 		case ln.dist == 0:
 			st = uv.Style{Fg: p.Text}
 		case ln.dist <= 2:
@@ -839,37 +833,112 @@ func npLegend(scr *npScreen, y int, s *npSnapshot, onBlue bool) []npHit {
 	return hits
 }
 
+// npWide reports whether the stage layout fits.
+func npWide(w, h int) bool { return w >= 100 && h >= 28 }
+
+// npStage is where the cassette rests in the wide layout: the left part of
+// the screen, between the OSD row and the counter.
+func npStage(w, h int) (x, y, sw, sh int) {
+	return 2, 3, (w - 4) * 56 / 100, h - 10
+}
+
+// npRenderWide puts the cassette on a stage at the left; the track and its
+// lyrics run down a numbered column at the right, the counter and what plays
+// next sit under them, then the progress bar and the legend.
 func npRenderWide(scr *npScreen, s *npSnapshot) []npHit {
-	const margin = 2
 	w, h := scr.w, scr.h
 	p := scr.pal
-	rightX := w - margin - npDeckW
-	leftX, leftW := margin, rightX-4-margin
 	var hits []npHit
 
 	npHeader(scr, s)
 	npOSDRow(scr, s, 1)
 
-	npSection(scr, leftX, 3, "02", "TRACK", leftW)
-	scr.text(leftX, 5, s.Song.Name, uv.Style{Fg: p.Hero, Attrs: uv.AttrBold}, leftW)
-	scr.text(leftX, 6, npArtistAlbum(s.Song), uv.Style{Fg: p.Text}, leftW)
-	npMeta(scr, leftX, 8, leftW, s)
+	sx, sy, sw, _ := npStage(w, h)
+	scr.drawDeck(s.Deck, sx, sy)
 
-	npSection(scr, leftX, 10, "03", "COUNTER", leftW)
-	scr.counter(leftX, 11, s.Passed, p.Text, p.Ghost)
-	scr.text(leftX+npCounterWidth+4, 13, npTimes(s), uv.Style{Fg: p.Secondary}, leftW-npCounterWidth-4)
+	rx := sx + sw + 3
+	rw := w - 2 - rx
+	npSection(scr, rx, sy, "02", "TRACK", rw)
+	y := sy + 2
+	for _, line := range npWrap(s.Song.Name, rw, 2) {
+		scr.text(rx, y, line, uv.Style{Fg: p.Hero, Attrs: uv.AttrBold}, rw)
+		y++
+	}
+	scr.text(rx, y, npArtistAlbum(s.Song), uv.Style{Fg: p.Text}, rw)
+	npMeta(scr, rx, y+2, rw, s)
 
-	lyricsY := 11 + npCounterRows + 1
-	npSection(scr, leftX, lyricsY, "04", "LYRICS", leftW)
-	npLyrics(scr, leftX, lyricsY+1, leftW, h-3-lyricsY-1, s)
+	bottom := h - 6 // the counter row
+	lyricsY := y + 5
+	npSection(scr, rx, lyricsY, "03", "LYRICS", rw)
+	npLyrics(scr, rx, lyricsY+2, rw, bottom-1-lyricsY-2, s)
 
-	npDrawDeck(scr, rightX, 2, s)
-	upY := 2 + npDeckH + 1
-	npSection(scr, rightX+1, upY, "05", "UP NEXT", npDeckW-1)
-	hits = append(hits, npUpNext(scr, rightX+1, upY+1, npDeckW-1, h-3-upY-1, s)...)
+	scr.counter(sx, bottom, s.Passed, p.Text, p.Ghost)
+	scr.text(sx+npCounterWidth+3, bottom+2, npTimes(s), uv.Style{Fg: p.Secondary}, sw-npCounterWidth-3)
+	npSection(scr, rx, bottom, "04", "UP NEXT", rw)
+	hits = append(hits, npUpNext(scr, rx, bottom+1, rw, 3, s)...)
 
 	hits = append(hits, npProgressBar(scr, h-2, s)...)
 	return append(hits, npLegend(scr, h-1, s, false)...)
+}
+
+// npWrap breaks a title into at most n lines of w columns, at spaces when it
+// can; the last line ends with "…" when the title does not fit.
+func npWrap(text string, w, n int) []string {
+	text = npSanitize(text)
+	var lines []string
+	for len(lines) < n-1 && npWidth(text) > w {
+		cut, col, lastSpace := 0, 0, -1
+		for i, r := range text {
+			cw := npWidth(string(r))
+			if col+cw > w {
+				break
+			}
+			if r == ' ' {
+				lastSpace = i
+			}
+			col += cw
+			cut = i + len(string(r))
+		}
+		if lastSpace > 0 {
+			cut = lastSpace
+		}
+		lines = append(lines, strings.TrimRight(text[:cut], " "))
+		text = strings.TrimLeft(text[cut:], " ")
+	}
+	return append(lines, text)
+}
+
+// karaoke draws the line being sung: the sung part in the hero color, the
+// rest dimmer, and the character at the edge in between.
+func (s *npScreen) karaoke(x, y int, text string, sung float64, maxW int) {
+	if maxW <= 0 {
+		return
+	}
+	text = npSanitize(text)
+	total := npWidth(text)
+	edge := sung * float64(total)
+	cut := total > maxW
+	limit := maxW
+	if cut {
+		limit = maxW - 1
+	}
+	col := 0
+	for len(text) > 0 {
+		cl, w, n := npNextCluster(text)
+		text = text[n:]
+		if w == 0 {
+			continue
+		}
+		if col+w > limit {
+			break
+		}
+		lit := min(max((edge-float64(col))/float64(w), 0), 1)
+		s.set(x+col, y, cl, w, uv.Style{Fg: npLerp(s.pal.Secondary, s.pal.Hero, lit), Attrs: uv.AttrBold})
+		col += w
+	}
+	if cut {
+		s.set(x+col, y, "…", 1, uv.Style{Fg: s.pal.Secondary, Attrs: uv.AttrBold})
+	}
 }
 
 // npRenderStacked is the single-column layout for medium terminals and for

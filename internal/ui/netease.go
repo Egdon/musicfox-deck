@@ -51,6 +51,7 @@ type Netease struct {
 	login      *LoginPage
 	search     *SearchPage
 	nowPlaying *NowPlayingPage
+	deckPanel  *DeckPanel // the main screen's side panel; nil in the classic layout
 
 	lyricService *lyric.Service
 
