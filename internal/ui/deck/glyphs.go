@@ -124,6 +124,10 @@ func glyphFor(t Tier, mask uint8) string {
 type Cell struct {
 	Ch     string
 	Fg, Bg color.RGBA
+	// Shadow is set where only the cassette's shadow falls: how far it
+	// darkens what lies under the cell, 0..1. Ch, Fg and Bg draw it over the
+	// palette background.
+	Shadow float64
 }
 
 // minSplitGain is the per-sub-pixel squared error a split must remove to be

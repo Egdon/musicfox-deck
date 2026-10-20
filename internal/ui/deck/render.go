@@ -16,6 +16,18 @@ const (
 // enough for a gentle perspective.
 const camDist = 2.8 * faceW
 
+// shadowDepth is how far the cassette's shadow darkens the backdrop.
+const shadowDepth = 0.45
+
+// fitMargin is the room left around the face in the fit box for the turned
+// walls, the float and the shadow, in face units.
+const fitMargin = 12
+
+// FitAspect is the width over height of the box the cassette fills snugly,
+// both measured in the same unit: a box rows tall holds it in
+// rows × cell aspect × FitAspect columns.
+const FitAspect = (faceW + fitMargin) / (faceH + fitMargin)
+
 // Pose places the cassette in front of the camera.
 type Pose struct {
 	Yaw, Pitch, Roll float64 // radians
@@ -95,8 +107,7 @@ func newCamera(v View) camera {
 	if fit.W <= 0 || fit.H <= 0 {
 		fit = Rect{0, 0, float64(v.W), float64(v.H)}
 	}
-	// Leave room for the turned walls, the float and the shadow.
-	k := min(0.9*fit.W/(faceW+12), 0.9*fit.H*aspect/(faceH+12))
+	k := min(0.9*fit.W/(faceW+fitMargin), 0.9*fit.H*aspect/(faceH+fitMargin))
 	return camera{
 		aspect: aspect,
 		cx:     fit.X + fit.W/2,
@@ -272,18 +283,24 @@ func (r *Renderer) Render(v View, pal Palette, pose Pose, st State) *Frame {
 		px := make([]rgb, gc*gr)
 		for cy := c0; cy < c1; cy++ {
 			for cx := range bw {
-				blank := true
+				covered, dark := false, 0.0
 				for q := range gc * gr {
 					k := (cy*gr+q/gc)*sw + cx*gc + q%gc
 					cov, shadow := r.cov[k], r.shad[k]
-					under := bg.scale(1 - 0.45*shadow)
+					under := bg.scale(1 - shadowDepth*shadow)
 					px[q] = r.col[k].scale(cov).add(under.scale(1 - cov))
-					blank = blank && cov == 0 && shadow < 0.01
+					covered = covered || cov > 0
+					dark += shadow
 				}
-				if blank {
+				dark /= float64(gc * gr)
+				if !covered && dark < 0.01 {
 					continue
 				}
-				r.frame.Cells[(y0+cy)*v.W+x0+cx] = fitCell(px, v.Tier)
+				c := fitCell(px, v.Tier)
+				if !covered {
+					c.Shadow = shadowDepth * dark
+				}
+				r.frame.Cells[(y0+cy)*v.W+x0+cx] = c
 			}
 		}
 	})

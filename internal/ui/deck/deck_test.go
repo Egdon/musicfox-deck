@@ -222,6 +222,32 @@ func TestRenderIsDeterministicAndStaysInView(t *testing.T) {
 	}
 }
 
+// Cells only the shadow falls on say how dark it is; the cassette's own
+// cells do not.
+func TestShadowCellsAreMarked(t *testing.T) {
+	st := State{Radii: PackRadii(0.4, false), Lift: restLift}
+	v := View{W: 50, H: 18, Tier: Octant}
+	var r Renderer
+	f := r.Render(v, testPal, RestPose(), st)
+	x0, y0, x1, y1 := Bounds(v, RestPose())
+	shadows := 0
+	for i, c := range f.Cells {
+		x, y := float64(i%v.W)+0.5, float64(i/v.W)+0.5
+		if x > x0+1 && x < x1-1 && y > y0+1 && y < y1-1 && c.Shadow != 0 {
+			t.Fatalf("cell (%v,%v) on the cassette is marked as shadow", x, y)
+		}
+		if c.Shadow < 0 || c.Shadow > shadowDepth {
+			t.Fatalf("cell (%v,%v): shadow %v", x, y, c.Shadow)
+		}
+		if c.Shadow > 0 {
+			shadows++
+		}
+	}
+	if shadows == 0 {
+		t.Fatal("no cell is marked as shadow")
+	}
+}
+
 func TestPackRadiiConserveArea(t *testing.T) {
 	for _, p := range []float64{0, 0.25, 0.5, 1} {
 		r := ReelRadii(p)
