@@ -138,6 +138,10 @@ func (r *SpectrogramRenderer) scrollAndDraw(frame player.SpectrumFrame, height, 
 }
 
 func (r *SpectrogramRenderer) View(a *model.App, main *model.Main) (view string, lines int) {
+	// The side panel shows the lyrics and the cassette instead.
+	if main.PanelVisible() {
+		return "", 0
+	}
 	width := a.WindowWidth()
 	h := r.LineCount(main.EffectiveWindowHeight(a), main.MenuBottomRow())
 	if h <= SpectrumVerticalPadding || width <= 0 {

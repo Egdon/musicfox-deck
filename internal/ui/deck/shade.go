@@ -30,7 +30,8 @@ type scene struct {
 	radii  [2]float64
 	angles [2]float64
 	blur   float64
-	lObj   vec3 // key light in object space
+	lObj   vec3    // key light in object space
+	detail float64 // sub-pixel rows per face unit
 }
 
 // sample shades the ray from the eye in camera-space direction d.
@@ -54,7 +55,7 @@ func (sc *scene) sample(d vec3) (c rgb, m mat, covered bool) {
 		side, u = 1, faceW/2-h.p.x
 	}
 	v := h.p.y + faceH/2
-	fs := face(sc.m, u, v, side)
+	fs := face(sc.m, u, v, side, sc.detail)
 	if fs.window {
 		c, m := sc.recess(h, dObj, view, side)
 		return c, m, true

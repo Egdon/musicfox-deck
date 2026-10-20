@@ -41,8 +41,10 @@ type MainConfig struct {
 	// 播放时 UI 刷新帧率
 	FrameRate FrameRate `koanf:"frameRate"`
 	// 全局动效级别：full / subtle / off
-	Motion     string           `koanf:"motion"`
-	Visualizer VisualizerConfig `koanf:"visualizer"`
+	Motion string `koanf:"motion"`
+	// 磁带等像素图使用的块字符：auto / octant / sextant / quadrant / half
+	BlockGlyphs string           `koanf:"blockGlyphs"`
+	Visualizer  VisualizerConfig `koanf:"visualizer"`
 
 	Notification NotificationConfig `koanf:"notification"`
 	NowPlaying   NowPlayingConfig   `koanf:"nowPlaying"`

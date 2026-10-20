@@ -46,9 +46,15 @@ type ThemeConfig struct {
 	StatusBarPosition string `koanf:"statusBarPosition"`
 	// 无障碍模式
 	AccessibleMode bool `koanf:"accessibleMode"`
+	// 主界面布局：deck（曲目表加右侧磁带面板）或 classic（原版布局）
+	Layout string `koanf:"layout"`
 
 	Progress ProgressConfig `koanf:"progress"`
 }
+
+// DeckLayout reports whether the main screen uses the tracklist with the
+// cassette panel.
+func (t ThemeConfig) DeckLayout() bool { return t.Layout != "classic" }
 
 // ThemeRegistry holds all loaded themes and provides runtime theme switching support.
 type ThemeRegistry struct {

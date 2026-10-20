@@ -169,6 +169,16 @@ func (r *CoverRenderer) View(a *model.App, main *model.Main) (view string, lines
 	if !r.IsEnabled() {
 		return "", 0
 	}
+	// The side panel shows the lyrics and the cassette instead.
+	if main.PanelVisible() {
+		r.mu.Lock()
+		shown := r.imageRendered
+		r.mu.Unlock()
+		if shown {
+			r.ClearDisplayed()
+		}
+		return "", 0
+	}
 
 	// Only render when music is playing or paused (not at startup)
 	playerState := r.state.State()

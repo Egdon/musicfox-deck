@@ -52,7 +52,9 @@ const (
 )
 
 // face shades the printed and molded details of one face; side 0 is A.
-func face(m *materials, u, v float64, side int) faceSample {
+// detail is how many sub-pixel rows one face unit spans: print that would
+// not resolve is left out rather than turned into noise.
+func face(m *materials, u, v float64, side int, detail float64) faceSample {
 	sd := shellSD(u, v)
 	if sd > -1 { // chamfered rim
 		nx, ny := shellNormal2D(u, v)
@@ -74,7 +76,7 @@ func face(m *materials, u, v float64, side int) faceSample {
 		return faceSample{albedo: m.shell.scale(0.9), n: vec3{-nx * 0.5, -ny * 0.5, 0.85}.norm(), gloss: 0.5, m: matRim}
 	}
 	if roundRectSD(u-4, v-3, 68, 32, 1.5) <= 0 {
-		return labelAt(m, u, v, side)
+		return labelAt(m, u, v, side, detail)
 	}
 	if v >= 37 { // raised head area with two capstan holes and the head opening
 		spread := (v - 37) * 4 / 11
@@ -96,18 +98,32 @@ func face(m *materials, u, v float64, side int) faceSample {
 	return faceSample{albedo: m.shell, n: flatOut, gloss: 0.35, m: matShell}
 }
 
+// Print needs this many sub-pixel rows per face unit to resolve.
+const (
+	letterDetail = 0.45
+	lineDetail   = 0.5
+)
+
 // labelAt prints the label: the side letter, three writing lines, the signal
 // orange stripe and a row of small boxes under the window.
-func labelAt(m *materials, u, v float64, side int) faceSample {
+func labelAt(m *materials, u, v float64, side int, detail float64) faceSample {
 	paper := faceSample{albedo: m.label, n: flatOut, gloss: 0.1, m: matLabel}
 	ink := faceSample{albedo: m.ink, n: flatOut, gloss: 0.1, m: matInk}
-	if v >= 11.6 && v < 13.1 && u >= 6 && u <= 70 {
+	// The stripe stays at least about one sub-pixel row thick, short of the
+	// window below it.
+	if v >= 11.6 && v < 11.6+min(max(1.5, 1.1/max(detail, 0.01)), 3.6) && u >= 6 && u <= 70 {
 		return faceSample{albedo: m.stripe, n: flatOut, gloss: 0.1, m: matStripe}
+	}
+	if detail < letterDetail {
+		return paper
 	}
 	if bx, by := (u-letterU)/letterPx, (v-letterV)/letterPx; bx >= 0 && by >= 0 && bx < 5 && by < 7 {
 		if letters[side][int(by)][int(bx)] == '#' {
 			return ink
 		}
+		return paper
+	}
+	if detail < lineDetail {
 		return paper
 	}
 	if u >= 15 && u <= 69 {

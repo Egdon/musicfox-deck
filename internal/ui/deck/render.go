@@ -179,6 +179,7 @@ func (r *Renderer) Render(v View, pal Palette, pose Pose, st State) *Frame {
 	}
 
 	gc, gr := v.Tier.Grid()
+	sc.detail = cam.k * s * float64(gr) / cam.aspect
 	// The shadow falls down and to the right, farther and softer the
 	// higher the cassette floats.
 	lift := max(st.Lift, 0)

@@ -175,7 +175,7 @@ func TestRestFaceIsUnshaded(t *testing.T) {
 	m := materialsFor(testPal)
 	pose := RestPose()
 	rot := rotation(pose.Yaw, pose.Pitch, pose.Roll)
-	sc := &scene{m: &m, rot: rot, scale: 1, o: rot.applyT(vec3{0, 0, camDist}.mul(-1)), lObj: rot.applyT(keyLight)}
+	sc := &scene{m: &m, rot: rot, scale: 1, o: rot.applyT(vec3{0, 0, camDist}.mul(-1)), lObj: rot.applyT(keyLight), detail: 1}
 	// Aim at the label paper between the letter and the window.
 	target := rot.apply(vec3{30 - faceW/2, 14.5 - faceH/2, -depth / 2}).add(vec3{0, 0, camDist})
 	c, mt, ok := sc.sample(target)

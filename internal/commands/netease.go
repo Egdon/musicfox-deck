@@ -90,6 +90,11 @@ func runPlayer(_ *gcli.Command, _ []string) error {
 			options.Ticker = netease.Player().RenderTicker()
 			options.DynamicRowCount = configs.AppConfig.Theme.DynamicMenuRows
 			options.CenterEverything = configs.AppConfig.Theme.CenterEverything
+			if configs.AppConfig.Theme.DeckLayout() {
+				options.ListStyle = model.ListTracklist
+				options.SidePanel = ui.NewDeckPanel(netease, eventHandler)
+				options.MenuHeader = ui.MenuHeader
+			}
 
 		// 状态栏：若配置启用，注入队列位置与音质中间文本
 		if options.StatusBar != nil {

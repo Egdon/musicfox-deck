@@ -199,6 +199,10 @@ func (r *LyricRenderer) Update(msg tea.Msg, a *model.App) {
 
 // View renders the lyric component.
 func (r *LyricRenderer) View(a *model.App, main *model.Main) (view string, lines int) {
+	// The side panel shows the lyrics and the cassette instead.
+	if main.PanelVisible() {
+		return "", 0
+	}
 	specLines := r.netease.SpectrumLines(main)
 	endRow := r.netease.EffectiveWindowHeight() - EndRowMargin
 

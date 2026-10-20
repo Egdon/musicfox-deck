@@ -119,6 +119,8 @@ type StatusBarConfig struct {
 	TimeBg       string `toml:"timeBg"`
 	// TimeIcon precedes the clock; "" removes the default icon.
 	TimeIcon *string `toml:"timeIcon"`
+	// Label is the one-cell glyph at the left of the bar; default "»".
+	Label string `toml:"label"`
 }
 
 // MarkdownConfig holds glamour markdown theme presets.
@@ -369,6 +371,7 @@ func (v ThemeVariant) toTheme() style.Theme {
 		t.StatusBarTime.Bg = parseColor(sb.TimeBg)
 	}
 	t.StatusBarTimeIcon = sb.TimeIcon
+	t.StatusBarLabel = sb.Label
 	if sb.Nugget != "" {
 		t.StatusBarNugget = fgPtr(sb.Nugget)
 	}

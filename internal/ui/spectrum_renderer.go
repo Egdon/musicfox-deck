@@ -254,6 +254,10 @@ func (r *SpectrumRenderer) layout(windowHeight, menuBottomRow int) spectrumLayou
 func (*SpectrumRenderer) Update(tea.Msg, *model.App) {}
 
 func (r *SpectrumRenderer) View(a *model.App, main *model.Main) (view string, lines int) {
+	// The side panel shows the lyrics and the cassette instead.
+	if main.PanelVisible() {
+		return "", 0
+	}
 	width := a.WindowWidth()
 	layout := r.layout(main.EffectiveWindowHeight(a), main.MenuBottomRow())
 	if layout.barLines == 0 || width <= 0 {

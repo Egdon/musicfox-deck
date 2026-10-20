@@ -3,6 +3,7 @@ package menux
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/anhoder/foxful-cli/model"
 
@@ -18,10 +19,26 @@ func GetViewFromSongs(songs []ds.Song) []model.MenuItem {
 		for _, artist := range song.Artists {
 			artists = append(artists, artist.Name)
 		}
-		menus = append(menus, model.MenuItem{Title: _struct.ReplaceSpecialStr(song.Name), Subtitle: _struct.ReplaceSpecialStr(strings.Join(artists, ","))})
+		menus = append(menus, model.MenuItem{
+			Title:    _struct.ReplaceSpecialStr(song.Name),
+			Subtitle: _struct.ReplaceSpecialStr(strings.Join(artists, ",")),
+			Meta:     songDuration(song.Duration),
+		})
 	}
 
 	return menus
+}
+
+// songDuration formats a song length as m:ss, or h:mm:ss for long ones.
+func songDuration(d time.Duration) string {
+	if d <= 0 {
+		return ""
+	}
+	s := int(d.Round(time.Second).Seconds())
+	if s >= 3600 {
+		return fmt.Sprintf("%d:%02d:%02d", s/3600, s/60%60, s%60)
+	}
+	return fmt.Sprintf("%d:%02d", s/60, s%60)
 }
 
 // GetViewFromAlbums 从歌曲列表获取View
