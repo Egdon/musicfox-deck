@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"image/color"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -10,6 +11,7 @@ import (
 	"github.com/anhoder/foxful-cli/ansix"
 	"github.com/anhoder/foxful-cli/layout"
 	"github.com/anhoder/foxful-cli/style"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // SidePanelLayout is how a side panel wants to be laid out in a window.
@@ -193,7 +195,7 @@ func (m *Main) panelView(a *App, w, h int, g panelGeometry) string {
 	} else if m.options.WhetherDisplayTitle {
 		lines = append(lines, m.TitleView(a))
 	}
-	left := layout.JoinVertical(lipgloss.Left, m.animateMenu(a, m.menuSections(a))...)
+	left := m.stackMenu(m.animateMenu(a, m.menuSections(a)))
 	lines = append(lines, strings.Split(left, "\n")...)
 	if g.docked {
 		lines = fitRows(lines, g.y)
@@ -229,8 +231,43 @@ func (m *Main) panelView(a *App, w, h int, g panelGeometry) string {
 		lines = append(lines, strings.Split(m.statusBar.View(a, m), "\n")...)
 	}
 	lines = fitRows(lines, h)
-	return renderAppBackground(strings.Join(lines, "\n"), w, ss.AppBackground, a.appBackgroundExclusion)
+	view := renderAppBackgroundWith(strings.Join(lines, "\n"), w, ss.AppBackground, a.appBackgroundExclusion, m.widths.width)
+	m.widths.next()
+	return view
 }
+
+// stackMenu stacks the menu's sections into one block, reusing last frame's
+// block when they did not change, as they mostly do not.
+func (m *Main) stackMenu(sections []string) string {
+	if m.menuOut == "" || !slices.Equal(sections, m.menuIn) {
+		m.menuIn, m.menuOut = slices.Clone(sections), layout.JoinVertical(lipgloss.Left, sections...)
+	}
+	return m.menuOut
+}
+
+// widthMemo remembers the widths of rows measured in this and the last
+// frame: most rows do not change between frames, and measuring styled text
+// by graphemes is costly.
+type widthMemo struct{ cur, prev map[string]int }
+
+// width is ansi.StringWidth(s).
+func (w *widthMemo) width(s string) int {
+	if n, ok := w.cur[s]; ok {
+		return n
+	}
+	n, ok := w.prev[s]
+	if !ok {
+		n = ansi.StringWidth(s)
+	}
+	if w.cur == nil {
+		w.cur = map[string]int{}
+	}
+	w.cur[s] = n
+	return n
+}
+
+// next starts a frame: rows not measured in the last two are forgotten.
+func (w *widthMemo) next() { w.prev, w.cur = w.cur, nil }
 
 // fitRows pads lines with blank rows or cuts them to n.
 func fitRows(lines []string, n int) []string {

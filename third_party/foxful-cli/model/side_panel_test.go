@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/anhoder/foxful-cli/ansix"
+	"github.com/anhoder/foxful-cli/layout"
 	"github.com/anhoder/foxful-cli/style"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -146,5 +148,35 @@ func TestSidePanelDocksUnderTheMenu(t *testing.T) {
 	main.Update(tea.MouseMotionMsg{X: 7, Y: y + 2}, app)
 	if panel.lastX != 7 || panel.lastY != 2 {
 		t.Fatalf("dock got (%d,%d)", panel.lastX, panel.lastY)
+	}
+}
+
+// The width memo measures as ansi.StringWidth does and forgets rows unused
+// for two frames.
+func TestWidthMemo(t *testing.T) {
+	var m widthMemo
+	rows := []string{"", "plain", "\x1b[31m红色\x1b[m", "\x1b[1m👩‍👩‍👧\x1b[22m family"}
+	for range 3 {
+		for _, r := range rows {
+			if got, want := m.width(r), ansi.StringWidth(r); got != want {
+				t.Fatalf("%q: %d, want %d", r, got, want)
+			}
+		}
+		m.next()
+	}
+	m.next()
+	m.next()
+	if len(m.cur)+len(m.prev) != 0 {
+		t.Fatal("rows unused for two frames are still remembered")
+	}
+}
+
+// The menu block is stacked again only when its sections change.
+func TestStackMenuFollowsTheSections(t *testing.T) {
+	var m Main
+	for _, sections := range [][]string{{"ab", "c"}, {"ab", "c"}, {"ab", "\x1b[31mx\x1b[m\nyy"}, {"ab", "c"}} {
+		if got, want := m.stackMenu(sections), layout.JoinVertical(lipgloss.Left, sections...); got != want {
+			t.Fatalf("%q: %q, want %q", sections, got, want)
+		}
 	}
 }

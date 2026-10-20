@@ -110,6 +110,11 @@ type Main struct {
 	fitCur, fitPrev map[fitKey]string
 	menuTr          menuTransition
 	glide           selectionGlide
+	// The menu block the panel layout stacked last frame from menuIn, and
+	// the widths of the rows it drew in this and the last frame.
+	menuIn  []string
+	menuOut string
+	widths  widthMemo
 
 	// hoverPointerActive tracks whether the mouse is currently over a clickable
 	// element. When true, the terminal mouse pointer is set to "pointer" (hand
@@ -651,6 +656,12 @@ func (m *Main) menuSections(a *App) []string {
 // sweeps (components already paint their own cells with the background, so
 // only empty, plain-text and short rows need explicit filling).
 func renderAppBackground(content string, width int, background lipgloss.Style, exclusion backgroundRect) string {
+	return renderAppBackgroundWith(content, width, background, exclusion, ansi.StringWidth)
+}
+
+// renderAppBackgroundWith is renderAppBackground measuring styled rows with
+// measure, which must agree with ansi.StringWidth.
+func renderAppBackgroundWith(content string, width int, background lipgloss.Style, exclusion backgroundRect, measure func(string) int) string {
 	bg := background.GetBackground()
 	if bg == nil || width <= 0 {
 		return content
@@ -692,7 +703,7 @@ func renderAppBackground(content string, width int, background lipgloss.Style, e
 			start := max(exclusion.x, 0)
 			end := min(exclusion.x+exclusion.w, width)
 			if start < end {
-				if lw := ansi.StringWidth(line); lw > width {
+				if lw := measure(line); lw > width {
 					overwide = true
 				} else if lw < width {
 					line += bgSGR + strings.Repeat(" ", width-lw) + resetSGR
@@ -725,7 +736,7 @@ func renderAppBackground(content string, width int, background lipgloss.Style, e
 			// leaving unfilled cells), so measure the visible width and pad
 			// precisely. The leading SGR is a fallback for cells without an
 			// explicit background; styled cells carry their own.
-			if lw := ansi.StringWidth(line); lw > width {
+			if lw := measure(line); lw > width {
 				overwide = true
 			} else if lw < width {
 				line += bgSGR + strings.Repeat(" ", width-lw) + resetSGR
