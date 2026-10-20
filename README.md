@@ -1,43 +1,81 @@
-# musicfox-deck
+<h1 align="center">musicfox-deck</h1>
 
-**简体中文** | [English](README.en.md)
+<p align="center">
+  <a href="https://github.com/Egdon/musicfox-deck/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Egdon/musicfox-deck?include_prereleases&label=release"></a>
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-Apple%20%E8%8A%AF%E7%89%87%20%2F%20Intel-000000">
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%2F%2011-0078d4">
+  <img alt="Linux" src="https://img.shields.io/badge/Linux-x86__64%20%2F%20ARM64-fcc624">
+  <img alt="Go" src="https://img.shields.io/badge/Go-1.26-00add8">
+  <a href="https://github.com/go-musicfox/go-musicfox"><img alt="基于 go-musicfox" src="https://img.shields.io/badge/%E5%9F%BA%E4%BA%8E-go--musicfox%20v5.1.0-d2714f"></a>
+</p>
 
-磁带卡座风格的命令行网易云音乐客户端，基于 [go-musicfox](https://github.com/go-musicfox/go-musicfox) 二次开发。主界面由曲目表与实时渲染的 3D 磁带面板组成，播放页以磁带为视觉中心，页面切换、菜单、弹窗与选中项均配有过渡动效。其余功能与 go-musicfox 一致，包括多种音质、UnblockNeteaseMusic、Last.fm、MPRIS 与 DLNA 投送。
+<p align="center">磁带卡座风格的命令行网易云音乐客户端：实时渲染的 3D 磁带位于界面中心，页面切换、菜单与弹窗均配有过渡动效。</p>
 
-<p><img src="docs/assets/deck-panel.gif" alt="主界面：曲目表与磁带面板" width="880"/></p>
+<p align="center">
+  <a href="https://github.com/Egdon/musicfox-deck/releases/latest"><strong>下载最新版本</strong></a>
+  ·
+  <a href="./CHANGELOG.md">更新日志</a>
+  ·
+  <a href="https://github.com/Egdon/musicfox-deck/issues">问题反馈</a>
+  ·
+  <a href="./README.en.md">English</a>
+</p>
 
-> 与 go-musicfox 共用配置与数据目录（`go-musicfox`），可继续使用其登录状态、配置与缓存。
+## 界面预览
 
-## 特性
+### 主界面：曲目表与 3D 磁带面板
 
-- **3D 磁带**：基于透视光线投射实时渲染。在支持八分块字符的终端（Ghostty、kitty、foot 等）中以每格 2×4 子像素绘制，其他终端自动改用六分块或四分块。播放时缓慢漂浮，随鼠标倾斜，切歌时翻面，暂停时静止；两侧带盘的带层随播放进度变化。
-- **主界面**：曲目表（序号、歌名、歌手、时长）占满纵向空间，右侧磁带面板显示当前曲目、逐字歌词与播放队列。点击磁带进入播放页，点击队列中的曲目开始播放。窗口宽度小于 110 列时，面板收起为曲目表下方的播放条。
-- **播放页**：宽窗口采用舞台布局，磁带随窗口缩放，右侧为编号信息栏；窄窗口采用居中的海报布局，矮窗口采用横向布局。进出播放页时，面板中的磁带与舞台上的磁带以形变过渡衔接。
-- **动效**：页面切换、菜单进出、弹窗、通知、选中项与启动页均有 150–250 ms 的过渡，无回弹；可设为仅淡入淡出，或关闭。
-- **Warm Night 主题**：暖灰底色配米色文字，信号橙仅用于标示进行中的状态，适合夜间使用。
+![musicfox-deck 主界面：曲目表与 3D 磁带面板](./docs/assets/deck-panel.gif)
 
-## 预览
+### 播放页：漂浮的磁带与逐字歌词
 
-| 播放页：漂浮的磁带与逐字歌词 | 进入播放页：磁带放大至舞台 |
-|---|---|
-| <img src="docs/assets/now-playing.gif" alt="播放页" width="440"/> | <img src="docs/assets/morph.gif" alt="进入播放页" width="440"/> |
-| **切歌：磁带翻面** | **启动：磁带从景深处转入** |
-| <img src="docs/assets/flip.gif" alt="切歌翻面" width="440"/> | <img src="docs/assets/startup.gif" alt="启动动画" width="440"/> |
-| **菜单进出：逐行滑入** | **窄窗口：底部播放条与海报布局** |
-| <img src="docs/assets/menus.gif" alt="菜单过渡" width="440"/> | <img src="docs/assets/narrow.gif" alt="窄窗口" width="440"/> |
+![musicfox-deck 播放页：漂浮的磁带与逐字歌词](./docs/assets/now-playing.gif)
 
-## 安装
+<table>
+  <tr>
+    <td width="50%" align="center"><strong>进入播放页：磁带放大至舞台</strong></td>
+    <td width="50%" align="center"><strong>切歌：磁带翻面</strong></td>
+  </tr>
+  <tr>
+    <td><img src="./docs/assets/morph.gif" alt="进入播放页时磁带从面板放大至舞台" width="420"></td>
+    <td><img src="./docs/assets/flip.gif" alt="切歌时磁带翻面" width="420"></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><strong>启动：磁带从景深处转入</strong></td>
+    <td width="50%" align="center"><strong>菜单进出：逐行滑入</strong></td>
+  </tr>
+  <tr>
+    <td><img src="./docs/assets/startup.gif" alt="deck 启动动画" width="420"></td>
+    <td><img src="./docs/assets/menus.gif" alt="菜单进出时逐行滑入" width="420"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><strong>窄窗口：底部播放条与海报布局</strong></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="./docs/assets/narrow.gif" alt="窄窗口下的底部播放条与海报布局" width="660"></td>
+  </tr>
+</table>
 
-| 平台 | 安装方式 |
-|---|---|
-| macOS（Apple 芯片 / Intel） | `brew install egdon/tap/musicfox-deck` |
-| Windows 10 / 11（x64 / ARM64） | 下载 `windows_amd64.zip` 或 `windows_arm64.zip` 并解压 |
-| Debian / Ubuntu | 下载 `.deb`，执行 `sudo apt install ./musicfox-deck_*_amd64.deb` |
-| Fedora / openSUSE | 下载 `.rpm`，执行 `sudo dnf install ./musicfox-deck-*.x86_64.rpm` |
-| Arch Linux | 下载 `.pkg.tar.zst`，执行 `sudo pacman -U musicfox-deck-*-x86_64.pkg.tar.zst` |
-| 其他 Linux 发行版 | 下载 `linux_amd64.tar.gz`，将其中的 `musicfox` 放入 `PATH` |
+以上画面录制自程序的实际运行，磁带使用八分块字符绘制，对应 Ghostty、kitty 等终端中的效果；其他终端会自动改用较粗的字符，参见[终端与显示效果](#终端与显示效果)。
 
-安装包与压缩包均发布在 [Releases](https://github.com/Egdon/musicfox-deck/releases/latest) 页面。每个平台提供 x86_64（文件名含 `amd64` 或 `x86_64`）与 ARM64（文件名含 `arm64` 或 `aarch64`）两种架构。安装后在终端中运行 `musicfox` 启动。
+## 项目说明
+
+musicfox-deck 基于 [go-musicfox](https://github.com/go-musicfox/go-musicfox) v5.1.0 二次开发，重做了主界面、播放页与动效：新增 3D 磁带渲染器、曲目表与磁带面板、舞台式播放页、全局过渡动效与 Warm Night 主题，并提供 macOS、Windows 与 Linux 的预编译安装包。其余功能沿用 go-musicfox，配置与数据目录与之共用。
+
+本仓库不是 go-musicfox 官方仓库，也不代表原作者对本项目提供支持或背书。完整变更见[更新日志](./CHANGELOG.md)。
+
+## 下载与平台
+
+| 平台 | 安装方式 | 架构 |
+| --- | --- | --- |
+| macOS 12 及以上 | Homebrew：`brew install egdon/tap/musicfox-deck` | Apple 芯片、Intel |
+| Windows 10 / 11 | Scoop：`scoop bucket add egdon https://github.com/Egdon/scoop-bucket` 后执行 `scoop install musicfox-deck` | x64、ARM64 |
+| Debian / Ubuntu | 下载 `.deb`，执行 `sudo apt install ./musicfox-deck_*_amd64.deb` | x86_64、ARM64 |
+| Fedora / openSUSE | 下载 `.rpm`，执行 `sudo dnf install ./musicfox-deck-*.x86_64.rpm` | x86_64、ARM64 |
+| Arch Linux | 下载 `.pkg.tar.zst`，执行 `sudo pacman -U musicfox-deck-*-x86_64.pkg.tar.zst` | x86_64、ARM64 |
+| 其他 Linux 发行版 | 下载 `linux_amd64.tar.gz`，将其中的 `musicfox` 放入 `PATH` | x86_64、ARM64 |
+
+所有安装包与压缩包均发布在 [GitHub Releases](https://github.com/Egdon/musicfox-deck/releases/latest)，并附 `SHA256SUMS` 校验文件。文件名中的 `amd64` 与 `x86_64` 指 x86_64 架构，`arm64` 与 `aarch64` 指 ARM64 架构。安装后在终端中运行 `musicfox` 启动。
 
 ### macOS
 
@@ -57,7 +95,16 @@ Homebrew 安装的程序不带隔离属性，无需此步骤。`darwin_*_macapp.
 
 ### Windows
 
-解压后在 [Windows Terminal](https://aka.ms/terminal) 中运行 `musicfox.exe`，也可将其所在目录加入 `PATH`。程序未签名，从资源管理器启动时可能出现 SmartScreen 提示，选择「更多信息」→「仍要运行」。如安全软件报告异常，可使用 Releases 中的 `SHA256SUMS` 校验文件。
+推荐使用 Scoop 安装，之后可通过 `scoop update musicfox-deck` 升级：
+
+```powershell
+scoop bucket add egdon https://github.com/Egdon/scoop-bucket
+scoop install musicfox-deck
+```
+
+手动安装时，下载 `windows_amd64.zip`（x64）或 `windows_arm64.zip`（ARM64），解压后在 [Windows Terminal](https://aka.ms/terminal) 中运行 `musicfox.exe`，也可将其所在目录加入 `PATH`。
+
+程序未签名：从资源管理器启动时可能出现 SmartScreen 提示，可选择「更多信息」→「仍要运行」；开启 Windows 11 的「智能应用控制」时，未签名的程序无法运行。如安全软件报告异常，可使用 Releases 中的 `SHA256SUMS` 校验文件。
 
 ### Linux
 
@@ -72,40 +119,53 @@ deb、rpm 与 Arch 安装包会自动声明以上依赖。
 
 在 WSL 中使用 beep 播放引擎需安装 `libasound2-plugins`（参见 [microsoft/wslg#864](https://github.com/microsoft/wslg/issues/864)）。
 
-### 终端与显示
+## 功能亮点
+
+- 3D 磁带：透视光线投射实时渲染，在八分块终端中以每格 2×4 子像素绘制；播放时漂浮、随鼠标倾斜，切歌时翻面，暂停时静止，带盘的带层随播放进度变化。
+- 曲目表与磁带面板：曲目表占满纵向空间，右侧面板显示当前曲目、逐字歌词与播放队列；窗口宽度小于 110 列时，面板收起为底部播放条。
+- 舞台式播放页：宽窗口为舞台布局，窄窗口为海报布局，矮窗口为横向布局；进出播放页时，磁带以形变过渡衔接。
+- 过渡动效：页面切换、菜单进出、弹窗、通知、选中项与启动页均有 150–250 ms 的过渡，无回弹，可设为仅淡入淡出或关闭。
+- 逐字歌词：支持网易云音乐的 YRC 逐字时间轴，已唱部分逐字高亮。
+- 主题：默认的 Warm Night 以暖灰底色配米色文字，信号橙仅标示进行中的状态；另内置 Default、Dracula、Nord、Gruvbox 等主题，并支持自定义。
+- 后台加载：切歌与进入歌单在后台执行，界面不因等待网络而停顿。
+- 音质：从标准到无损、Hi-Res 与超清母带，并支持 UnblockNeteaseMusic。
+- 播放引擎：beep、mpv、MPD、macOS 原生引擎、Windows 原生引擎，以及 DLNA 投送。
+- 系统集成：MPRIS（Linux）、正在播放与桌面歌词（macOS）、系统媒体控制（Windows）、全局快捷键与 Last.fm 记录。
+- 鼠标操作：单击、双击、滚轮、悬停与右键菜单。
+
+## 终端与显示效果
 
 磁带由 Unicode 块字符绘制，显示精度取决于终端支持的字符集。`[main] blockGlyphs = "auto"`（默认）时按终端自动选择：
 
 | 终端 | 字符 | 每格子像素 |
-|---|---|---|
+| --- | --- | --- |
 | Ghostty、kitty、foot，以及较新的 GNOME Terminal 等 VTE 终端 | 八分块 | 2×4 |
 | WezTerm、iTerm2、Alacritty、Konsole、Windows Terminal | 六分块 | 2×3 |
 | tmux 内及其他终端 | 四分块 | 2×2 |
 
-需使用等宽字体。不支持 macOS 自带的「终端」与 Windows 命令提示符（CMD）。通过 SSH 使用时，建议将 `[main] motion` 设为 `subtle`。
+需使用等宽字体；不支持 macOS 自带的「终端」与 Windows 命令提示符（CMD）。通过 SSH 使用时，建议将 `[main] motion` 设为 `subtle`。
+
+## 数据存储
+
+配置文件为用户配置目录下的 `config.toml`，全部配置项参见[默认配置](./utils/filex/embed/config.toml)。
+
+| 系统 | 用户配置目录 |
+| --- | --- |
+| macOS | `$HOME/Library/Application Support/go-musicfox` |
+| Linux | `$XDG_CONFIG_HOME/go-musicfox` 或 `$HOME/.config/go-musicfox` |
+| Windows | `%AppData%\go-musicfox` |
+
+可通过环境变量 `MUSICFOX_ROOT` 指定其他目录。各种安装方式（包括 Scoop）均使用以上目录。
 
 ### 从 go-musicfox 迁移
 
-musicfox-deck 与 go-musicfox 共用配置与数据目录，登录状态、配置与缓存可继续使用。两者的可执行文件均名为 `musicfox`，不能同时安装，安装前需先卸载 go-musicfox（例如 `brew uninstall go-musicfox`）。go-musicfox 配置中缺少的新配置项可通过 `musicfox upgrade-config` 补全，参见[配置升级](#配置升级)。
+musicfox-deck 与 go-musicfox 共用配置与数据目录，登录状态、配置与缓存可继续使用。两者的可执行文件均名为 `musicfox`，不能同时安装，安装前需先卸载 go-musicfox（例如 `brew uninstall go-musicfox` 或 `scoop uninstall go-musicfox`）。
 
-### 从源码构建
+通过 Scoop 安装的 go-musicfox 将数据保存在 `~\scoop\persist\go-musicfox\data`。卸载后，将该目录中的内容复制到 `%AppData%\go-musicfox` 即可继续使用。
 
-需要 Go 1.26 及以上版本。Linux 还需要 FLAC 与 ALSA 的开发包：
+go-musicfox 配置中缺少的新配置项可通过 `musicfox upgrade-config` 补全，参见[配置升级](#配置升级)。
 
-- Debian / Ubuntu：`sudo apt install build-essential libflac-dev libasound2-dev`
-- Fedora：`sudo dnf install flac-devel alsa-lib-devel`
-- Arch Linux：`sudo pacman -S flac alsa-lib`
-
-```sh
-git clone https://github.com/Egdon/musicfox-deck
-cd musicfox-deck
-make           # 编译至 bin/musicfox
-make install   # 安装至 $GOPATH/bin
-```
-
-在 Fedora 上可执行 `./hack/rpm.sh`（需要 `rpm-build`）生成本机使用的 RPM，输出位于 `dist/`。
-
-## 使用
+## 使用说明
 
 ```sh
 musicfox
@@ -208,7 +268,7 @@ activeTheme = "Warm Night"
 animation = "deck"     # 磁带从景深处转入，字标逐字显现
 ```
 
-`blockGlyphs = "auto"` 的选择规则参见[终端与显示](#终端与显示)。
+`blockGlyphs = "auto"` 的选择规则参见[终端与显示效果](#终端与显示效果)。
 
 </details>
 <details>
@@ -533,21 +593,44 @@ song = "分享{{if .SongArtists}}{{.SongArtists}}的{{end}}单曲《{{.SongName}
 
 </details>
 
-## 配置文件
+## 本地开发
 
-配置文件为用户配置目录下的 `config.toml`，全部配置项参见[默认配置](./utils/filex/embed/config.toml)。
+环境要求：
 
-| 系统 | 用户配置目录 |
-|---|---|
-| macOS | `$HOME/Library/Application Support/go-musicfox` |
-| Linux | `$XDG_CONFIG_HOME/go-musicfox` 或 `$HOME/.config/go-musicfox` |
-| Windows | `%AppData%\go-musicfox` |
+- Go 1.26 及以上
+- Linux：FLAC 与 ALSA 开发包
+  - Debian / Ubuntu：`sudo apt install build-essential libflac-dev libasound2-dev`
+  - Fedora：`sudo dnf install flac-devel alsa-lib-devel`
+  - Arch Linux：`sudo pacman -S flac alsa-lib`
 
-可通过环境变量 `MUSICFOX_ROOT` 指定其他目录。
+编译与安装：
 
-## 更新日志
+```sh
+git clone https://github.com/Egdon/musicfox-deck
+cd musicfox-deck
+make           # 编译至 bin/musicfox
+make install   # 安装至 $GOPATH/bin
+```
 
-参见 [CHANGELOG.md](./CHANGELOG.md)。
+运行测试（`MUSICFOX_ROOT` 指向临时目录，避免改动本机数据）：
+
+```sh
+MUSICFOX_ROOT=$(mktemp -d) make test
+```
+
+构建 Linux 与 Windows 的发布包（需要 podman 或 docker，输出至 `dist/`）：
+
+```sh
+make release-snapshot
+```
+
+在 Fedora 上可执行 `./hack/rpm.sh`（需要 `rpm-build`）生成本机使用的 RPM。项目结构、发布流程与开发约定见 [AGENTS.md](./AGENTS.md)。
+
+## 问题反馈与贡献
+
+musicfox-deck 相关问题请在 [Issues](https://github.com/Egdon/musicfox-deck/issues) 反馈，并附上 `musicfox --version` 的输出、操作系统与终端、复现步骤和相关日志。
+
+提交 PR 时请保持改动聚焦，说明变更目的与影响范围；提交信息遵循 [Conventional Commits](https://www.conventionalcommits.org/)，并避免提交构建产物、私有配置或令牌。
 
 ## 相关项目
 
@@ -569,3 +652,9 @@ musicfox-deck 基于以下项目：
 - [NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi)
 - [NeteaseCloudMusicApiWithGo](https://github.com/sirodeneko/NeteaseCloudMusicApiWithGo)
 - [gcli](https://github.com/gookit/gcli)
+
+## 免责声明
+
+- musicfox-deck 是 go-musicfox 的独立二次开发版本，并非官方版本。
+- 本项目不拥有任何音乐平台的音频、歌词、封面等版权数据。
+- 使用者应自行确认所在地的法律法规与音乐平台的服务条款，并自行承担使用风险。

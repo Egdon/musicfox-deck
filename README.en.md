@@ -1,43 +1,81 @@
-# musicfox-deck
+<h1 align="center">musicfox-deck</h1>
 
-[简体中文](README.md) | **English**
+<p align="center">
+  <a href="https://github.com/Egdon/musicfox-deck/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Egdon/musicfox-deck?include_prereleases&label=release"></a>
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-Apple%20silicon%20%2F%20Intel-000000">
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%2F%2011-0078d4">
+  <img alt="Linux" src="https://img.shields.io/badge/Linux-x86__64%20%2F%20ARM64-fcc624">
+  <img alt="Go" src="https://img.shields.io/badge/Go-1.26-00add8">
+  <a href="https://github.com/go-musicfox/go-musicfox"><img alt="Based on go-musicfox" src="https://img.shields.io/badge/based%20on-go--musicfox%20v5.1.0-d2714f"></a>
+</p>
 
-A terminal client for NetEase Cloud Music with a cassette-deck interface, forked from [go-musicfox](https://github.com/go-musicfox/go-musicfox). The main screen pairs a tracklist with a 3D cassette panel rendered in real time, the now-playing page centers on the cassette, and page changes, menus, popups and the selection all have transitions. Everything else matches go-musicfox, including multiple audio qualities, UnblockNeteaseMusic, Last.fm, MPRIS and DLNA casting.
+<p align="center">A terminal client for NetEase Cloud Music with a cassette-deck interface: a 3D cassette rendered in real time sits at its center, and page changes, menus and popups all have transitions.</p>
 
-<p><img src="docs/assets/deck-panel.gif" alt="Main screen: tracklist and cassette panel" width="880"/></p>
-
-> The interface is in Simplified Chinese. musicfox-deck shares its configuration and data directory (`go-musicfox`) with go-musicfox, so an existing login, configuration and cache carry over.
-
-## Features
-
-- **3D cassette**: rendered in real time by perspective ray casting. Terminals with octant characters (Ghostty, kitty, foot and others) draw it at 2×4 subpixels per cell; other terminals fall back to sextants or quadrants. While playing, the cassette floats slowly and tilts toward the mouse; it flips over on a track change and comes to rest when paused. The tape on the two reels follows the playback position.
-- **Main screen**: the tracklist (number, title, artist, duration) fills the height, and the cassette panel on the right shows the current track, word-by-word lyrics and the play queue. Clicking the cassette opens the now-playing page; clicking a track in the queue plays it. In windows narrower than 110 columns, the panel becomes a player strip below the tracklist.
-- **Now-playing page**: wide windows use a stage layout, with the cassette scaled to the window and a numbered information column on the right; narrow windows use a centered poster layout, short windows a landscape layout. Entering and leaving the page, the panel's cassette morphs into the one on the stage and back.
-- **Motion**: page changes, menus, popups, notifications, the selection and the startup screen have 150–250 ms transitions without overshoot. Motion can be reduced to fades or turned off.
-- **Warm Night theme**: warm grey background and beige text, with signal orange reserved for what is in progress. Designed for use at night.
+<p align="center">
+  <a href="https://github.com/Egdon/musicfox-deck/releases/latest"><strong>Download the latest release</strong></a>
+  ·
+  <a href="./CHANGELOG.md">Changelog</a>
+  ·
+  <a href="https://github.com/Egdon/musicfox-deck/issues">Issues</a>
+  ·
+  <a href="./README.md">简体中文</a>
+</p>
 
 ## Preview
 
-| Now playing: floating cassette and word-by-word lyrics | Entering the page: the cassette grows onto the stage |
-|---|---|
-| <img src="docs/assets/now-playing.gif" alt="Now-playing page" width="440"/> | <img src="docs/assets/morph.gif" alt="Entering the now-playing page" width="440"/> |
-| **Track change: the cassette flips over** | **Startup: the cassette turns in from the distance** |
-| <img src="docs/assets/flip.gif" alt="Track change" width="440"/> | <img src="docs/assets/startup.gif" alt="Startup animation" width="440"/> |
-| **Menus: rows slide in** | **Narrow window: player strip and poster layout** |
-| <img src="docs/assets/menus.gif" alt="Menu transitions" width="440"/> | <img src="docs/assets/narrow.gif" alt="Narrow window" width="440"/> |
+### Main screen: tracklist and 3D cassette panel
 
-## Installation
+![musicfox-deck main screen: tracklist and 3D cassette panel](./docs/assets/deck-panel.gif)
 
-| Platform | Method |
-|---|---|
-| macOS (Apple silicon / Intel) | `brew install egdon/tap/musicfox-deck` |
-| Windows 10 / 11 (x64 / ARM64) | Download and extract `windows_amd64.zip` or `windows_arm64.zip` |
-| Debian / Ubuntu | Download the `.deb`, then `sudo apt install ./musicfox-deck_*_amd64.deb` |
-| Fedora / openSUSE | Download the `.rpm`, then `sudo dnf install ./musicfox-deck-*.x86_64.rpm` |
-| Arch Linux | Download the `.pkg.tar.zst`, then `sudo pacman -U musicfox-deck-*-x86_64.pkg.tar.zst` |
-| Other Linux distributions | Download `linux_amd64.tar.gz` and put `musicfox` on your `PATH` |
+### Now playing: the floating cassette and word-by-word lyrics
 
-Packages and archives are published on the [Releases](https://github.com/Egdon/musicfox-deck/releases/latest) page, each platform for x86_64 (`amd64` or `x86_64` in the file name) and ARM64 (`arm64` or `aarch64`). Once installed, run `musicfox` in a terminal.
+![musicfox-deck now-playing page: floating cassette and word-by-word lyrics](./docs/assets/now-playing.gif)
+
+<table>
+  <tr>
+    <td width="50%" align="center"><strong>Entering the page: the cassette grows onto the stage</strong></td>
+    <td width="50%" align="center"><strong>Track change: the cassette flips over</strong></td>
+  </tr>
+  <tr>
+    <td><img src="./docs/assets/morph.gif" alt="The cassette grows from the panel onto the stage" width="420"></td>
+    <td><img src="./docs/assets/flip.gif" alt="The cassette flips over on a track change" width="420"></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><strong>Startup: the cassette turns in from the distance</strong></td>
+    <td width="50%" align="center"><strong>Menus: rows slide in</strong></td>
+  </tr>
+  <tr>
+    <td><img src="./docs/assets/startup.gif" alt="The deck startup animation" width="420"></td>
+    <td><img src="./docs/assets/menus.gif" alt="Menu rows slide in" width="420"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><strong>Narrow window: player strip and poster layout</strong></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="./docs/assets/narrow.gif" alt="Player strip and poster layout in a narrow window" width="660"></td>
+  </tr>
+</table>
+
+These recordings come from the program running for real. The cassette is drawn with octant characters, as in Ghostty, kitty and similar terminals; other terminals fall back to coarser characters, see [Terminals and display](#terminals-and-display). The interface is in Simplified Chinese.
+
+## About
+
+musicfox-deck is a fork of [go-musicfox](https://github.com/go-musicfox/go-musicfox) v5.1.0 that reworks the main screen, the now-playing page and the motion: it adds a 3D cassette renderer, a tracklist with a cassette panel, a stage-style now-playing page, transitions throughout and the Warm Night theme, and ships prebuilt packages for macOS, Windows and Linux. Everything else comes from go-musicfox, and the two share their configuration and data directory.
+
+This repository is not the official go-musicfox repository, and its original authors do not support or endorse this project. All changes are listed in the [changelog](./CHANGELOG.md).
+
+## Downloads and platforms
+
+| Platform | Installation | Architectures |
+| --- | --- | --- |
+| macOS 12 or later | Homebrew: `brew install egdon/tap/musicfox-deck` | Apple silicon, Intel |
+| Windows 10 / 11 | Scoop: `scoop bucket add egdon https://github.com/Egdon/scoop-bucket`, then `scoop install musicfox-deck` | x64, ARM64 |
+| Debian / Ubuntu | Download the `.deb`, then `sudo apt install ./musicfox-deck_*_amd64.deb` | x86_64, ARM64 |
+| Fedora / openSUSE | Download the `.rpm`, then `sudo dnf install ./musicfox-deck-*.x86_64.rpm` | x86_64, ARM64 |
+| Arch Linux | Download the `.pkg.tar.zst`, then `sudo pacman -U musicfox-deck-*-x86_64.pkg.tar.zst` | x86_64, ARM64 |
+| Other Linux distributions | Download `linux_amd64.tar.gz` and put `musicfox` on your `PATH` | x86_64, ARM64 |
+
+Every package and archive is published on [GitHub Releases](https://github.com/Egdon/musicfox-deck/releases/latest) together with a `SHA256SUMS` file. `amd64` and `x86_64` in file names both mean x86_64; `arm64` and `aarch64` both mean ARM64. Once installed, run `musicfox` in a terminal.
 
 ### macOS
 
@@ -57,7 +95,16 @@ Binaries installed by Homebrew carry no quarantine attribute and need no such st
 
 ### Windows
 
-Extract the archive and run `musicfox.exe` in [Windows Terminal](https://aka.ms/terminal), or add its directory to your `PATH`. The binary is not signed; started from File Explorer, it may bring up a SmartScreen prompt, where "More info" → "Run anyway" lets it run. If security software reports it, check the file against `SHA256SUMS` on the Releases page.
+Scoop is the recommended method; `scoop update musicfox-deck` upgrades it later:
+
+```powershell
+scoop bucket add egdon https://github.com/Egdon/scoop-bucket
+scoop install musicfox-deck
+```
+
+To install manually, download `windows_amd64.zip` (x64) or `windows_arm64.zip` (ARM64), extract it and run `musicfox.exe` in [Windows Terminal](https://aka.ms/terminal), or add its directory to your `PATH`.
+
+The binary is not signed. Started from File Explorer, it may bring up a SmartScreen prompt, where "More info" → "Run anyway" lets it run; with Smart App Control turned on in Windows 11, unsigned programs cannot run. If security software reports it, check the file against `SHA256SUMS` on the Releases page.
 
 ### Linux
 
@@ -72,38 +119,51 @@ Web login needs WebKitGTK 4.1 (Debian / Ubuntu: `libwebkit2gtk-4.1-0`; Fedora: `
 
 The beep engine needs `libasound2-plugins` under WSL (see [microsoft/wslg#864](https://github.com/microsoft/wslg/issues/864)).
 
-### Terminals and display
+## Highlights
+
+- 3D cassette: rendered in real time by perspective ray casting, at 2×4 subpixels per cell in terminals with octant characters. It floats while playing, tilts toward the mouse, flips over on a track change and comes to rest when paused; the tape on its reels follows the playback position.
+- Tracklist and cassette panel: the tracklist fills the height, and the panel on the right shows the current track, word-by-word lyrics and the play queue. In windows narrower than 110 columns, the panel becomes a player strip at the bottom.
+- Stage-style now-playing page: a stage layout in wide windows, a poster layout in narrow ones and a landscape layout in short ones; the cassette morphs between the panel and the stage when entering and leaving.
+- Transitions: page changes, menus, popups, notifications, the selection and the startup screen have 150–250 ms transitions without overshoot. Motion can be reduced to fades or turned off.
+- Word-by-word lyrics: NetEase YRC word timing, lighting up each word as it is sung.
+- Themes: the default Warm Night pairs a warm grey background with beige text and keeps signal orange for what is in progress; Default, Dracula, Nord, Gruvbox and others are built in, and custom themes are supported.
+- Background loading: track changes and playlists load in the background, so the interface never waits on the network.
+- Audio quality: from standard up to lossless, Hi-Res and master quality, with UnblockNeteaseMusic support.
+- Playback engines: beep, mpv, MPD, the native macOS and Windows engines, and DLNA casting.
+- System integration: MPRIS (Linux), Now Playing and desktop lyrics (macOS), system media controls (Windows), global hotkeys and Last.fm scrobbling.
+- Mouse: click, double-click, scroll wheel, hover and right-click menus.
+
+## Terminals and display
 
 The cassette is drawn with Unicode block characters, so its detail depends on the characters a terminal supports. With `[main] blockGlyphs = "auto"` (the default) the characters follow the terminal:
 
 | Terminal | Characters | Subpixels per cell |
-|---|---|---|
+| --- | --- | --- |
 | Ghostty, kitty, foot, and VTE terminals such as recent GNOME Terminal | Octants | 2×4 |
 | WezTerm, iTerm2, Alacritty, Konsole, Windows Terminal | Sextants | 2×3 |
 | Inside tmux, and other terminals | Quadrants | 2×2 |
 
 A monospaced font is required. The macOS Terminal app and the Windows Command Prompt (CMD) are not supported. Over SSH, `[main] motion = "subtle"` is recommended.
 
+## Data storage
+
+The configuration file is `config.toml` in the user configuration directory; the [default configuration](./utils/filex/embed/config.toml) lists every setting, with comments in Chinese.
+
+| System | User configuration directory |
+| --- | --- |
+| macOS | `$HOME/Library/Application Support/go-musicfox` |
+| Linux | `$XDG_CONFIG_HOME/go-musicfox` or `$HOME/.config/go-musicfox` |
+| Windows | `%AppData%\go-musicfox` |
+
+The `MUSICFOX_ROOT` environment variable selects another directory. Every installation method, Scoop included, uses these directories.
+
 ### Migrating from go-musicfox
 
-musicfox-deck shares the configuration and data directory with go-musicfox, so the login, configuration and cache stay in use. Both install an executable named `musicfox` and cannot be installed side by side: uninstall go-musicfox first (for example `brew uninstall go-musicfox`). Settings that are new in musicfox-deck can be added to an existing configuration with `musicfox upgrade-config`; see [Configuration upgrade](#configuration-upgrade).
+musicfox-deck shares the configuration and data directory with go-musicfox, so the login, configuration and cache stay in use. Both install an executable named `musicfox` and cannot be installed side by side: uninstall go-musicfox first (for example `brew uninstall go-musicfox` or `scoop uninstall go-musicfox`).
 
-### Building from source
+go-musicfox installed with Scoop keeps its data in `~\scoop\persist\go-musicfox\data`. After uninstalling it, copy the contents of that directory to `%AppData%\go-musicfox` to keep using them.
 
-Requires Go 1.26 or later. On Linux, the FLAC and ALSA development packages are needed as well:
-
-- Debian / Ubuntu: `sudo apt install build-essential libflac-dev libasound2-dev`
-- Fedora: `sudo dnf install flac-devel alsa-lib-devel`
-- Arch Linux: `sudo pacman -S flac alsa-lib`
-
-```sh
-git clone https://github.com/Egdon/musicfox-deck
-cd musicfox-deck
-make           # builds bin/musicfox
-make install   # installs to $GOPATH/bin
-```
-
-On Fedora, `./hack/rpm.sh` (requires `rpm-build`) builds an RPM for the local system into `dist/`.
+Settings that are new in musicfox-deck can be added to an existing configuration with `musicfox upgrade-config`; see [Configuration upgrade](#configuration-upgrade).
 
 ## Usage
 
@@ -533,21 +593,44 @@ song = "Listening to {{.SongName}}{{if .SongArtists}} by {{.SongArtists}}{{end}}
 
 </details>
 
-## Configuration
+## Development
 
-The configuration file is `config.toml` in the user configuration directory; the [default configuration](./utils/filex/embed/config.toml) lists every setting, with comments in Chinese.
+Requirements:
 
-| System | User configuration directory |
-|---|---|
-| macOS | `$HOME/Library/Application Support/go-musicfox` |
-| Linux | `$XDG_CONFIG_HOME/go-musicfox` or `$HOME/.config/go-musicfox` |
-| Windows | `%AppData%\go-musicfox` |
+- Go 1.26 or later
+- On Linux, the FLAC and ALSA development packages:
+  - Debian / Ubuntu: `sudo apt install build-essential libflac-dev libasound2-dev`
+  - Fedora: `sudo dnf install flac-devel alsa-lib-devel`
+  - Arch Linux: `sudo pacman -S flac alsa-lib`
 
-The `MUSICFOX_ROOT` environment variable selects another directory.
+Build and install:
 
-## Changelog
+```sh
+git clone https://github.com/Egdon/musicfox-deck
+cd musicfox-deck
+make           # builds bin/musicfox
+make install   # installs to $GOPATH/bin
+```
 
-See [CHANGELOG.md](./CHANGELOG.md).
+Run the tests (`MUSICFOX_ROOT` points at a temporary directory, leaving the local data alone):
+
+```sh
+MUSICFOX_ROOT=$(mktemp -d) make test
+```
+
+Build the Linux and Windows release packages (requires podman or docker; the output goes to `dist/`):
+
+```sh
+make release-snapshot
+```
+
+On Fedora, `./hack/rpm.sh` (requires `rpm-build`) builds an RPM for the local system. The project layout, the release process and the conventions are described in [AGENTS.md](./AGENTS.md) (in Chinese).
+
+## Issues and contributions
+
+Report problems with musicfox-deck in [Issues](https://github.com/Egdon/musicfox-deck/issues), with the output of `musicfox --version`, the operating system and terminal, the steps to reproduce and any relevant logs.
+
+Keep pull requests focused and describe their purpose and impact; commit messages follow [Conventional Commits](https://www.conventionalcommits.org/). Do not commit build output, private configuration or tokens.
 
 ## Related projects
 
@@ -569,3 +652,9 @@ And the projects go-musicfox thanks, with their contributors (among others):
 - [NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi)
 - [NeteaseCloudMusicApiWithGo](https://github.com/sirodeneko/NeteaseCloudMusicApiWithGo)
 - [gcli](https://github.com/gookit/gcli)
+
+## Disclaimer
+
+- musicfox-deck is an independent fork of go-musicfox, not an official version.
+- This project owns no audio, lyrics, cover art or other copyrighted data of any music platform.
+- Users are responsible for checking the laws where they live and the terms of the music platforms, and use the software at their own risk.
