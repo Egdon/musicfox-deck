@@ -33,6 +33,22 @@ func deckTier(a *model.App) deck.Tier {
 	return deck.DetectTier(deck.Terminal{Getenv: os.Getenv, Version: version})
 }
 
+// GlideSteps returns how many steps of a row the tracklist's selection
+// marker can glide by, from the block glyphs the terminal draws.
+func GlideSteps(n *Netease) func() int {
+	return func() int {
+		switch deckTier(n.App) {
+		case deck.Octant:
+			return 4
+		case deck.Sextant:
+			return 3
+		case deck.Quadrant:
+			return 2
+		}
+		return 0
+	}
+}
+
 // deckAspect is the terminal's cell height over width, 0 when unknown. Some
 // terminals and multiplexers report a made-up cell size; only plausible
 // shapes count.

@@ -94,6 +94,10 @@ func runPlayer(_ *gcli.Command, _ []string) error {
 				options.ListStyle = model.ListTracklist
 				options.SidePanel = ui.NewDeckPanel(netease, eventHandler)
 				options.MenuHeader = ui.MenuHeader
+				options.Motion.GlideSteps = ui.GlideSteps(netease)
+			}
+			if configs.AppConfig.Startup.Animation == ui.StartupDeck {
+				options.StartupOptions.View = ui.NewDeckStartup().View
 			}
 
 		// 状态栏：若配置启用，注入队列位置与音质中间文本

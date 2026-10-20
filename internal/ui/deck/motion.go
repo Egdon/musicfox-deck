@@ -122,6 +122,9 @@ const (
 	restLift     = 2.0
 )
 
+// RestLift is how high the cassette rests above the backdrop, in face units.
+const RestLift = restLift
+
 // Motion moves the cassette as a whole: it floats while music plays, leans
 // towards the pointer, settles when paused and flips over to change tracks.
 type Motion struct {

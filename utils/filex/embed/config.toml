@@ -14,7 +14,7 @@ progressOutBounce = true
 loadingSeconds = 2
 # 启动页欢迎语
 welcome = "musicfox"
-# 启动页动画：sequence、fade-in、rainbow-wave、typewriter、spinner、slide-in、glitch、matrix-rain、particle-burst
+# 启动页动画：deck（磁带从景深处转入，字标逐字浮现）、sequence、fade-in、rainbow-wave、typewriter、spinner、slide-in、glitch、matrix-rain、particle-burst
 animation = "sequence"
 # 是否停用启动页动画以减少动态效果
 reducedMotion = false
