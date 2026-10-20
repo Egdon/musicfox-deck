@@ -106,6 +106,8 @@ type Main struct {
 	panelHover   bool
 	panelCapture bool
 	panelPointer string
+	// Lines fitted for the panel layout in this and the last frame.
+	fitCur, fitPrev map[fitKey]string
 
 	// hoverPointerActive tracks whether the mouse is currently over a clickable
 	// element. When true, the terminal mouse pointer is set to "pointer" (hand

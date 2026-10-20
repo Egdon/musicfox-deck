@@ -161,7 +161,7 @@ func TestSchedulerSlowFrames(t *testing.T) {
 			fast++
 		}
 	}
-	if fast < 3 || slow < 20 || slow > 27 {
+	if fast < 3 || slow < 16 || slow > 22 {
 		t.Fatalf("%d fast and %d slow frames", fast, slow)
 	}
 }

@@ -119,7 +119,7 @@ func cursorColumn(x int) string { return fmt.Sprintf("\x1b[%dG", x+1) }
 
 // joinPanel places the panel's lines to the right of the left column, from
 // the top of the panel.
-func joinPanel(left []string, panel string, g panelGeometry, bgSGR string) []string {
+func (m *Main) joinPanel(left []string, panel string, g panelGeometry, bgSGR string) []string {
 	pl := strings.Split(panel, "\n")
 	out := make([]string, len(left))
 	for i, line := range left {
@@ -132,9 +132,33 @@ func joinPanel(left []string, panel string, g panelGeometry, bgSGR string) []str
 		if row < len(pl) {
 			p = pl[row]
 		}
-		out[i] = ansix.Fit(line, g.x, bgSGR) + cursorColumn(g.x) + ansix.Fit(p, g.w, bgSGR)
+		out[i] = m.fitCached(line, g.x, bgSGR) + cursorColumn(g.x) + m.fitCached(p, g.w, bgSGR)
 	}
+	m.fitPrev, m.fitCur = m.fitCur, map[fitKey]string{}
 	return out
+}
+
+type fitKey struct {
+	line, pad string
+	w         int
+}
+
+// fitCached fits a line, reusing the result from this or the last frame:
+// most lines do not change between frames.
+func (m *Main) fitCached(line string, w int, pad string) string {
+	k := fitKey{line, pad, w}
+	if s, ok := m.fitCur[k]; ok {
+		return s
+	}
+	s, ok := m.fitPrev[k]
+	if !ok {
+		s = ansix.Fit(line, w, pad)
+	}
+	if m.fitCur == nil {
+		m.fitCur = map[fitKey]string{}
+	}
+	m.fitCur[k] = s
+	return s
 }
 
 // panelView lays Main out next to the side panel: the top bar, the menu
@@ -153,7 +177,7 @@ func (m *Main) panelView(a *App, w, h int, g panelGeometry) string {
 	left := layout.JoinVertical(lipgloss.Left, m.menuSections(a)...)
 	lines = append(lines, strings.Split(left, "\n")...)
 	lines = fitRows(lines, g.y+g.h)
-	lines = joinPanel(lines, m.options.SidePanel.View(a, m, g.w, g.h), g, bgSGR)
+	lines = m.joinPanel(lines, m.options.SidePanel.View(a, m, g.w, g.h), g, bgSGR)
 
 	var footer []string
 	for _, c := range m.components {
