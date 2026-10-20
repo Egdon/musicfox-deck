@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/anhoder/foxful-cli/model"
@@ -85,6 +86,9 @@ type Player struct {
 	ctrl         chan CtrlSignal
 
 	renderTicker *tickerByPlayer // renderTicker 用于渲染
+
+	// playSeq 递增标记每次 PlaySong；解析播放地址期间若有更新的切歌，旧的这次放弃播放。
+	playSeq atomic.Uint64
 
 	// mprisPosThrottle 限制 MPRIS Position 属性更新频率：每个时间 tick 都
 	// 广播会以 UI 帧率灌满 DBus 会话总线（60fps 时 60 次/秒）。
@@ -240,6 +244,7 @@ func (p *Player) LocatePlayingSong() {
 
 // PlaySong 播放歌曲
 func (p *Player) PlaySong(song structs.Song, direction PlayDirection) {
+	seq := p.playSeq.Add(1)
 	p.reporter.ReportEnd(p.PlayedTime())
 
 	loading := model.NewLoading(p.netease.MustMain())
@@ -256,6 +261,9 @@ func (p *Player) PlaySong(song structs.Song, direction PlayDirection) {
 	p.LocatePlayingSong()
 	p.Pause()
 	url, musicType, err := p.getPlayInfo(song)
+	if p.playSeq.Load() != seq {
+		return // a later switch took over while the URL was resolved
+	}
 
 	var skip bool
 	logger := slog.With(slog.String("url", url), slog.String("type", musicType), slog.Any("song", song))
@@ -305,6 +313,16 @@ func (p *Player) PlaySong(song structs.Song, direction PlayDirection) {
 	})
 
 	p.playErrCount = 0
+}
+
+// async runs a track switch off the UI goroutine: resolving the song URL is
+// a network request, and the interface keeps animating meanwhile. PlaySong
+// plays only the latest of overlapping switches.
+func (p *Player) async(switchTrack func()) {
+	errorx.Go(func() {
+		switchTrack()
+		p.netease.Rerender(false)
+	}, true)
 }
 
 func (p *Player) StartPlay() {

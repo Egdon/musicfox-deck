@@ -161,10 +161,10 @@ func handleGenericContextAction(n *Netease, a *model.App, id string) (model.Page
 		n.player.Toggle()
 		return nil, a.RerenderCmd(true)
 	case "generic:prev":
-		n.player.PreviousSong(true)
+		n.player.async(func() { n.player.PreviousSong(true) })
 		return nil, a.RerenderCmd(true)
 	case "generic:next":
-		n.player.NextSong(true)
+		n.player.async(func() { n.player.NextSong(true) })
 		return nil, a.RerenderCmd(true)
 	case "generic:switchTheme":
 		registry := configs.CurrentThemeRegistry()

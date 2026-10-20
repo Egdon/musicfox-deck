@@ -134,9 +134,9 @@ func (h *EventHandler) handle(op keybindings.OperateType) (bool, model.Page, tea
 		}
 		player.Seek(newTime)
 	case keybindings.OpPrevious:
-		player.PreviousSong(true)
+		player.async(func() { player.PreviousSong(true) })
 	case keybindings.OpNext:
-		player.NextSong(true)
+		player.async(func() { player.NextSong(true) })
 	case keybindings.OpSwitchPlayMode:
 		player.SwitchMode()
 	case keybindings.OpIntelligence:
@@ -393,7 +393,7 @@ func playOrToggle(netease *Netease, selectedIndex int) {
 		case types.Playing:
 			player.Pause()
 		case types.Stopped:
-			player.StartPlay()
+			player.async(player.StartPlay)
 		}
 		return
 	}
@@ -405,7 +405,7 @@ func playOrToggle(netease *Netease, selectedIndex int) {
 		case types.Playing:
 			player.Pause()
 		case types.Stopped:
-			player.StartPlay()
+			player.async(player.StartPlay)
 		}
 		return
 	}
@@ -426,7 +426,7 @@ func playOrToggle(netease *Netease, selectedIndex int) {
 	}
 
 	player.playlistUpdateAt = time.Now()
-	player.StartPlay()
+	player.async(player.StartPlay)
 }
 
 // MouseMsgHandle 处理鼠标事件。

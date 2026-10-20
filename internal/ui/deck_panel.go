@@ -232,7 +232,7 @@ func deckPanelCassette(w, h int, aspect float64) (cw, ch int) {
 		aspect = 2
 	}
 	cw = w - 2
-	return cw, min(int(float64(cw)*60/88/aspect+0.5), max((h-12)/2, 4))
+	return cw, min(int(float64(cw)*60/88/aspect+0.5), max((h-8)/2, 4))
 }
 
 // deckPanelSnapshot is what the panel shows in one frame.
@@ -412,12 +412,14 @@ func (p *DeckPanel) jump(k int) {
 	if player.Mode() == types.PmSingleLoop {
 		return
 	}
-	for range k {
-		if _, err := player.playlistManager.NextSong(true); err != nil {
-			return
+	player.async(func() {
+		for range k {
+			if _, err := player.playlistManager.NextSong(true); err != nil {
+				return
+			}
 		}
-	}
-	player.NextSong(true)
+		player.NextSong(true)
+	})
 }
 
 // MenuHeader adds units to the item count in a tracklist's section header.

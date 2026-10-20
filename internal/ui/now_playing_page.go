@@ -33,12 +33,6 @@ const (
 // npRenderMsg redraws the page; App.Rerender sends it to the current page.
 type npRenderMsg struct{}
 
-// npDeferredMsg runs a blocking action after the frame announcing it is drawn.
-type npDeferredMsg struct {
-	gen int
-	run func()
-}
-
 type npQueueKey struct {
 	songID    int64
 	index     int
@@ -51,8 +45,6 @@ type npQueueKey struct {
 type NowPlayingPage struct {
 	netease *Netease
 	handler *EventHandler
-
-	gen int // discards deferred actions of an earlier visit
 
 	level      motion.Level
 	lyricsMode bool
@@ -121,7 +113,6 @@ func (p *NowPlayingPage) Msg() tea.Msg {
 // enter resets the page each time it is shown. The cassette carries on from
 // the panel's, so the morph starts from exactly what was on screen.
 func (p *NowPlayingPage) enter(now time.Time) {
-	p.gen++
 	p.level = p.netease.MotionLevel()
 	p.keys = npBoundKeys()
 	p.morphIn, p.morphOut, p.fromFrame, p.toFrame = time.Time{}, time.Time{}, "", ""
@@ -170,10 +161,6 @@ func (p *NowPlayingPage) HandlePageTransition(a *model.App, tx model.PageTransit
 func (p *NowPlayingPage) Update(msg tea.Msg, a *model.App) (model.Page, tea.Cmd) {
 	now := time.Now()
 	switch m := msg.(type) {
-	case npDeferredMsg:
-		if m.gen == p.gen {
-			m.run()
-		}
 	case tea.WindowSizeMsg:
 		// Keep Main's geometry current so that returning to it does not
 		// flash a frame laid out for the old size.
@@ -423,22 +410,17 @@ func (p *NowPlayingPage) switchMode(now time.Time) {
 	p.showOSD(osdModeText(player.Mode()), now, npEventOSDDuration)
 }
 
-// switchTrack turns the cassette over and switches halfway: PlaySong
-// resolves the song URL synchronously, and the UI then freezes while the
-// cassette is edge-on rather than on a stale picture.
+// switchTrack turns the cassette over while the player switches in the
+// background.
 func (p *NowPlayingPage) switchTrack(now time.Time, osd string, dir int, run func()) tea.Cmd {
 	p.showOSD(osd, now, npEventOSDDuration)
 	p.startSweep(now)
-	delay := 16 * time.Millisecond
 	if p.level == motion.Full {
 		p.motion.Flip(dir, now)
 		p.flipAt, p.flipDir = now, dir
-		delay = deck.FlipDuration / 2
 	}
-	gen := p.gen
-	return tea.Tick(delay, func(time.Time) tea.Msg {
-		return npDeferredMsg{gen: gen, run: run}
-	})
+	p.netease.player.async(run)
+	return nil
 }
 
 // jumpTo plays the k-th song of the up-next list. Stepping the playlist keeps
@@ -489,7 +471,6 @@ func (p *NowPlayingPage) startExit(a *model.App, now time.Time, to model.Page) (
 }
 
 func (p *NowPlayingPage) leave(a *model.App) (model.Page, tea.Cmd) {
-	p.gen++
 	morphed := !p.morphOut.IsZero()
 	p.morphOut = time.Time{}
 	if panel := p.netease.deckPanel; panel != nil {
