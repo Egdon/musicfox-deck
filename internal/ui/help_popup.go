@@ -8,7 +8,6 @@ import (
 	"github.com/anhoder/foxful-cli/model"
 
 	"github.com/go-musicfox/go-musicfox/internal/keybindings"
-	"github.com/go-musicfox/go-musicfox/internal/types"
 )
 
 // buildHelpMarkdown 依据当前生效的键位绑定生成帮助文档（Markdown 表格）。
@@ -29,10 +28,7 @@ func buildHelpMarkdown() string {
 	slices.Sort(customOps)
 
 	var sb strings.Builder
-	sb.WriteString("# go-musicfox 快捷键\n\n")
-	sb.WriteString("[进来给个 star ⭐️ 呗~](")
-	sb.WriteString(types.AppGithubUrl)
-	sb.WriteString(")\n\n")
+	sb.WriteString("# musicfox-deck 快捷键\n\n")
 
 	writeGroup := func(title string, ops []keybindings.OperateType) {
 		rows := make([]string, 0, len(ops))

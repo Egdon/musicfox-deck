@@ -268,7 +268,6 @@ brews:
       head "https://github.com/go-musicfox/go-musicfox.git"
       depends_on "go", "git" => :build if build.head?
     install: |
-      system 'echo', '-e', "\033[1;33m给个star✨吧~\033[0m \033[4;36mhttps://github.com/go-musicfox/go-musicfox \033[0m"
       if build.head?
         system 'git', 'fetch', '--tags'
         if OS.mac?
@@ -300,10 +299,6 @@ homebrew_casks:
       email: anhoder@88.com
     commit_msg_template: "Brew cask update for {{ .ProjectName }} version {{ .Tag }}"
     directory: Casks
-    hooks:
-      post:
-        install: |
-          system 'echo', '-e', "\033[1;33m给个star✨吧~\033[0m \033[4;36mhttps://github.com/go-musicfox/go-musicfox \033[0m"
   - name: "{{ .Env.HOMEBREW_NAME }}-macapp"
     repository:
       owner: go-musicfox
@@ -326,7 +321,6 @@ homebrew_casks:
       post:
         install: |
           system 'xattr', '-r', '-d', 'com.apple.quarantine', '--', "#{caskroom_path}/#{version}/musicfox.app"
-          system 'echo', '-e', "\033[1;33m给个star✨吧~\033[0m \033[4;36mhttps://github.com/go-musicfox/go-musicfox \033[0m"
 
 winget:
   - name: go-musicfox
@@ -380,7 +374,6 @@ winget:
 #  description: "go-musicfox是用Go写的又一款网易云音乐命令行客户端，支持UnblockNeteaseMusic、各种音质级别、lastfm、MPRIS..."
 #  license: GPL-3.0
 #
-#  post_install: ["Write-Host '好用记得给go-musicfox一个star✨哦~'"]
 
 release:
   github:
